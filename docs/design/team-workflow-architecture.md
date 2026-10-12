@@ -704,7 +704,7 @@ func (s *Scanner) Scan(root Root) ([]Item, error)
 
 #### 3.2.8 `~/.agents/skills` 共享目录
 
-- `~/.agents/skills` 是 Agent Skills 的中央目录（teamai `KNOWN_AGENTS` 中 id 为 `agents` 的条目，`teamai:src/known-agents.ts`）。Codex 会读取它；teamai 只在"能证明某份副本归自己所有"时，才替 Codex 写这个目录（`teamai:src/resources/skills.ts`，#993）。
+- `~/.agents/skills` 是 Agent Skills 的中央目录（teamai `KNOWN_AGENTS` 中 id 为 `agents` 的条目，`teamai:src/known-agents.ts`）。兼容客户端可以读取它；teamai 只在"能证明某份副本归自己所有"时，才写入这个目录（`teamai:src/resources/skills.ts`，#993）。
 - gogosling 的做法是把它当作**可选的只读个人技能源**：
   - 设置项 `skills.shared_dirs`，默认为空；UI 中提供一个"同时使用 ~/.agents/skills"开关。
   - 扫描方式与投放区相同，导入为 `Source: shared:<dir>/<name>`，信任等级 `local`（作者不确定），属于内容类。
@@ -3273,7 +3273,7 @@ func LooksLikeSecret(value string) bool                  // 用于 MCP/env 值�
 **约定**：
 
 - 每个里程碑的 `-00` 是共享文件与契约任务，由架构负责人完成。其余任务在 `-00` 合入后可以并行。
-- 每个任务书雏形包含目录、接口（产出）、依赖、验收、参考的 teamai 源码。"参考"只表示阅读与移植语义（MIT，移植的测试用例保留版权声明，并记录在 `docs/reference-notes/`，R-14），不表示调用。
+- 每个任务书雏形包含目录、接口（产出）、依赖、验收、参考的 teamai 源码。"参考"只表示阅读与移植语义（MIT，移植的测试用例保留版权声明，并记录于对应模块的许可证说明，R-14），不表示调用。
 - 每个任务交付时贴出 `AGENTS.md` §2 规定的验证命令与输出。
 
 ### 9.1 M1 互操作最小可用（约 3 周）

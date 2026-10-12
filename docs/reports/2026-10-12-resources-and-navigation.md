@@ -51,11 +51,9 @@ npm test --workspace @gogosling/web -- src/pages/SettingsPage.test.tsx src/pages
 - 浏览器验证：资源上限2→1→2真实保存；设置内模型列表、新建表单与取消正常；900×760下新导航可滚动切换，页面无横向溢出。预览守护进程已用新构建启动。
 - 文档检查最终使用仓库已有 `js-yaml`，52个路径、55个schema、232处引用解析通过；系统 Python 缺 PyYAML，macOS 自带旧 Ruby YAML 不接受既有 flow scalar 写法，未把这两次环境/parser失败算作契约通过。
 
-## 研究与边界
+## 实现边界
 
-[开源调研](../research/2026-10-12-open-source-reference.md)逐条记录架构、Issue/PR当前状态、影响、具体建议及已落地部分；[证据快照](../research/opensource-evidence.json)保留查询日期。阅读公开源码与讨论，没有向项目发 Issue、PR 或评论。
-
-本轮未引入新运行依赖，没有复制完整竞品架构。显示通知次数下降不等于能耗/RSS下降比例；尚未做同设备同任务的长时间硬件能耗对比。未来的多 Agent 自动委派须共享预算，并避免父任务等待子任务时占槽死锁；本轮没有新增委派工具。磁盘统计、成果去重、真实挂流连接验收列入研究中的下一批建议。
+本轮未引入新运行依赖，显示通知次数下降不等于能耗/RSS下降比例；尚未做同设备同任务的长时间硬件能耗对比。未来的多 Agent 自动委派须共享预算，并避免父任务等待子任务时占槽死锁；本轮没有新增委派工具。磁盘统计、成果去重、真实挂流连接验收列入后续改进建议。
 
 界面截图在当前聊天的可视化目录：`18-resource-settings.jpg`、`19-settings-connections.jpg`、`20-settings-navigation-narrow.jpg`、`21-settings-final.jpg`。预览使用隔离数据和本地假模型，不能把预览结果等同于用户正式 API 的全面兼容验证。
 

@@ -48,9 +48,9 @@ Office previews emphasize readable content; they are not full Office editors. Le
 <details>
 <summary>See the workbench and settings</summary>
 
-![A conversation alongside a presentation preview](docs/assets/workbench-zh.jpg)
+![A conversation alongside a document preview](docs/assets/workbench-en.jpg)
 
-Chinese development demo: a saved result and presentation beside the conversation. Sample content illustrates the UI, not model quality.
+English development demo: a synthetic workshop plan and project brief beside the conversation. The isolated local demo contains no personal task history. Sample content illustrates the UI, not model quality.
 
 ![English settings with grouped navigation and language selection](docs/assets/settings-en.jpg)
 

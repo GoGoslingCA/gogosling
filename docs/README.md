@@ -22,6 +22,7 @@ English is the primary entry language. Detailed implementation and user notes cu
 - [Architecture guide](development/architecture-guide.md): module boundaries and implementation choices.
 - [Public repository and locale validation](reports/2026-10-12-public-release.md).
 - [Public source cleanup](reports/2026-10-12-repository-cleanup.md).
+- [Public main branch review](reports/2026-10-12-public-main-review.md).
 - [File changes and recovery](reports/2026-10-12-p3b-delivery.md).
 - [Content and composer validation](reports/2026-10-12-content-and-composer.md).
 - [Live prompt validation](reports/2026-10-12-live-prompt-validation.md).
