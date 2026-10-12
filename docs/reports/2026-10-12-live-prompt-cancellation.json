@@ -1,0 +1,46 @@
+{
+  "endpoint": "https://ai.gogosling.ca/v1",
+  "requested_model": "auto:fast",
+  "samples": [
+    {
+      "event": "ready",
+      "model": "auto:fast",
+      "started_at": "2026-10-12T11:08:05Z",
+      "tcp_baseline": 0,
+      "worker_pid": 60019
+    },
+    {
+      "completed_before_cancel": false,
+      "event": "cancel",
+      "request_age_at_cancel_seconds": 0.124484417,
+      "slot_release_seconds": 0.078633625,
+      "tcp_after": 0,
+      "tcp_release_seconds": 0.026153083,
+      "trial": 1,
+      "upstream_socket_observed": true
+    },
+    {
+      "completed_before_cancel": false,
+      "event": "cancel",
+      "request_age_at_cancel_seconds": 0.33121525,
+      "slot_release_seconds": 0.100290916,
+      "tcp_after": 0,
+      "tcp_release_seconds": 0.047749333,
+      "trial": 2,
+      "upstream_socket_observed": true
+    },
+    {
+      "event": "after_cancel_health",
+      "output": "请将提供的说明改写得更加简洁，同时严格保留所有原事实，不遗漏、不夸大、不新增内容。",
+      "seconds": 1.410279625,
+      "status": 200
+    },
+    {
+      "credential_artifact_scan_clean": true,
+      "event": "final",
+      "sessions": 0,
+      "tcp_connections": 0
+    }
+  ],
+  "exit_code": 0
+}

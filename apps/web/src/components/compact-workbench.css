@@ -1,0 +1,74 @@
+/* 紧凑工作台：状态先行，长说明通过原生 details 按需展开。 */
+.task-progress .progress-summary { gap: 7px; font-size: 12px; }
+.progress-step-count { margin-left: auto; color: var(--text-2); font-size: 11px; }
+.task-progress .progress-summary .btn { margin-left: 4px; }
+.execution-trail { display: flex; gap: 0; overflow-x: auto; list-style: none; padding: 0; margin: 10px 0 0; }
+.execution-trail li { display: flex; position: relative; align-items: flex-start; flex: 1; min-width: 105px; gap: 7px; padding-right: 15px; }
+.execution-trail li:not(:last-child)::after { content: ""; position: absolute; left: 24px; right: 4px; top: 11px; height: 1px; background: var(--border); }
+.trail-marker { display: grid; place-items: center; flex-shrink: 0; width: 23px; height: 23px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); position: relative; z-index: 1; }
+.trail-content { display: grid; gap: 3px; min-width: 0; padding-top: 3px; background: var(--surface-2); position: relative; z-index: 1; }
+.trail-name { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trail-content small { color: var(--text-2); font-size: 10px; }
+li[data-state="done"] .trail-marker { color: var(--ok); }
+li[data-state="error"] .trail-marker { color: var(--danger); border-color: var(--danger); }
+li[data-state="running"] .trail-marker { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+li[data-state="approval"] .trail-marker { color: var(--warn); background: var(--warn-soft); }
+.task-progress .progress-details { margin: 9px 0 0; }
+.progress-details>summary { display: flex; align-items: center; gap: 5px; list-style: none; font-size: 11px; }
+.progress-details>summary::-webkit-details-marker { display: none; }
+.progress-details>summary>svg { transition: transform 180ms ease; }
+.progress-details[open]>summary>svg { transform: rotate(90deg); }
+.task-progress .progress-details[open] { max-height: 230px; }
+.progress-details .execution-history { display: grid; gap: 5px; }
+.progress-details .execution-history li { align-items: flex-start; }
+.progress-details .execution-history .trail-marker { margin-left: 0; }
+.progress-details .execution-history .trail-content { margin-left: 0; }
+.task-context.compact-context { gap: 5px; padding: 6px 0; }
+.compact-context>details>summary { border: 1px solid var(--border); border-radius: 7px; padding: 5px 7px; max-width: 220px; min-height: 28px; transition: background 180ms ease, border-color 180ms ease; }
+.compact-context>details>summary:hover, .compact-context>details[open]>summary { border-color: var(--accent); background: var(--accent-soft); }
+.compact-context .context-model { opacity: 1; max-width: 145px; }
+.compact-context .context-directory { max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compact-context .context-popover { bottom: 35px; }
+.compact-context .context-popover h3 { margin: 0 0 8px; font-size: 12px; }
+.compact-context .context-popover dl { margin: 8px 0; }
+.usage-metrics>div { display: grid; grid-template-columns: 72px 1fr; gap: 8px; align-items: center; margin: 7px 0; }
+.usage-metrics dt { font-size: 11px; color: var(--text-2); }
+.usage-metrics dd { position: relative; min-height: 23px; margin: 0; display: flex; align-items: center; justify-content: flex-end; padding: 3px 6px; }
+.usage-metrics .usage-bar { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--accent-soft); }
+.usage-metrics dd strong { position: relative; font-size: 12px; font-weight: 550; }
+.compact-explainer>summary, .draft-explainer>summary { display: inline-flex; align-items: center; gap: 4px; list-style: none; cursor: pointer; color: var(--text-2); font-size: 11px; }
+.compact-explainer>summary::-webkit-details-marker, .draft-explainer>summary::-webkit-details-marker { display: none; }
+.compact-explainer p { color: var(--text-2); line-height: 1.6; }
+.draft-save-state { font-size: 11px; color: var(--text-2); }
+.draft-state-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 20px; }
+.draft-state-line>.draft-state-icon { display: inline-flex; }
+.draft-save-state[data-state="saved"] .draft-state-icon { color: var(--ok); }
+.draft-save-state[data-state="error"] .draft-state-icon, .draft-save-state[data-state="conflict"] .draft-state-icon { color: var(--danger); }
+.draft-state-tag { border-left: 1px solid var(--border); padding-left: 6px; }
+.draft-explainer { margin-left: auto; }
+.draft-explainer[open] { flex-basis: 100%; margin-left: 0; }
+.draft-explainer p { line-height: 1.6; margin: 7px 0; }
+.draft-conflict { margin-top: 8px; border-left: 2px solid var(--warn); padding: 5px 0 5px 10px; }
+.draft-conflict pre { white-space: pre-wrap; max-height: 160px; overflow: auto; }
+.draft-conflict .row { margin-top: 7px; }
+.compact-welcome-heading { display: flex; align-items: center; gap: 14px; margin: 5px 0 22px; }
+.compact-welcome-heading .welcome-gosli { width: 52px; height: 52px; margin: 0; border-radius: 16px; }
+.compact-welcome-heading h1 { margin: 0; font-size: clamp(22px, 2vw, 27px); }
+.compact-welcome-heading p { margin: 5px 0 0; color: var(--text-2); font-size: 13px; }
+.start-page .quick-starts { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 12px; }
+.start-page .quick-starts button { padding: 7px 11px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
+.start-page .quick-starts button>svg:last-child { display: none; }
+.start-page .recent-tasks { margin-top: 27px; }
+.start-page .start-footer { justify-content: flex-end; margin-top: 20px; }
+.compact-context summary:focus-visible, .progress-details summary:focus-visible, .draft-explainer summary:focus-visible, .compact-explainer summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+@media (max-width: 760px) {
+  .compact-welcome-heading { gap: 10px; }
+  .compact-welcome-heading .welcome-gosli { width: 40px; height: 40px; }
+  .compact-welcome-heading h1 { font-size: 22px; }
+  .execution-trail li { min-width: 100px; }
+  .compact-context>details>summary { max-width: 180px; }
+  .compact-context .context-popover { bottom: 180px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-details>summary>svg, .compact-context>details>summary { transition: none; }
+}

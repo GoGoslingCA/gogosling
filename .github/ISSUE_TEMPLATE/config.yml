@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and module maintenance
+    url: https://github.com/GoGoslingCA/gogosling/discussions
+    about: Discuss setup, contribution ideas, or an area you would like to maintain.
+  - name: Private security report
+    url: https://github.com/GoGoslingCA/gogosling/security/advisories/new
+    about: Report vulnerabilities privately; do not include exploit details in public issues.

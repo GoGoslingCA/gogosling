@@ -1,0 +1,2713 @@
+openapi: 3.1.0
+info:
+  title: gogosling 本地 API
+  version: "1"
+  description: |
+    守护进程 `gogoslingd` 提供给桌面壳、Web UI、CLI 的本地接口。
+
+    **安全约定**
+    - 只监听回环地址；除 `/healthz` 外所有路径都需要 `Authorization: Bearer <token>`，令牌来自数据目录下的 `daemon.json`。
+    - 服务端校验 `Host`（必须是 `127.0.0.1` / `localhost` 加端口）与 `Origin`（无 Origin、`app://gogosling`、或配置的开发源）。
+    - 错误统一返回 `ErrorResponse`，`code` 与 `internal/model.Code` 一致；`message` 已按 `Accept-Language` 本地化。
+    - 列表接口返回 `{"items": [...]}`；分页用 `limit` / `offset` 查询参数。
+    - 所有时间为 RFC 3339（UTC）。字段命名 `snake_case`。
+servers:
+  - url: http://127.0.0.1:46750
+security:
+  - bearer: []
+tags:
+  - name: system
+  - name: agents
+  - name: providers
+  - name: sessions
+  - name: runs
+  - name: approvals
+  - name: jobs
+  - name: extensions
+  - name: channels
+  - name: events
+  - name: settings
+  - name: audit
+  - name: workbench
+
+paths:
+  /healthz:
+    get:
+      tags: [system]
+      summary: 存活检查（免鉴权）
+      security: []
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { status: { type: string, const: ok } }
+
+  /api/v1/version:
+    get:
+      tags: [system]
+      summary: 版本与运行状态
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VersionInfo" }
+
+  /api/v1/system/shutdown:
+    post:
+      tags: [system]
+      summary: 优雅关闭守护进程（经鉴权；返回 202 后开始关闭）
+      description: |
+        桌面壳与 CLI 优先用它停止守护进程（Windows 上没有可用的信号途径），超时后才强制结束进程。
+        关闭完成后 daemon.json 与 daemon.lock 被删除。
+      responses:
+        "202": { description: 已开始关闭 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/agents:
+    get:
+      tags: [agents]
+      summary: 列出智能体
+      responses:
+        "200": { $ref: "#/components/responses/AgentList" }
+    post:
+      tags: [agents]
+      summary: 创建智能体
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentInput" }
+      responses:
+        "201":
+          description: 已创建
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Agent" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/agents/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [agents]
+      summary: 获取智能体
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Agent" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [agents]
+      summary: 更新智能体（部分字段）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgentInput" }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Agent" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [agents]
+      summary: 删除智能体（级联删除其会话；工作区文件保留）
+      responses:
+        "204": { description: 已删除 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/agents/{id}/tools:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [agents]
+      summary: 该智能体当前可用的工具声明（内置 + 已启用扩展）
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ToolSpec" } }
+
+  /api/v1/providers:
+    get:
+      tags: [providers]
+      summary: 列出供应商（不含密钥）
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Provider" } }
+    post:
+      tags: [providers]
+      summary: 创建供应商；`api_key` 只写入 secret 存储，响应中不回显
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderInput" }
+      responses:
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/Provider" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/providers/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [providers]
+      summary: 获取供应商
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Provider" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [providers]
+      summary: 更新供应商；传 `api_key` 则轮换密钥
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderInput" }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Provider" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [providers]
+      summary: 删除供应商（仍被智能体引用时返回 conflict）
+      responses:
+        "204": { description: 已删除 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/providers/{id}/test:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    post:
+      tags: [providers]
+      summary: 连通性测试；成功时刷新 `models` 列表
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  models: { type: array, items: { type: string } }
+                  latency_ms: { type: integer }
+                  error: { type: string }
+
+  /api/v1/sessions:
+    get:
+      tags: [sessions]
+      summary: 列出会话
+      parameters:
+        - { name: project_id, in: query, schema: { type: string } }
+        - { name: agent_id, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/SessionStatus" } }
+        - { $ref: "#/components/parameters/limit" }
+        - { $ref: "#/components/parameters/offset" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Session" } }
+    post:
+      tags: [sessions]
+      summary: 创建会话
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id]
+              properties:
+                agent_id: { type: string }
+                project_id: { type: string }
+                title: { type: string }
+                origin: { type: string, enum: [desktop, cli], default: desktop, description: 发起入口，决定会话键与界面标记 }
+      responses:
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/sessions/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [sessions]
+      summary: 获取会话
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [sessions]
+      summary: 重命名或归档
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                status: { $ref: "#/components/schemas/SessionStatus" }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [sessions]
+      summary: 删除会话及其消息与运行记录
+      responses:
+        "204": { description: 已删除 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/sessions/{id}/messages:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [sessions]
+      summary: 读取消息（按 seq 升序；limit 上限 500，与通用分页一致）
+      parameters:
+        - { name: after_seq, in: query, schema: { type: integer, default: 0 } }
+        - { $ref: "#/components/parameters/limit" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Message" } }
+    post:
+      tags: [sessions]
+      summary: 发送用户消息并发起一次运行
+      description: |
+        立即返回新建的 `Run`（状态 queued/running）。过程事件通过 `/api/v1/events` 流式获取。
+        同一会话已有未结束的运行时返回 `conflict`。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+                material_ids: { type: array, maxItems: 32, items: { type: string }, description: 明确选择同一项目资料；逐份校验归属、文件大小及SHA256，任一无效则拒绝整次发送 }
+                attachments:
+                  type: array
+                  items: { $ref: "#/components/schemas/Attachment" }
+      responses:
+        "202": { description: 运行已受理, content: { application/json: { schema: { $ref: "#/components/schemas/Run" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/sessions/{id}/attachments:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    post:
+      tags: [sessions]
+      summary: 上传附件到工作区 inbound/ 目录
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201": { description: 已上传, content: { application/json: { schema: { $ref: "#/components/schemas/Attachment" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/runs/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [runs]
+      summary: 获取运行
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Run" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/runs/{id}/cancel:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    post:
+      tags: [runs]
+      summary: 取消运行（幂等；已终态时返回当前状态）
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Run" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/approvals:
+    get:
+      tags: [approvals]
+      summary: 列出审批请求
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ApprovalStatus", default: pending } }
+        - { $ref: "#/components/parameters/limit" }
+        - { $ref: "#/components/parameters/offset" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ApprovalRequest" } }
+
+  /api/v1/approvals/{id}/decision:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    post:
+      tags: [approvals]
+      summary: 提交审批决定
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Decision" }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/ApprovalRequest" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/jobs:
+    get:
+      tags: [jobs]
+      summary: 列出定时任务
+      parameters:
+        - { name: agent_id, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Job" } }
+    post:
+      tags: [jobs]
+      summary: 创建定时任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JobInput" }
+      responses:
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/jobs/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [jobs]
+      summary: 获取定时任务
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [jobs]
+      summary: 更新定时任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JobInput" }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Job" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [jobs]
+      summary: 删除定时任务
+      responses:
+        "204": { description: 已删除 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/jobs/{id}/run:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    post:
+      tags: [jobs]
+      summary: 立即触发一次
+      responses:
+        "202": { description: 已触发 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/extensions:
+    get:
+      tags: [extensions]
+      summary: 列出扩展
+      parameters:
+        - { name: kind, in: query, schema: { $ref: "#/components/schemas/ExtensionKind" } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Extension" } }
+    post:
+      tags: [extensions]
+      summary: 从本地目录安装扩展，或注册一个 MCP 服务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path: { type: string, description: 本地目录（技能或插件） }
+                mcp:
+                  allOf:
+                    - { $ref: "#/components/schemas/MCPServerConfig" }
+                  description: 注册 MCP 服务时提供
+                name: { type: string, description: MCP 服务的显示名 }
+      responses:
+        "201": { description: 已安装, content: { application/json: { schema: { $ref: "#/components/schemas/Extension" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/extensions/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [extensions]
+      summary: 获取扩展
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Extension" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [extensions]
+      summary: 启用或停用
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Extension" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [extensions]
+      summary: 卸载
+      responses:
+        "204": { description: 已卸载 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/extensions/{id}/status:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [extensions]
+      summary: 扩展运行时状态
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/ExtensionStatus" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/extensions/{id}/accept-tools:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    post:
+      tags: [extensions]
+      summary: 确认并重新固定该扩展的工具声明（tools_changed 后调用）
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/ExtensionStatus" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/channels:
+    get:
+      tags: [channels]
+      summary: 列出 IM 通道
+      parameters:
+        - { name: agent_id, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Channel" } }
+    post:
+      tags: [channels]
+      summary: 创建通道；`secret` 只写入 secret 存储，响应中不回显
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChannelInput" }
+      responses:
+        "201": { description: 已创建, content: { application/json: { schema: { $ref: "#/components/schemas/Channel" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/channels/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [channels]
+      summary: 获取通道（含运行状态）
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Channel" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [channels]
+      summary: 更新通道；传 `secret` 则轮换凭据；修改后自动重载
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChannelInput" }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Channel" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [channels]
+      summary: 删除通道并停止适配器
+      responses:
+        "204": { description: 已删除 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/channels/{id}/reload:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    post:
+      tags: [channels]
+      summary: 重启该通道的适配器
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Channel" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/events:
+    get:
+      tags: [events]
+      summary: 事件流（Server-Sent Events）
+      description: |
+        `text/event-stream`。连接建立后的第一帧是 `event: hello`（无 `id`，`data` 为 `{"started_at","last_seq"}`）：
+        客户端若发现 `started_at` 与上次不同（守护进程已重启），必须丢弃本地 `since` 并全量刷新。
+        之后每条事件：`id` 为全局 Seq，`event` 为类型，`data` 为 `Event` JSON。
+        客户端带 `since`（或 `Last-Event-ID` 头）续传；若服务端缓冲已丢弃该位置之后的事件，或 `since` 超过当前 Seq，
+        先发送一条 `event: gap` 让客户端全量刷新。每 15 秒发送一条注释行保活。
+      parameters:
+        - { name: since, in: query, schema: { type: integer, format: int64, default: 0 } }
+        - { name: session_id, in: query, schema: { type: string }, description: 只订阅某个会话 }
+      responses:
+        "200":
+          description: 事件流
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/Event" }
+
+  /api/v1/agents/{id}/prompt-enhancement:
+    post:
+      tags: [agents]
+      summary: 优化输入文字并返回待用户应用的候选
+      description: 需要 prompt.enhance 能力。使用当前智能体模型，仅传输入文字，无工具、历史或持久消息。共享并发预算，全局最多一个优化请求；断开/取消终止推理，最长45秒。
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, description: UTF-8最多16000字节，不截断 }
+                draft: { type: string, description: 可选的当前候选，最多32000字节；与feedback成对提供 }
+                feedback: { type: string, description: 可选的修改意见，最多4000字节 }
+      responses:
+        "200":
+          description: 优化文字；未应用、未发送。不含内部指导词。
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text]
+                properties:
+                  text: { type: string, description: 完整候选，UTF-8最多32000字节 }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/resources:
+    get:
+      tags: [settings]
+      summary: 本地执行槽与排队状态
+      description: 仅 runtime.resources 能力启用时可用。等待审批计入执行槽，不代表 CPU 使用率。
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/ResourceState" } } } }
+        default: { $ref: "#/components/responses/Error" }
+    put:
+      tags: [settings]
+      summary: 保存并发上限并作用于后续派发
+      description: 降低上限不停止在途任务；运行数可能暂时高于新上限。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [max_parallel]
+              properties:
+                max_parallel: { type: integer, minimum: 1, maximum: 8 }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/ResourceState" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/settings:
+    get:
+      tags: [settings]
+      summary: 全局设置
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Settings" } } } }
+    patch:
+      tags: [settings]
+      summary: 更新全局设置
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Settings" }
+      responses:
+        "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Settings" } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /api/v1/audit:
+    get:
+      tags: [audit]
+      summary: 审计记录（按时间降序）
+      parameters:
+        - { name: agent_id, in: query, schema: { type: string } }
+        - { name: session_id, in: query, schema: { type: string } }
+        - { name: run_id, in: query, schema: { type: string } }
+        - { name: actor, in: query, schema: { type: string } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: since, in: query, schema: { type: string, format: date-time } }
+        - { $ref: "#/components/parameters/limit" }
+        - { $ref: "#/components/parameters/offset" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/AuditEntry" } }
+
+  "/api/v1/projects":
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "列出项目"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "type": "object"
+                "properties":
+                  "items":
+                    "type": "array"
+                    "items":
+                      "$ref": "#/components/schemas/Project"
+                "required":
+                  - "items"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "parameters":
+        -
+          "name": "agent_id"
+          "in": "query"
+          "schema":
+            "type": "string"
+        -
+          "name": "status"
+          "in": "query"
+          "schema":
+            "type": "string"
+            "enum":
+              - "active"
+              - "archived"
+        -
+          "$ref": "#/components/parameters/limit"
+        -
+          "$ref": "#/components/parameters/offset"
+    "post":
+      "tags":
+        - "workbench"
+      "summary": "创建同一智能体下的项目"
+      "responses":
+        "201":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Project"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ProjectInput"
+  "/api/v1/projects/{id}":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "读取项目"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Project"
+        "default":
+          "$ref": "#/components/responses/Error"
+    "patch":
+      "tags":
+        - "workbench"
+      "summary": "通过版本条件修改或归档项目"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Project"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ProjectPatch"
+  "/api/v1/projects/{id}/materials":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "列出明确上传的项目资料"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "type": "object"
+                "properties":
+                  "items":
+                    "type": "array"
+                    "items":
+                      "$ref": "#/components/schemas/ProjectMaterial"
+                "required":
+                  - "items"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "parameters":
+        -
+          "$ref": "#/components/parameters/limit"
+        -
+          "$ref": "#/components/parameters/offset"
+    "post":
+      "tags":
+        - "workbench"
+      "summary": "新建入站附件及项目资料索引"
+      "responses":
+        "201":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ProjectMaterial"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "requestBody":
+        "required": true
+        "content":
+          "multipart/form-data":
+            "schema":
+              "type": "object"
+              "properties":
+                "file":
+                  "type": "string"
+                  "format": "binary"
+              "required":
+                - "file"
+  "/api/v1/projects/{id}/materials/{material_id}":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+      -
+        "name": "material_id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "delete":
+      "tags":
+        - "workbench"
+      "summary": "仅移除资料索引，不删除文件或消息"
+      "responses":
+        "204":
+          "description": "已移除"
+        "default":
+          "$ref": "#/components/responses/Error"
+  "/api/v1/sessions/{id}/project":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "put":
+      "tags":
+        - "workbench"
+      "summary": "校验原项目后原子更新会话关联"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Session"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/SessionProjectInput"
+  "/api/v1/drafts":
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "读取当前鉴权主体的草稿"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "type": "object"
+                "properties":
+                  "items":
+                    "type": "array"
+                    "items":
+                      "$ref": "#/components/schemas/Draft"
+                "required":
+                  - "items"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "parameters":
+        -
+          "name": "kind"
+          "in": "query"
+          "schema":
+            "type": "string"
+        -
+          "name": "agent_id"
+          "in": "query"
+          "schema":
+            "type": "string"
+        -
+          "name": "project_id"
+          "in": "query"
+          "schema":
+            "type": "string"
+        -
+          "name": "session_id"
+          "in": "query"
+          "schema":
+            "type": "string"
+        -
+          "name": "artifact_id"
+          "in": "query"
+          "schema":
+            "type": "string"
+        -
+          "$ref": "#/components/parameters/limit"
+        -
+          "$ref": "#/components/parameters/offset"
+    "post":
+      "tags":
+        - "workbench"
+      "summary": "创建唯一作用域草稿，作用域已存在返回409和existing_draft_id"
+      "responses":
+        "201":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Draft"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/DraftInput"
+  "/api/v1/drafts/{id}":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "按主体读取草稿"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Draft"
+        "default":
+          "$ref": "#/components/responses/Error"
+    "put":
+      "tags":
+        - "workbench"
+      "summary": "以expected_version条件完整更新草稿"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Draft"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/DraftUpdateInput"
+    "delete":
+      "tags":
+        - "workbench"
+      "summary": "仅删除匹配版本的主体草稿"
+      "responses":
+        "204":
+          "description": "已删除"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "parameters":
+        -
+          "name": "expected_version"
+          "in": "query"
+          "schema":
+            "type": "integer"
+            "format": "int64"
+            "minimum": 1
+          "required": true
+  "/api/v1/sessions/{id}/artifacts":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "列出当前会话已保存的成果元数据"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "type": "object"
+                "properties":
+                  "items":
+                    "type": "array"
+                    "items":
+                      "$ref": "#/components/schemas/Artifact"
+                "required":
+                  - "items"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "parameters":
+        -
+          "$ref": "#/components/parameters/limit"
+        -
+          "$ref": "#/components/parameters/offset"
+    "post":
+      "tags":
+        - "workbench"
+      "summary": "从当前会话真实助手回复创建成果及首版"
+      "responses":
+        "201":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Artifact"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ArtifactInput"
+      "parameters":
+        -
+          "name": "Idempotency-Key"
+          "in": "header"
+          "schema":
+            "type": "string"
+            "maxLength": 128
+          "description": "同主体、同路径、同内容重试返回原资源；不同内容复用返回409。"
+  "/api/v1/projects/{id}/artifacts":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "按会话当前项目关联聚合成果"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "type": "object"
+                "properties":
+                  "items":
+                    "type": "array"
+                    "items":
+                      "$ref": "#/components/schemas/Artifact"
+                "required":
+                  - "items"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "parameters":
+        -
+          "$ref": "#/components/parameters/limit"
+        -
+          "$ref": "#/components/parameters/offset"
+  "/api/v1/artifacts/{id}":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "读取成果元数据，不含正文"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/Artifact"
+        "default":
+          "$ref": "#/components/responses/Error"
+  "/api/v1/artifacts/{id}/revisions":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "列出不可变版本元数据，不含正文"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "type": "object"
+                "properties":
+                  "items":
+                    "type": "array"
+                    "items":
+                      "$ref": "#/components/schemas/ArtifactRevision"
+                "required":
+                  - "items"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "parameters":
+        -
+          "$ref": "#/components/parameters/limit"
+        -
+          "$ref": "#/components/parameters/offset"
+    "post":
+      "tags":
+        - "workbench"
+      "summary": "基线匹配时追加新版本，不覆盖旧版"
+      "responses":
+        "201":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ArtifactRevision"
+        "default":
+          "$ref": "#/components/responses/Error"
+      "requestBody":
+        "required": true
+        "content":
+          "application/json":
+            "schema":
+              "$ref": "#/components/schemas/ArtifactRevisionInput"
+  "/api/v1/artifacts/{id}/revisions/{revision_id}":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+      -
+        "name": "revision_id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "读取归属于指定成果的版本元数据"
+      "responses":
+        "200":
+          "description": "OK"
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ArtifactRevision"
+        "default":
+          "$ref": "#/components/responses/Error"
+  "/api/v1/artifacts/{id}/revisions/{revision_id}/content":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+      -
+        "name": "revision_id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "鉴权读取UTF-8正文；no-store、nosniff，下载强制attachment"
+      "responses":
+        "200":
+          "description": "原始版本正文，字节数与摘要不变；不支持范围下载。"
+          "headers":
+            "Cache-Control":
+              "schema":
+                "type": "string"
+                "const": "no-store"
+            "X-Content-Type-Options":
+              "schema":
+                "type": "string"
+                "const": "nosniff"
+          "content":
+            "text/plain":
+              "schema":
+                "type": "string"
+                "format": "text"
+        "default":
+          "$ref": "#/components/responses/Error"
+  "/api/v1/artifacts/{id}/revisions/{revision_id}/download":
+    "parameters":
+      -
+        "name": "id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+      -
+        "name": "revision_id"
+        "in": "path"
+        "required": true
+        "schema":
+          "type": "string"
+          "minLength": 1
+    "get":
+      "tags":
+        - "workbench"
+      "summary": "鉴权读取UTF-8正文；no-store、nosniff，下载强制attachment"
+      "responses":
+        "200":
+          "description": "原始版本正文，字节数与摘要不变；不支持范围下载。"
+          "headers":
+            "Cache-Control":
+              "schema":
+                "type": "string"
+                "const": "no-store"
+            "X-Content-Type-Options":
+              "schema":
+                "type": "string"
+                "const": "nosniff"
+          "content":
+            "application/octet-stream":
+              "schema":
+                "type": "string"
+                "format": "binary"
+        "default":
+          "$ref": "#/components/responses/Error"
+
+  /api/v1/sessions/{id}/changesets:
+    parameters: &ref_0
+      - $ref: '#/components/parameters/id'
+    get:
+      tags:
+        - workbench
+      summary: List file changes
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangeSet'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      tags:
+        - workbench
+      summary: Freeze a single-file preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeInput'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeSet'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/changesets/{id}:
+    parameters: *ref_0
+    get:
+      tags:
+        - workbench
+      summary: Read change state
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeSet'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/changesets/{id}/diff:
+    parameters: *ref_0
+    get:
+      tags:
+        - workbench
+      summary: Read authenticated frozen before/after text
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeDiff'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/changesets/{id}/apply:
+    parameters: *ref_0
+    post:
+      tags:
+        - workbench
+      summary: apply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeApplyInput'
+      responses:
+        '202':
+          description: Accepted; inspect the final change state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeSet'
+        default:
+          $ref: '#/components/responses/Error'
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 160
+  /api/v1/changesets/{id}/undo-preview:
+    parameters: *ref_0
+    post:
+      tags:
+        - workbench
+      summary: undo-preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeVersionInput'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeSet'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/changesets/{id}/cancel:
+    parameters: *ref_0
+    post:
+      tags:
+        - workbench
+      summary: cancel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeVersionInput'
+      responses:
+        '202':
+          description: Accepted; inspect the final change state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeSet'
+        default:
+          $ref: '#/components/responses/Error'
+  /api/v1/changesets/{id}/reconcile:
+    parameters: *ref_0
+    post:
+      tags:
+        - workbench
+      summary: reconcile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeVersionInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeSet'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /api/v1/agents/{id}/files:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [agents]
+      summary: List workspace files with bounded results
+      parameters: [{ name: path, in: query, schema: { type: string } }]
+      responses:
+        "200": { description: File entries and truncated flag, content: { application/json: { schema: { type: object, required: [items, truncated], properties: { items: { type: array, items: { $ref: "#/components/schemas/PreviewFileEntry" } }, truncated: { type: boolean } } } } } }
+        default: { $ref: "#/components/responses/Error" }
+  /api/v1/agents/{id}/file-preview:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [agents]
+      summary: Read-only bounded content preview
+      parameters: [{ name: path, in: query, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Content representation, content: { application/json: { schema: { $ref: "#/components/schemas/PreviewDocument" } } } }
+        default: { $ref: "#/components/responses/Error" }
+  /api/v1/agents/{id}/file-content:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [agents]
+      summary: Authenticated original file with Range support, max 64 MiB
+      parameters:
+        - { name: path, in: query, required: true, schema: { type: string } }
+        - { name: version, in: query, schema: { type: string } }
+        - { name: Range, in: header, schema: { type: string } }
+      responses:
+        "200": { description: Original file, content: { application/octet-stream: { schema: { type: string, format: binary } } } }
+        "206": { description: Requested byte range }
+        "416": { description: Invalid range }
+        default: { $ref: "#/components/responses/Error" }
+  /api/v1/agents/{id}/file-layout:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [agents]
+      summary: Optional sandboxed local Office to PDF, one process, 30 second timeout
+      parameters:
+        - { name: path, in: query, required: true, schema: { type: string } }
+        - { name: version, in: query, schema: { type: string } }
+      responses:
+        "200": { description: PDF layout, content: { application/pdf: { schema: { type: string, format: binary } } } }
+        default: { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+    offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+
+  responses:
+    Error:
+      description: 错误
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    AgentList:
+      description: ok
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items: { type: array, items: { $ref: "#/components/schemas/Agent" } }
+
+  schemas:
+    PreviewFileEntry:
+      type: object
+      required: [name, path, size, is_dir, mod_time]
+      properties:
+        name: { type: string }
+        path: { type: string }
+        size: { type: integer }
+        is_dir: { type: boolean }
+        mod_time: { type: string, format: date-time }
+    PreviewBlock:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [paragraph, heading, table, image] }
+        text: { type: string }
+        level: { type: integer }
+        image: { type: string, description: Validated embedded raster data URL }
+        runs:
+          type: array
+          items:
+            type: object
+            required: [text]
+            properties:
+              text: { type: string }
+              bold: { type: boolean }
+              italic: { type: boolean }
+        rows: { type: array, items: { type: array, items: { type: string } } }
+    PreviewDocument:
+      type: object
+      required: [format, kind, name, size, mime, version]
+      properties:
+        format: { type: string }
+        kind: { type: string, enum: [text, markdown, html, document, slides, sheet, archive, pdf, image, audio, video, conversion, unsupported] }
+        name: { type: string }
+        size: { type: integer }
+        mime: { type: string }
+        version: { type: string }
+        text: { type: string }
+        blocks: { type: array, items: { $ref: "#/components/schemas/PreviewBlock" } }
+        warnings: { type: array, items: { type: string } }
+        slides:
+          type: array
+          items:
+            type: object
+            required: [name, blocks]
+            properties:
+              name: { type: string }
+              blocks: { type: array, items: { $ref: "#/components/schemas/PreviewBlock" } }
+        sheets:
+          type: array
+          items:
+            type: object
+            required: [name, rows]
+            properties:
+              name: { type: string }
+              rows: { type: array, items: { type: array, items: { type: string } } }
+        entries:
+          type: array
+          items:
+            type: object
+            required: [name, size, directory]
+            properties:
+              name: { type: string }
+              size: { type: integer }
+              directory: { type: boolean }
+    ChangeSet:
+      type: object
+      description: Metadata only; file identities, before-images and proposed text stay in protected kernel storage.
+      required:
+        - id
+        - owner_id
+        - agent_id
+        - session_id
+        - artifact_id
+        - revision_id
+        - target_path
+        - preview_digest
+        - base_sha256
+        - proposed_sha256
+        - operation
+        - status
+        - version
+        - base_exists
+        - proposed_size
+        - created_at
+        - expires_at
+      properties:
+        id:
+          type: string
+        owner_id:
+          type: string
+        agent_id:
+          type: string
+        session_id:
+          type: string
+        artifact_id:
+          type: string
+        revision_id:
+          type: string
+        target_path:
+          type: string
+        preview_digest:
+          type: string
+        base_sha256:
+          type: string
+        proposed_sha256:
+          type: string
+        operation:
+          type: string
+          enum:
+            - create
+            - replace
+            - delete
+        status:
+          type: string
+          enum:
+            - prepared
+            - awaiting_approval
+            - applying
+            - applied
+            - denied
+            - expired
+            - conflict
+            - failed
+            - cancelled
+            - recovery_required
+        version:
+          type: integer
+          minimum: 1
+        base_exists:
+          type: boolean
+        proposed_size:
+          type: integer
+          minimum: 0
+        operation_id:
+          type: string
+        undo_of:
+          type: string
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        applied_at:
+          type: string
+          format: date-time
+    ChangeInput:
+      type: object
+      additionalProperties: false
+      required:
+        - artifact_id
+        - revision_id
+        - target_path
+        - operation
+      properties:
+        artifact_id:
+          type: string
+        revision_id:
+          type: string
+        target_path:
+          type: string
+          description: Normalized workspace-relative path; no symlinks or hard links.
+        operation:
+          type: string
+          enum:
+            - create
+            - replace
+    ChangeApplyInput:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_version
+        - preview_digest
+      properties:
+        expected_version:
+          type: integer
+          minimum: 1
+        preview_digest:
+          type: string
+    ChangeVersionInput:
+      type: object
+      additionalProperties: false
+      required:
+        - expected_version
+      properties:
+        expected_version:
+          type: integer
+          minimum: 1
+    ChangeDiff:
+      type: object
+      required:
+        - change
+        - before
+        - after
+      properties:
+        change:
+          $ref: '#/components/schemas/ChangeSet'
+        before:
+          type: string
+        after:
+          type: string
+    Operation:
+      type: object
+      description: Persistent local-user file operation; not a model run.
+      properties:
+        id:
+          type: string
+        owner_id:
+          type: string
+        agent_id:
+          type: string
+        session_id:
+          type: string
+        change_set_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - created
+            - awaiting_approval
+            - executing
+            - completed
+            - failed
+            - cancelled
+            - expired
+            - recovery_required
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    "WorkbenchCapabilities":
+      "type": "object"
+      "properties":
+        "workbench.preview":
+          "type": "integer"
+          "const": 1
+        "workbench.preview_layout":
+          "type": "integer"
+          "const": 1
+        "prompt.enhance":
+          "type": "integer"
+          "const": 1
+        "runtime.resources":
+          "type": "integer"
+          "const": 1
+        "workbench.projects":
+          "type": "integer"
+          "const": 1
+        "workbench.materials":
+          "type": "integer"
+          "const": 1
+        "workbench.drafts":
+          "type": "integer"
+          "const": 1
+        "workbench.artifacts":
+          "type": "integer"
+          "const": 1
+        "workbench.changesets":
+          "type": "integer"
+          "const": 1
+        "workbench.limits":
+          "type": "object"
+          "properties":
+            "text_bytes":
+              "type": "integer"
+              "const": 524288
+          "required":
+            - "text_bytes"
+    "Project":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "minLength": 1
+        "agent_id":
+          "type": "string"
+          "minLength": 1
+        "name":
+          "type": "string"
+          "minLength": 1
+          "maxLength": 120
+        "description":
+          "type": "string"
+          "maxLength": 2000
+        "status":
+          "type": "string"
+          "enum":
+            - "active"
+            - "archived"
+        "version":
+          "type": "integer"
+          "format": "int64"
+          "minimum": 1
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+        "updated_at":
+          "type": "string"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "agent_id"
+        - "name"
+        - "status"
+        - "version"
+        - "created_at"
+        - "updated_at"
+    "ProjectInput":
+      "type": "object"
+      "properties":
+        "agent_id":
+          "type": "string"
+          "minLength": 1
+        "name":
+          "type": "string"
+          "minLength": 1
+          "maxLength": 120
+        "description":
+          "type": "string"
+          "maxLength": 2000
+      "required":
+        - "agent_id"
+        - "name"
+      "additionalProperties": false
+    "ProjectPatch":
+      "type": "object"
+      "properties":
+        "expected_version":
+          "type": "integer"
+          "format": "int64"
+          "minimum": 1
+        "name":
+          "type": "string"
+          "minLength": 1
+          "maxLength": 120
+        "description":
+          "type": "string"
+          "maxLength": 2000
+        "status":
+          "type": "string"
+          "enum":
+            - "active"
+            - "archived"
+      "required":
+        - "expected_version"
+      "additionalProperties": false
+    "SessionProjectInput":
+      "type": "object"
+      "properties":
+        "project_id":
+          "type":
+            - "string"
+            - "null"
+        "expected_project_id":
+          "type":
+            - "string"
+            - "null"
+      "required":
+        - "project_id"
+        - "expected_project_id"
+      "additionalProperties": false
+    "ProjectMaterial":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "minLength": 1
+        "project_id":
+          "type": "string"
+          "minLength": 1
+        "agent_id":
+          "type": "string"
+          "minLength": 1
+        "name":
+          "type": "string"
+        "mime":
+          "type": "string"
+        "size":
+          "type": "integer"
+          "format": "int64"
+        "sha256":
+          "type": "string"
+          "pattern": "^[0-9a-f]{64}$"
+        "attachment":
+          "$ref": "#/components/schemas/Attachment"
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "project_id"
+        - "agent_id"
+        - "name"
+        - "size"
+        - "sha256"
+        - "attachment"
+        - "created_at"
+    "Draft":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "minLength": 1
+        "owner_id":
+          "type": "string"
+          "minLength": 1
+          "readOnly": true
+        "agent_id":
+          "type": "string"
+          "minLength": 1
+        "project_id":
+          "type": "string"
+        "session_id":
+          "type": "string"
+        "artifact_id":
+          "type": "string"
+        "base_revision_id":
+          "type": "string"
+          "description": "成果草稿必须引用同一成果的真实版本；PUT可经expected_version CAS切换基线，不能改变artifact_id或绕过成果版本保存冲突。"
+        "kind":
+          "type": "string"
+          "enum":
+            - "composer"
+            - "artifact"
+        "text":
+          "type": "string"
+          "maxLength": 524288
+          "description": "UTF-8正文最多524288字节；HTTP JSON体还受普通请求大小限制。"
+        "filename":
+          "type": "string"
+          "maxLength": 160
+        "material_ids":
+          "type": "array"
+          "items":
+            "type": "string"
+            "minLength": 1
+          "maxItems": 32
+        "attachments":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Attachment"
+          "maxItems": 32
+        "version":
+          "type": "integer"
+          "format": "int64"
+          "minimum": 1
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+        "updated_at":
+          "type": "string"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "owner_id"
+        - "agent_id"
+        - "kind"
+        - "text"
+        - "version"
+        - "created_at"
+        - "updated_at"
+    "DraftInput":
+      "type": "object"
+      "properties":
+        "agent_id":
+          "type": "string"
+          "minLength": 1
+        "project_id":
+          "type": "string"
+        "session_id":
+          "type": "string"
+        "artifact_id":
+          "type": "string"
+        "base_revision_id":
+          "type": "string"
+          "description": "成果草稿必须引用同一成果的真实版本；PUT可经expected_version CAS切换基线，不能改变artifact_id或绕过成果版本保存冲突。"
+        "kind":
+          "type": "string"
+          "enum":
+            - "composer"
+            - "artifact"
+        "text":
+          "type": "string"
+          "maxLength": 524288
+          "description": "UTF-8正文最多524288字节；HTTP JSON体还受普通请求大小限制。"
+        "filename":
+          "type": "string"
+          "maxLength": 160
+        "material_ids":
+          "type": "array"
+          "items":
+            "type": "string"
+            "minLength": 1
+          "maxItems": 32
+        "attachments":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Attachment"
+          "maxItems": 32
+      "required":
+        - "kind"
+        - "agent_id"
+        - "text"
+      "additionalProperties": false
+    "DraftUpdateInput":
+      "type": "object"
+      "properties":
+        "agent_id":
+          "type": "string"
+          "minLength": 1
+        "project_id":
+          "type": "string"
+        "session_id":
+          "type": "string"
+        "artifact_id":
+          "type": "string"
+        "base_revision_id":
+          "type": "string"
+          "description": "成果草稿必须引用同一成果的真实版本；PUT可经expected_version CAS切换基线，不能改变artifact_id或绕过成果版本保存冲突。"
+        "kind":
+          "type": "string"
+          "enum":
+            - "composer"
+            - "artifact"
+        "text":
+          "type": "string"
+          "maxLength": 524288
+          "description": "UTF-8正文最多524288字节；HTTP JSON体还受普通请求大小限制。"
+        "filename":
+          "type": "string"
+          "maxLength": 160
+        "material_ids":
+          "type": "array"
+          "items":
+            "type": "string"
+            "minLength": 1
+          "maxItems": 32
+        "attachments":
+          "type": "array"
+          "items":
+            "$ref": "#/components/schemas/Attachment"
+          "maxItems": 32
+        "expected_version":
+          "type": "integer"
+          "format": "int64"
+          "minimum": 1
+      "required":
+        - "kind"
+        - "agent_id"
+        - "text"
+        - "expected_version"
+      "additionalProperties": false
+    "ArtifactSource":
+      "type": "object"
+      "properties":
+        "message_id":
+          "type": "string"
+          "minLength": 1
+        "run_id":
+          "type": "string"
+        "message_seq":
+          "type": "integer"
+          "format": "int64"
+          "minimum": 1
+        "source_sha256":
+          "type": "string"
+          "pattern": "^[0-9a-f]{64}$"
+        "partial":
+          "type": "boolean"
+        "fragment":
+          "type": "string"
+      "required":
+        - "message_id"
+        - "message_seq"
+        - "source_sha256"
+        - "partial"
+    "Artifact":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "minLength": 1
+        "agent_id":
+          "type": "string"
+          "minLength": 1
+        "session_id":
+          "type": "string"
+          "minLength": 1
+        "project_id":
+          "type": "string"
+        "title":
+          "type": "string"
+          "minLength": 1
+          "maxLength": 200
+        "kind":
+          "type": "string"
+          "enum":
+            - "document"
+            - "code"
+            - "text"
+        "filename":
+          "type": "string"
+          "maxLength": 160
+        "media_type":
+          "type": "string"
+        "source":
+          "$ref": "#/components/schemas/ArtifactSource"
+        "latest_revision_id":
+          "type": "string"
+          "minLength": 1
+        "version":
+          "type": "integer"
+          "format": "int64"
+          "minimum": 1
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+        "updated_at":
+          "type": "string"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "agent_id"
+        - "session_id"
+        - "title"
+        - "kind"
+        - "filename"
+        - "media_type"
+        - "source"
+        - "latest_revision_id"
+        - "version"
+        - "created_at"
+        - "updated_at"
+    "ArtifactRevision":
+      "type": "object"
+      "properties":
+        "id":
+          "type": "string"
+          "minLength": 1
+        "artifact_id":
+          "type": "string"
+          "minLength": 1
+        "number":
+          "type": "integer"
+          "format": "int64"
+          "minimum": 1
+        "parent_revision_id":
+          "type": "string"
+        "sha256":
+          "type": "string"
+          "pattern": "^[0-9a-f]{64}$"
+        "byte_size":
+          "type": "integer"
+          "minimum": 0
+          "maximum": 524288
+        "filename":
+          "type": "string"
+        "media_type":
+          "type": "string"
+        "created_by":
+          "type": "string"
+          "minLength": 1
+        "created_at":
+          "type": "string"
+          "format": "date-time"
+      "required":
+        - "id"
+        - "artifact_id"
+        - "number"
+        - "sha256"
+        - "byte_size"
+        - "filename"
+        - "media_type"
+        - "created_by"
+        - "created_at"
+    "ArtifactInput":
+      "type": "object"
+      "properties":
+        "title":
+          "type": "string"
+          "minLength": 1
+          "maxLength": 200
+        "kind":
+          "type": "string"
+          "enum":
+            - "document"
+            - "code"
+            - "text"
+        "filename":
+          "type": "string"
+          "maxLength": 160
+        "media_type":
+          "type": "string"
+        "source_message_id":
+          "type": "string"
+          "minLength": 1
+        "fragment":
+          "type": "string"
+          "maxLength": 80
+        "content":
+          "type": "string"
+          "maxLength": 524288
+          "description": "UTF-8正文最多524288字节；HTTP JSON体还受普通请求大小限制。"
+      "required":
+        - "title"
+        - "kind"
+        - "filename"
+        - "media_type"
+        - "source_message_id"
+        - "content"
+      "additionalProperties": false
+    "ArtifactRevisionInput":
+      "type": "object"
+      "properties":
+        "expected_latest_revision_id":
+          "type": "string"
+          "minLength": 1
+        "filename":
+          "type": "string"
+          "maxLength": 160
+        "media_type":
+          "type": "string"
+        "content":
+          "type": "string"
+          "maxLength": 524288
+          "description": "UTF-8正文最多524288字节；HTTP JSON体还受普通请求大小限制。"
+      "required":
+        - "expected_latest_revision_id"
+        - "filename"
+        - "media_type"
+        - "content"
+      "additionalProperties": false
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [invalid, unauthorized, forbidden, not_found, conflict, denied, unavailable, timeout, cancelled, internal]
+            message: { type: string }
+            details: { type: object, additionalProperties: true }
+
+    ResourceState:
+      type: object
+      required: [max_parallel, max_queued, running, queued, awaiting_approval]
+      properties:
+        max_parallel: { type: integer, minimum: 1, maximum: 8 }
+        max_queued: { type: integer, minimum: 1 }
+        running: { type: integer, minimum: 0 }
+        queued: { type: integer, minimum: 0 }
+        awaiting_approval: { type: integer, minimum: 0 }
+
+    VersionInfo:
+      type: object
+      properties:
+        capabilities: { $ref: "#/components/schemas/WorkbenchCapabilities" }
+        version: { type: string }
+        commit: { type: string }
+        date: { type: string }
+        started_at: { type: string, format: date-time }
+        worker:
+          type: object
+          description: 工作进程状态
+          properties:
+            status: { type: string, enum: [ready, starting, unavailable] }
+            version: { type: string }
+            python: { type: string }
+
+    AutonomyLevel:
+      type: string
+      enum: [ask_all, ask_risky, auto_in_sandbox]
+
+    ModelRef:
+      type: object
+      required: [provider_id, model]
+      properties:
+        provider_id: { type: string }
+        model: { type: string }
+
+    Agent:
+      type: object
+      required: [id, name, model, autonomy, workspace_dir, enabled, created_at, updated_at, tools, extensions]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        system_prompt: { type: string }
+        model: { $ref: "#/components/schemas/ModelRef" }
+        tools: { type: array, items: { type: string }, description: "始终返回数组；[] 表示不启用任何内置工具" }
+        extensions: { type: array, items: { type: string }, description: 始终返回数组 }
+        autonomy: { $ref: "#/components/schemas/AutonomyLevel" }
+        workspace_dir: { type: string }
+        template: { type: string }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AgentInput:
+      type: object
+      description: 创建时 `name` 与 `model` 必填；更新时只传需要修改的字段
+      properties:
+        name: { type: string }
+        description: { type: string }
+        system_prompt: { type: string }
+        model: { $ref: "#/components/schemas/ModelRef" }
+        tools:
+          type: [array, "null"]
+          items: { type: string }
+          description: 缺席 = 不修改（创建时使用默认工具集）；null = 重置为默认工具集；[] = 不启用任何内置工具
+        extensions: { type: array, items: { type: string } }
+        autonomy: { $ref: "#/components/schemas/AutonomyLevel" }
+        template: { type: string }
+        enabled: { type: boolean }
+
+    ProviderKind:
+      type: string
+      enum: [openai_compatible, anthropic, ollama]
+
+    Provider:
+      type: object
+      required: [id, name, kind, enabled, created_at, updated_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind: { $ref: "#/components/schemas/ProviderKind" }
+        base_url: { type: string }
+        has_secret: { type: boolean, description: 是否已配置密钥（永不返回密钥本身） }
+        default_model: { type: string }
+        models: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ProviderInput:
+      type: object
+      properties:
+        name: { type: string }
+        kind: { $ref: "#/components/schemas/ProviderKind" }
+        base_url: { type: string }
+        api_key: { type: string, writeOnly: true }
+        default_model: { type: string }
+        enabled: { type: boolean }
+
+    Origin:
+      type: string
+      enum: [desktop, cli, channel, job, acp]
+
+    SessionStatus:
+      type: string
+      enum: [active, archived]
+
+    Session:
+      type: object
+      required: [id, agent_id, origin, key, status, created_at, updated_at]
+      properties:
+        project_id: { type: string, description: 可选项目关联，不改变会话路由或文件权限 }
+        id: { type: string }
+        agent_id: { type: string }
+        title: { type: string }
+        origin: { $ref: "#/components/schemas/Origin" }
+        key: { type: string }
+        status: { $ref: "#/components/schemas/SessionStatus" }
+        active_run_id: { type: string, description: 当前未结束的运行 ID；没有时省略 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        last_message_at: { type: string, format: date-time }
+
+    Attachment:
+      type: object
+      required: [name, path, size]
+      properties:
+        name: { type: string }
+        path: { type: string, description: 工作区相对路径 }
+        mime: { type: string }
+        size: { type: integer, format: int64 }
+
+    ToolCall:
+      type: object
+      required: [id, name, arguments]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        arguments: { type: object, additionalProperties: true }
+
+    ToolResult:
+      type: object
+      required: [call_id, content]
+      properties:
+        call_id: { type: string }
+        content: { type: string }
+        is_error: { type: boolean }
+        truncated: { type: boolean }
+
+    Part:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [text, tool_call, tool_result, attachment] }
+        text: { type: string }
+        tool_call: { $ref: "#/components/schemas/ToolCall" }
+        tool_result: { $ref: "#/components/schemas/ToolResult" }
+        attachment: { $ref: "#/components/schemas/Attachment" }
+
+    Message:
+      type: object
+      required: [id, session_id, seq, role, parts, created_at]
+      properties:
+        id: { type: string }
+        session_id: { type: string }
+        seq: { type: integer, format: int64 }
+        role: { type: string, enum: [system, user, assistant, tool] }
+        run_id: { type: string }
+        parts: { type: array, items: { $ref: "#/components/schemas/Part" } }
+        meta:
+          type: object
+          additionalProperties: true
+          description: 已知键：partial(bool，失败/取消时的部分输出)、untrusted(bool，来自不可信来源)
+        created_at: { type: string, format: date-time }
+
+    Usage:
+      type: object
+      properties:
+        input_tokens: { type: integer, format: int64 }
+        output_tokens: { type: integer, format: int64 }
+        cache_read_tokens: { type: integer, format: int64 }
+        cache_write_tokens: { type: integer, format: int64 }
+
+    Run:
+      type: object
+      required: [id, session_id, agent_id, status, trigger, usage, created_at]
+      properties:
+        id: { type: string }
+        session_id: { type: string }
+        agent_id: { type: string }
+        status: { type: string, enum: [queued, running, awaiting_approval, completed, failed, cancelled] }
+        trigger: { type: string, enum: [user, job, channel, agent] }
+        input_message_id: { type: string }
+        output_message_id: { type: string }
+        error: { type: string }
+        usage: { $ref: "#/components/schemas/Usage" }
+        created_at: { type: string, format: date-time }
+        started_at: { type: string, format: date-time }
+        ended_at: { type: string, format: date-time }
+
+    ToolSpec:
+      type: object
+      required: [name, description, input_schema, source, risk]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        input_schema: { type: object, additionalProperties: true }
+        source: { type: string, description: builtin / mcp:<extension_id> / extension:<extension_id> }
+        risk: { type: string, enum: [read, write, execute, network, destructive] }
+
+    ApprovalStatus:
+      type: string
+      enum: [pending, approved, denied, expired]
+
+    ApprovalRequest:
+      type: object
+      required: [id, session_id, agent_id, tool_call, risk, summary, status, created_at, expires_at]
+      oneOf:
+        - required: [run_id]
+          not: { required: [operation_id] }
+        - required: [operation_id]
+          not: { required: [run_id] }
+      properties:
+        id: { type: string }
+        run_id: { type: string }
+        operation_id: { type: string, description: "Only one-time approval is valid for manual operations." }
+        session_id: { type: string }
+        agent_id: { type: string }
+        tool_call: { $ref: "#/components/schemas/ToolCall" }
+        risk: { type: string, enum: [read, write, execute, network, destructive] }
+        summary: { type: string }
+        details: { type: object, additionalProperties: true }
+        status: { $ref: "#/components/schemas/ApprovalStatus" }
+        scope: { type: string, enum: [once, session, always] }
+        decided_by: { type: string }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time }
+
+    Decision:
+      type: object
+      required: [approve]
+      properties:
+        approve: { type: boolean }
+        scope: { type: string, enum: [once, session, always], default: once }
+        reason: { type: string }
+
+    Job:
+      type: object
+      required: [id, agent_id, name, schedule, kind, input, missed_policy, enabled, created_at, updated_at]
+      properties:
+        id: { type: string }
+        agent_id: { type: string }
+        name: { type: string }
+        schedule: { type: string, description: 五字段 cron 或 @hourly 等描述符 }
+        timezone: { type: string }
+        kind: { type: string, enum: [push_text, run_agent] }
+        input: { type: string }
+        session_key: { type: string }
+        missed_policy: { type: string, enum: [skip, run_once] }
+        enabled: { type: boolean }
+        next_run_at: { type: string, format: date-time }
+        last_run_at: { type: string, format: date-time }
+        last_status: { type: string, enum: [ok, failed, skipped] }
+        last_error: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    JobInput:
+      type: object
+      properties:
+        agent_id: { type: string }
+        name: { type: string }
+        schedule: { type: string }
+        timezone: { type: string }
+        kind: { type: string, enum: [push_text, run_agent] }
+        input: { type: string }
+        session_key: { type: string }
+        missed_policy: { type: string, enum: [skip, run_once] }
+        enabled: { type: boolean }
+
+    ExtensionKind:
+      type: string
+      enum: [skill, mcp_server, plugin]
+
+    MCPServerConfig:
+      type: object
+      required: [transport]
+      properties:
+        transport: { type: string, enum: [stdio, http] }
+        command: { type: string }
+        args: { type: array, items: { type: string } }
+        env: { type: object, additionalProperties: { type: string }, description: 值可为 "secret:<ref>" 引用 }
+        url: { type: string }
+        headers: { type: object, additionalProperties: { type: string }, description: http 传输的附加请求头，值可为 "secret:<ref>" 引用 }
+
+    ExtensionStatus:
+      type: object
+      description: 扩展的运行时状态（MCP 连接、工具声明是否变化）
+      properties:
+        id: { type: string }
+        connected: { type: boolean }
+        tool_count: { type: integer }
+        tools_changed: { type: boolean, description: 工具声明与首次启用时固定的摘要不一致，需用户确认后才会再暴露给模型 }
+        last_error: { type: string }
+
+    Extension:
+      type: object
+      required: [id, kind, name, source, install_dir, enabled, installed_at, updated_at]
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/ExtensionKind" }
+        name: { type: string }
+        version: { type: string }
+        source: { type: string }
+        install_dir: { type: string }
+        manifest: { type: object, additionalProperties: true }
+        mcp: { $ref: "#/components/schemas/MCPServerConfig" }
+        enabled: { type: boolean }
+        digest: { type: string }
+        installed_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Channel:
+      type: object
+      required: [id, agent_id, kind, name, enabled, created_at, updated_at]
+      properties:
+        id: { type: string }
+        agent_id: { type: string }
+        kind: { type: string, enum: [console, telegram, feishu, dingtalk, wecom, discord] }
+        name: { type: string }
+        has_secret: { type: boolean }
+        config:
+          type: object
+          additionalProperties: true
+          description: 平台相关的非敏感配置，如 allowed_peers、group_mode(mention|all)、prefix
+        enabled: { type: boolean }
+        status: { type: string, enum: [stopped, starting, running, failed], description: 适配器运行状态 }
+        last_error: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ChannelInput:
+      type: object
+      description: 创建时 `agent_id`、`kind`、`name` 必填
+      properties:
+        agent_id: { type: string }
+        kind: { type: string, enum: [console, telegram, feishu, dingtalk, wecom, discord] }
+        name: { type: string }
+        secret: { type: string, writeOnly: true, description: 平台凭据（Bot Token 等），只写入 secret 存储 }
+        config: { type: object, additionalProperties: true }
+        enabled: { type: boolean }
+
+    Event:
+      type: object
+      required: [seq, type, at]
+      description: |
+        事件信封。`type` 取值：`model.RunEventType` 的全部值（payload 为 RunEvent，含 `reasoning.delta`），
+        `session.created` / `session.updated` / `session.deleted`（payload 为 Session）、
+        `agent.created` / `agent.updated` / `agent.deleted`（payload 为 Agent；删除智能体会级联删除其会话、任务与通道，客户端应据此使相关缓存失效）、
+        `provider.created` / `provider.updated` / `provider.deleted`（payload 为 Provider，不含密钥）、
+        `job.triggered`（payload 为 Job）、
+        `extension.installed` / `extension.updated` / `extension.removed` / `extension.tools_changed`（payload 为 Extension）、
+        `project.created/updated`、`project.material.created/removed`、`draft.updated/deleted`、`artifact.created/revision.created`（仅ID、版本与来源等元数据，无正文），
+        `worker.status`（payload 为 VersionInfo.worker）、`gap`（无 payload）。只增事件类型，不改既有字段语义。
+      properties:
+        seq: { type: integer, format: int64 }
+        type: { type: string }
+        at: { type: string, format: date-time }
+        agent_id: { type: string }
+        session_id: { type: string }
+        run_id: { type: string }
+        payload: { type: object, additionalProperties: true }
+
+    Settings:
+      type: object
+      properties:
+        timezone: { type: string, description: IANA 时区；未设置时省略，effective_timezone 给出实际生效值 }
+        locale: { type: string, enum: [zh, en, fr], description: 用户显式设置的语言；未设置时省略（客户端据此按浏览器/系统语言选择） }
+        effective_locale: { type: string, enum: [zh, en, fr], readOnly: true, description: 内核实际使用的语言（设置 > 系统环境 > 默认） }
+        effective_timezone: { type: string, readOnly: true, description: 内核实际使用的时区 }
+        allowed_origins: { type: array, items: { type: string }, description: 额外允许的 Origin（开发用） }
+
+    AuditEntry:
+      type: object
+      required: [id, at, actor, action, outcome]
+      properties:
+        id: { type: string }
+        at: { type: string, format: date-time }
+        actor: { type: string }
+        agent_id: { type: string }
+        session_id: { type: string }
+        run_id: { type: string }
+        action: { type: string }
+        resource: { type: string }
+        outcome: { type: string }
+        details: { type: object, additionalProperties: true }

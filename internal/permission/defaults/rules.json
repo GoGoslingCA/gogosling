@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "deny-ssh-keys",
+      "tool": "*",
+      "path": "**/.ssh/**",
+      "effect": "deny",
+      "origin": "builtin",
+      "comment": "SSH 私钥、known_hosts 与 config 不允许任何工具读写"
+    },
+    {
+      "id": "deny-ssh-keys-command",
+      "tool": "*",
+      "command": "(?i)\\.ssh[/\\\\]",
+      "effect": "deny",
+      "origin": "builtin",
+      "comment": "命令行中引用 .ssh/ 目录的操作一律拒绝"
+    },
+    {
+      "id": "deny-gnupg",
+      "tool": "*",
+      "path": "**/.gnupg/**",
+      "effect": "deny",
+      "origin": "builtin",
+      "comment": "GPG 密钥环"
+    },
+    {
+      "id": "deny-gnupg-command",
+      "tool": "*",
+      "command": "(?i)\\.gnupg[/\\\\]",
+      "effect": "deny",
+      "origin": "builtin"
+    },
+    {
+      "id": "deny-cloud-credentials",
+      "tool": "*",
+      "path": "**/.aws/credentials",
+      "effect": "deny",
+      "origin": "builtin",
+      "comment": "云厂商长期凭据文件"
+    },
+    {
+      "id": "deny-cloud-credentials-command",
+      "tool": "*",
+      "command": "(?i)\\.aws[/\\\\]credentials",
+      "effect": "deny",
+      "origin": "builtin"
+    },
+    {
+      "id": "ask-env-files",
+      "tool": "*",
+      "path": "**/.env",
+      "effect": "ask",
+      "origin": "builtin",
+      "comment": "环境变量文件常含密钥，读写前询问"
+    },
+    {
+      "id": "ask-env-files-variants",
+      "tool": "*",
+      "path": "**/.env.*",
+      "effect": "ask",
+      "origin": "builtin"
+    },
+    {
+      "id": "ask-sudo",
+      "tool": "*",
+      "command": "(?i)(^|[\\s;&|(])(sudo|doas)\\s",
+      "effect": "ask",
+      "origin": "builtin",
+      "comment": "提权命令在任何档位下都要确认"
+    },
+    {
+      "id": "ask-recursive-delete",
+      "tool": "*",
+      "command": "(?i)(^|[\\s;&|(])rm\\s+(-[a-z]*\\s+)*-[a-z]*r",
+      "effect": "ask",
+      "origin": "builtin",
+      "comment": "递归删除需要确认；根目录等危险目标由内置防护直接拒绝"
+    },
+    {
+      "id": "ask-git-force-push",
+      "tool": "*",
+      "command": "(?i)\\bgit\\s+push\\b[^;&|]*\\s(--force|-f|--force-with-lease)\\b",
+      "effect": "ask",
+      "origin": "builtin"
+    },
+    {
+      "id": "ask-git-history-rewrite",
+      "tool": "*",
+      "command": "(?i)\\bgit\\s+(reset\\s+--hard|clean\\s+-[a-z]*f|branch\\s+-D\\b|push\\b[^;&|]*--delete)",
+      "effect": "ask",
+      "origin": "builtin"
+    },
+    {
+      "id": "ask-package-publish",
+      "tool": "*",
+      "command": "(?i)\\b(npm|pnpm|yarn)\\s+publish\\b|\\btwine\\s+upload\\b|\\bcargo\\s+publish\\b|\\bgoreleaser\\s+release\\b",
+      "effect": "ask",
+      "origin": "builtin",
+      "comment": "对外发布制品"
+    },
+    {
+      "id": "ask-service-management",
+      "tool": "*",
+      "command": "(?i)(^|[\\s;&|(])(crontab\\s|systemctl\\s+(enable|disable|mask|start|stop)\\b|launchctl\\s+(load|unload|bootstrap|bootout)\\b|sc\\s+(create|delete|config)\\b)",
+      "effect": "ask",
+      "origin": "builtin",
+      "comment": "修改常驻服务与定时任务"
+    },
+    {
+      "id": "ask-process-kill",
+      "tool": "*",
+      "command": "(?i)(^|[\\s;&|(])(kill\\s+-9\\b|killall\\b|pkill\\b|taskkill\\b)",
+      "effect": "ask",
+      "origin": "builtin"
+    }
+  ]
+}

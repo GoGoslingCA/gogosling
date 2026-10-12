@@ -1,0 +1,16 @@
+{
+  "name": "gogosling-workspace",
+  "private": true,
+  "description": "gogosling 的前端与桌面壳工作区（npm workspaces）；Go 内核与 Python 工作进程不经由 npm 构建",
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}

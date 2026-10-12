@@ -1,0 +1,39 @@
+# 构建产物
+/bin/
+/gogosling
+/gogoslingd
+dist/
+release/
+*.tsbuildinfo
+
+# 依赖与虚拟环境
+node_modules/
+.venv/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Go
+*.test
+*.out
+coverage.*
+
+# 本地环境与日志（不要提交任何密钥）
+.env
+.env.*
+!.env.example
+*.log
+
+# 本机界面验收入口与一次性真实接口测试
+/apps/web/__review.html
+/.prompt-live-probe/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

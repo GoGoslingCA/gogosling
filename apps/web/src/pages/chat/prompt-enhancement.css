@@ -1,0 +1,10 @@
+.prompt-enhancement { display: grid; gap: 14px; min-width: 0; }
+.prompt-enhancement details { color: var(--text-2); font-size: 12px; }
+.prompt-enhancement summary { cursor: pointer; }
+.prompt-enhancement-original { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 140px; overflow: auto; line-height: 1.7; }
+.prompt-enhance-button { display: inline-flex; align-items: center; gap: 5px; }
+
+.prompt-enhancement .prompt-enhancement-feedback { min-height: 108px; max-height: 35vh; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; line-height: 1.7; }
+.prompt-enhancement .prompt-enhancement-feedback:focus { outline: 1px solid var(--focus-ring); outline-offset: 0; }
+.prompt-enhancement-inline-error { flex-basis: 100%; min-width: 0; font-size: 12px; }
+.prompt-enhancement-inline-error .banner { margin: 2px 0; }

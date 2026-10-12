@@ -1,0 +1,25 @@
+.message-markdown {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.message-markdown p, .message-markdown blockquote { white-space: pre-wrap; }
+.message-markdown p { margin: 0 0 0.85em; }
+.message-markdown > :last-child { margin-bottom: 0; }
+.message-markdown h1, .message-markdown h2, .message-markdown h3,
+.message-markdown h4, .message-markdown h5, .message-markdown h6 { margin: 1.2em 0 0.5em; font-size: 1.05em; font-weight: 600; line-height: 1.5; letter-spacing: 0; }
+.message-markdown > :first-child { margin-top: 0; }
+.message-markdown h1 { font-size: 1.4em; }
+.message-markdown h2 { font-size: 1.15em; }
+.message-markdown strong, .message-markdown th { font-weight: 600; }
+.message-markdown ul, .message-markdown ol { padding-left: 1.55em; margin: 0.6em 0 0.9em; }
+.message-markdown li + li { margin-top: 0.2em; }
+.message-markdown blockquote { border-left: 3px solid var(--border); padding-left: 10px; margin: 0.5em 0; color: var(--text-2); }
+.message-markdown a { text-decoration: underline; }
+.message-markdown p code, .message-markdown li code { padding: 1px 4px; border-radius: 3px; background: var(--surface-2); }
+.message-code { border: 1px solid var(--border); border-radius: var(--radius-sm); margin: 0.5em 0; overflow: hidden; background: var(--surface-2); }
+.message-code-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; border-bottom: 1px solid var(--border); }
+.message-code pre { padding: 10px; margin: 0; overflow: auto; max-height: 480px; white-space: pre; }
+.message-table { overflow-x: auto; margin: 0.5em 0; }
+.message-table table { border-collapse: collapse; width: 100%; }
+.message-table th, .message-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.message-table th { background: var(--surface-2); }

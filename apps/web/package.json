@@ -1,0 +1,32 @@
+{
+  "name": "@gogosling/web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "gogosling Web UI：浏览器与 Electron 壳共用的 React 前端，只通过本地 HTTP API 访问守护进程",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.104.1",
+    "i18next": "^26.4.3",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-i18next": "^17.0.16",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "jsdom": "^30.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  }
+}

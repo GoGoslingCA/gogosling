@@ -1,0 +1,43 @@
+[project]
+name = "gogosling-worker"
+version = "0.1.0"
+description = "gogosling 的 Python 智能体工作进程，由 Go 守护进程通过 stdio JSON-RPC 监管"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+# httpx：调用模型服务的 HTTP 客户端（异步、流式、可注入 MockTransport 测试）。
+# 其余能力只用标准库；新增依赖前先在 AGENTS.md 的约定下提出。
+dependencies = [
+    "httpx>=0.28",
+]
+
+[project.scripts]
+gogosling-worker = "gogosling_worker.__main__:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15",
+    "pytest>=9.0",
+    "ruff>=0.17",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gogosling_worker"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

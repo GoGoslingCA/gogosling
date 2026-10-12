@@ -1,0 +1,46 @@
+;; gogosling Seatbelt profile 模板（macOS sandbox-exec）。
+;; 由 BuildSeatbeltProfile 填充"可写目录"与"网络"两个占位符后使用。
+;; 原则：默认拒绝；全盘可读（读取范围由 workspace 与权限层约束）；写入只限白名单目录；网络默认关闭。
+(version 1)
+(deny default)
+
+;; 进程：允许 fork/exec 与同沙箱内的信号。
+(allow process-fork)
+(allow process-exec*)
+(allow signal (target same-sandbox))
+(allow sysctl-read)
+
+;; 常见运行时需要的系统服务：用户/组查询、日志、偏好、语言环境。
+(allow mach-lookup
+  (global-name "com.apple.system.opendirectoryd.libinfo")
+  (global-name "com.apple.system.DirectoryService.libinfo_v1")
+  (global-name "com.apple.system.logger")
+  (global-name "com.apple.system.notification_center")
+  (global-name "com.apple.distributed_notifications@Uv3")
+  (global-name "com.apple.cfprefsd.daemon")
+  (global-name "com.apple.cfprefsd.agent")
+  (global-name "com.apple.CoreServices.coreservicesd")
+  (global-name "com.apple.lsd.mapdb")
+  (global-name "com.apple.SecurityServer")
+  (global-name "com.apple.trustd")
+  (global-name "com.apple.trustd.agent")
+  (global-name "com.apple.FSEvents"))
+(allow ipc-posix-shm-read*)
+(allow ipc-posix-sem)
+
+;; 文件：读取全盘；写入只限设备文件与下面的白名单。
+(allow file-read*)
+(allow file-ioctl
+  (literal "/dev/null")
+  (literal "/dev/zero")
+  (regex #"^/dev/tty")
+  (regex #"^/dev/fd/"))
+(allow file-write*
+  (literal "/dev/null")
+  (literal "/dev/zero")
+  (regex #"^/dev/tty")
+  (regex #"^/dev/fd/"))
+{{WRITABLE}}
+
+;; 网络：由调用方决定。
+{{NETWORK}}

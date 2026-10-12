@@ -1,0 +1,44 @@
+.file-change-panel { width: 100%; min-width: 0; padding: 15px 18px 20px; font-size: 12px; display: flex; flex-direction: column; gap: 11px; }
+.file-change-host { width: 100%; min-width: 0; }
+.file-change-host[hidden] { display: none; }
+.file-change-form { display: grid; gap: 8px; }
+.file-change-form>label { font-weight: 550; color: var(--text-2); }
+.file-change-form>.btn { justify-self: start; }
+.file-change-operation { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 11px; }
+.file-change-operation label { display: inline-flex; align-items: center; gap: 4px; }
+.file-change-operation>span { color: var(--text-2); margin-left: auto; }
+.file-change-history { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+.file-change-history label { flex-shrink: 0; }
+.file-change-history .select { min-width: 0; font-size: 11px; }
+.file-change-target { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; padding: 9px; background: var(--surface-2); border-radius: 8px; }
+.file-change-target code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.file-change-status { display: flex; align-items: center; gap: 8px; }
+.file-change-status strong { font-size: 12px; font-weight: 550; }
+.file-change-status>.btn { margin-left: auto; }
+.file-change-status>span { color: var(--text-2); font-size: 11px; }
+.file-change-trail { display: flex; gap: 6px; padding: 0; margin: 0; list-style: none; }
+.file-change-trail li { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 5px; padding: 7px 4px; border-radius: 7px; border: 1px solid var(--border); color: var(--text-2); font-size: 11px; }
+.file-change-trail li[data-state="done"] { color: var(--ok); background: var(--ok-soft); }
+.file-change-trail li[data-state="active"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+.file-change-trail li[data-state="blocked"] { color: var(--danger); }
+.file-change-save-first { display: flex; gap: 7px; align-items: center; background: var(--surface-2); border-radius: 7px; padding: 8px; }
+.file-change-save-first>.btn { margin-left: auto; }
+.file-change-warning { margin: 0; padding: 9px; border-left: 2px solid var(--warn); background: var(--warn-soft); border-radius: 5px; line-height: 1.65; font-size: 11px; }
+.file-change-diff-summary { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.file-change-diff-summary>.btn { margin-left: auto; }
+.change-added { color: var(--ok); }
+.change-removed { color: var(--danger); }
+.file-change-count-bar { display: flex; height: 6px; max-width: 110px; min-width: 40px; flex: 1; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
+.file-change-count-bar>.added { background: var(--ok); }
+.file-change-count-bar>.removed { background: var(--danger); }
+.file-change-diff { border: 1px solid var(--border); border-radius: 7px; max-height: 390px; overflow: auto; font-size: 11px; line-height: 1.6; }
+.file-change-diff>.artifact-diff-line { grid-template-columns: 28px 28px 12px minmax(0,1fr); }
+.file-change-diff-labels { position: sticky; top: 0; z-index: 1; display: flex; gap: 16px; padding: 6px 9px; background: var(--surface-2); color: var(--text-2); font-size: 10px; }
+.file-change-diff>p { padding: 10px; margin: 0; color: var(--text-2); }
+.file-change-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 10px; color: var(--text-2); }
+.file-change-pagination>span { margin-right: auto; }
+.file-change-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.file-change-boundary>summary { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; list-style: none; color: var(--text-2); font-size: 11px; }
+.file-change-boundary>summary::-webkit-details-marker { display: none; }
+.file-change-boundary p { color: var(--text-2); margin: 8px 0 0; font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.file-change-boundary summary:focus-visible, .file-change-diff:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

@@ -1,0 +1,22 @@
+.chart-block { margin: 14px 0; border: 1px solid var(--border); border-radius: 10px; padding: 14px; background: var(--surface); min-width: 0; }
+.chart-block figcaption { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; margin: 0 0 8px; }
+.chart-block figcaption>span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+.chart-block figcaption small { color: var(--text-2); font-size: 11px; flex-shrink: 0; }
+.chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart-tick line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; }
+.chart-tick text, .chart-x-label { fill: var(--text-2); font-family: inherit; font-size: 10px; }
+.chart-baseline { stroke: var(--text-2); stroke-width: 1; }
+.chart-bar { fill: var(--accent); opacity: .88; transition: opacity 180ms ease; }
+.chart-bar-negative { fill: var(--text-2); }
+.chart-bar:hover { opacity: 1; }
+.chart-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chart-point { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.chart-zero-mark { stroke: var(--accent); stroke-width: 2; }
+.chart-inspect { display: flex; gap: 14px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 8px; }
+.chart-inspect summary { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 11px; color: var(--text-2); list-style: none; }
+.chart-inspect summary::-webkit-details-marker { display: none; }
+.chart-inspect summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+.chart-inspect details[open] { flex-basis: 100%; min-width: 0; }
+.chart-inspect th[scope="row"] { background: transparent; font-weight: normal; }
+.chart-inspect .message-code-head { font-size: 11px; }
+@media(prefers-reduced-motion:reduce) { .chart-bar { transition: none; } }

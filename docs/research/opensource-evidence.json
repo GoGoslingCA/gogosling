@@ -1,0 +1,123 @@
+[
+  {
+    "key": "goose-pr",
+    "url": "https://github.com/aaif-goose/goose/pull/9514",
+    "title": "fix(summon): evict stale completed tasks to prevent unbounded memory growth",
+    "number": 9514,
+    "state": "closed",
+    "merged": true,
+    "state_reason": null,
+    "updated_at": "2026-06-15T20:41:22Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "goose-keyring",
+    "url": "https://github.com/aaif-goose/goose/issues/6287",
+    "title": "GOOSE_DISABLE_KEYRING not working",
+    "number": 6287,
+    "state": "closed",
+    "merged": null,
+    "state_reason": "completed",
+    "updated_at": "2026-04-15T08:45:43Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "goose-keyring-pr",
+    "url": "https://github.com/aaif-goose/goose/pull/8219",
+    "title": "fix(config): honour GOOSE_DISABLE_KEYRING from config.yaml at startup",
+    "number": 8219,
+    "state": "closed",
+    "merged": true,
+    "state_reason": null,
+    "updated_at": "2026-04-02T15:23:10Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "opencode-memory",
+    "url": "https://github.com/anomalyco/opencode/issues/16697",
+    "title": "Multiple memory leaks cause unbounded RAM growth during extended TUI usage",
+    "number": 16697,
+    "state": "closed",
+    "merged": null,
+    "state_reason": "completed",
+    "updated_at": "2026-04-02T15:52:26Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "opencode-pr",
+    "url": "https://github.com/anomalyco/opencode/pull/16695",
+    "title": "fix: resolve multiple memory leaks causing unbounded growth",
+    "number": 16695,
+    "state": "closed",
+    "merged": false,
+    "state_reason": null,
+    "updated_at": "2026-08-02T09:32:26Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "opencode-maintenance",
+    "url": "https://github.com/anomalyco/opencode/pull/16730",
+    "title": "fix(opencode): reduce memory usage and database bloat in long-running instances",
+    "number": 16730,
+    "state": "closed",
+    "merged": false,
+    "state_reason": null,
+    "updated_at": "2026-04-09T13:26:45Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "opencode-timeout",
+    "url": "https://github.com/anomalyco/opencode/issues/36739",
+    "title": "[BUG] opencode serve leaks memory and wedges when an upstream SSE endpoint hangs",
+    "number": 36739,
+    "state": "closed",
+    "merged": null,
+    "state_reason": "not_planned",
+    "updated_at": "2026-10-07T02:19:35Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "aion-issue",
+    "url": "https://github.com/iOfficeAI/AionUi/issues/2196",
+    "title": "[Bug]: Switching conversations sometimes causes chat pane flicker and does not auto-follow the latest messages",
+    "number": 2196,
+    "state": "open",
+    "merged": null,
+    "state_reason": null,
+    "updated_at": "2026-08-22T04:18:16Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "aion-pr",
+    "url": "https://github.com/iOfficeAI/AionUi/pull/4141",
+    "title": "perf(sidebar): memoize conversation rows",
+    "number": 4141,
+    "state": "open",
+    "merged": false,
+    "state_reason": null,
+    "updated_at": "2026-08-22T04:19:29Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "aion-cache",
+    "url": "https://github.com/iOfficeAI/AionUi/pull/4140",
+    "title": "perf(conversation): cache messages across navigation",
+    "number": 4140,
+    "state": "open",
+    "merged": false,
+    "state_reason": null,
+    "updated_at": "2026-08-22T04:19:12Z",
+    "checked_at": "2026-10-12"
+  },
+  {
+    "key": "aion-scope",
+    "url": "https://github.com/iOfficeAI/AionUi/pull/4222",
+    "title": "refactor(conversation): make conversation view multi-instance safe",
+    "number": 4222,
+    "state": "open",
+    "merged": false,
+    "state_reason": null,
+    "updated_at": "2026-09-06T14:50:16Z",
+    "checked_at": "2026-10-12"
+  }
+]

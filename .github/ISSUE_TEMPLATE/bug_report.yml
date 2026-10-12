@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible problem. English, Chinese, and French are welcome.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for helping improve gogosling. For vulnerabilities, use Security → Report a vulnerability. Never include keys, daemon.json, or private files."
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: Commit SHA and installation method
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS/version, CPU architecture, and browser or desktop shell.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest synthetic example that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected_actual
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Remove credentials, personal paths, and customer content before attaching.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched open and closed issues for duplicates.
+          required: true
+        - label: I can help test a fix or contribute a PR.

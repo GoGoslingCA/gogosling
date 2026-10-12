@@ -1,0 +1,30 @@
+name: Performance report
+description: Help reduce latency, memory, CPU, or disk use with reproducible evidence.
+labels: [performance]
+body:
+  - type: input
+    id: environment
+    attributes:
+      label: Revision and environment
+      description: Commit, OS, CPU architecture, RAM, and model/provider (no keys).
+    validations:
+      required: true
+  - type: textarea
+    id: workload
+    attributes:
+      label: Workload and reproduction
+      description: Number of tasks/agents, concurrency limit, file sizes, steps, and warm/cold start.
+    validations:
+      required: true
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements
+      description: Expected/actual latency, process-tree memory, CPU, or disk growth; measurement tool and repetitions. Separate model/network waiting from local work when possible.
+    validations:
+      required: true
+  - type: textarea
+    id: recovery
+    attributes:
+      label: After cancelling or closing the preview
+      description: What releases, what remains, and how long you waited. Attach only sanitized evidence.

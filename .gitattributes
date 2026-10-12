@@ -1,0 +1,6 @@
+# 统一使用 LF，避免 Windows 检出后 gofmt / ruff 报格式差异
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary

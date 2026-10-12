@@ -1,0 +1,68 @@
+# electron-builder 打包配置（不签名）。
+#
+# 运行 `npm run package -w @gogosling/desktop` 前需要：
+#   1. `npm run build -w @gogosling/web`   —— 产物 apps/web/dist 作为 extraResources/web 随包分发
+#   2. 把 gogoslingd[.exe] 放到 apps/desktop/resources/bin/，把 Python 运行环境放到 resources/worker/
+#      （发布流水线负责；本地开发可用 GOGOSLING_DAEMON_PATH 指向任意位置的二进制）
+appId: com.gogosling.desktop
+productName: gogosling
+copyright: gogosling contributors
+artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
+
+directories:
+  output: release
+  buildResources: build
+
+# 只打包编译产物；源码、测试与配置不进 asar。
+files:
+  - dist/**/*
+  - package.json
+  - "!**/*.map"
+
+asar: true
+npmRebuild: false
+forceCodeSigning: false
+
+# 预留的外部资源：守护进程二进制与工作进程运行环境必须是真实文件（不能进 asar）。
+# 内置扩展放在 share/gogosling/extensions/bundled：与 internal/app/resources.go 的安装布局
+# <exe>/../share/gogosling 一致（exe 在 <resources>/bin），壳拉起守护进程时也显式传 GOGOSLING_RESOURCES。
+extraResources:
+  - from: ../web/dist
+    to: web
+  - from: resources/bin
+    to: bin
+    filter: ["**/*", "!.gitkeep"]
+  - from: resources/worker
+    to: worker
+    filter: ["**/*", "!.gitkeep"]
+  - from: ../../extensions/bundled
+    to: share/gogosling/extensions/bundled
+
+# 深链 gogosling://（macOS 由 Info.plist 注册；Windows/Linux 由安装器注册）
+protocols:
+  - name: gogosling
+    schemes: [gogosling]
+
+mac:
+  target: [dmg]
+  category: public.app-category.productivity
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+
+dmg:
+  sign: false
+
+win:
+  target: [nsis]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+
+linux:
+  target: [AppImage]
+  category: Utility
+  synopsis: gogosling desktop shell

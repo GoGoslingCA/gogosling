@@ -1,0 +1,22 @@
+{
+  "name": "@gogosling/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "gogosling 桌面壳（Electron）：只拥有操作系统能力——发现/拉起守护进程、窗口、托盘、自启动、深链；业务状态全部在 gogoslingd",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run build && electron-builder --config electron-builder.yml --publish never"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.0",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}

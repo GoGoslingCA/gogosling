@@ -1,0 +1,83 @@
+[
+  {
+    "file": "03-需求文档.doc",
+    "content_status": 200,
+    "kind": "conversion",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 28174,
+    "seconds": 1.126
+  },
+  {
+    "file": "03-需求文档.docx",
+    "content_status": 200,
+    "kind": "document",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 28151,
+    "seconds": 1.082
+  },
+  {
+    "file": "03-需求文档.odt",
+    "content_status": 200,
+    "kind": "document",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 28151,
+    "seconds": 0.984
+  },
+  {
+    "file": "04-演示文稿.odp",
+    "content_status": 200,
+    "kind": "slides",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 26240,
+    "seconds": 1.074
+  },
+  {
+    "file": "04-演示文稿.ppt",
+    "content_status": 200,
+    "kind": "conversion",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 26186,
+    "seconds": 1.063
+  },
+  {
+    "file": "04-演示文稿.pptx",
+    "content_status": 200,
+    "kind": "slides",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 26240,
+    "seconds": 1.229
+  },
+  {
+    "file": "05-项目表格.ods",
+    "content_status": 200,
+    "kind": "sheet",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 19026,
+    "seconds": 1.132
+  },
+  {
+    "file": "05-项目表格.xls",
+    "content_status": 200,
+    "kind": "conversion",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 16024,
+    "seconds": 1.03
+  },
+  {
+    "file": "05-项目表格.xlsx",
+    "content_status": 200,
+    "kind": "sheet",
+    "layout_status": 200,
+    "pdf_valid": true,
+    "bytes": 19026,
+    "seconds": 1.102
+  }
+]

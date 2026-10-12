@@ -1,0 +1,115 @@
+[
+  {
+    "file": "01-阅读示例.md",
+    "status": 200,
+    "kind": "markdown",
+    "ms": 10.2,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "02-页面示例.html",
+    "status": 200,
+    "kind": "html",
+    "ms": 5.7,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "03-需求文档.docx",
+    "status": 200,
+    "kind": "document",
+    "ms": 9.4,
+    "blocks": 7,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "04-演示文稿.pptx",
+    "status": 200,
+    "kind": "slides",
+    "ms": 3.5,
+    "blocks": 0,
+    "slides": 2,
+    "sheets": 0
+  },
+  {
+    "file": "05-项目表格.xlsx",
+    "status": 200,
+    "kind": "sheet",
+    "ms": 3.2,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 2
+  },
+  {
+    "file": "06-阅读示例.pdf",
+    "status": 200,
+    "kind": "pdf",
+    "ms": 3.9,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "07-图片.png",
+    "status": 200,
+    "kind": "image",
+    "ms": 5.1,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "08-代码.ts",
+    "status": 200,
+    "kind": "text",
+    "ms": 3.3,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "09-数据.csv",
+    "status": 200,
+    "kind": "sheet",
+    "ms": 3.7,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 1
+  },
+  {
+    "file": "10-资料包.zip",
+    "status": 200,
+    "kind": "archive",
+    "ms": 3.0,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "11-音频.wav",
+    "status": 200,
+    "kind": "audio",
+    "ms": 3.1,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "12-旧文档.rtf",
+    "status": 200,
+    "kind": "conversion",
+    "ms": 3.1,
+    "blocks": 0,
+    "slides": 0,
+    "sheets": 0
+  },
+  {
+    "file": "13-损坏文档.docx",
+    "status": 400,
+    "expected_error": true
+  }
+]

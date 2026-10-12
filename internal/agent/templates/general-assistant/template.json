@@ -1,0 +1,7 @@
+{
+  "id": "general-assistant",
+  "name": "通用助理",
+  "description": "没有预设场景的日常助手：整理资料、起草文字、查阅资料、回答问题。只读写工作区，不执行命令。",
+  "tools": ["read_file", "write_file", "edit_file", "delete_file", "list_dir", "search_files", "fetch_url"],
+  "autonomy": "ask_risky"
+}

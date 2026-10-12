@@ -1,0 +1,130 @@
+{
+  "endpoint": "https://ai.gogosling.ca/v1",
+  "requested_model": "auto:fast",
+  "samples": [
+    {
+      "event": "ready",
+      "model": "auto:fast",
+      "started_at": "2026-10-12T10:37:50Z",
+      "worker_pid": 24072
+    },
+    {
+      "name": "zh-code",
+      "status": 200,
+      "seconds": 2.488854291,
+      "input": "请帮我解释这段代码的功能，不改动代码，回答控制在200字以内。",
+      "output": "这段代码实现了对输入文本进行重写的功能。它接收原始文本作为输入，输出一个改写后的版本。改写过程会保留原文的核心信息、结构及语义，仅对部分表述进行优化或调整，例如调整句式、替换词汇或调整语序，使表达更流畅自然。输出结果与输入文本高度相关，未修改原始代码逻辑与结构。",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "zh-report",
+      "status": 200,
+      "seconds": 2.907076666,
+      "input": "根据我提供的本周工作记录写一份周报，只写已完成事项和下周计划，不能编造数据，缺失信息标注待补充。",
+      "output": "请基于我提供的本周工作记录，撰写仅包含已完成事项与下周计划的周报；已完成事项需如实呈现，缺失信息标注为“待补充”，不得编造任何数据或内容。",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "en-code",
+      "status": 200,
+      "seconds": 4.954282292,
+      "input": "Explain what this code does. Do not modify it. Keep the explanation under 120 words and mention any relevant edge cases.",
+      "output": "Explain what the provided code does without modifying it. Give a concise summary (under 120 words) covering its purpose, key logic, and expected behavior. Identify any relevant edge cases—such as empty or invalid inputs, boundary values, error handling, or unusual conditions—and briefly note how the code behaves in those situations. Do not suggest changes, refactor, or rewrite the code.",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "en-email",
+      "status": 200,
+      "seconds": 6.888427833,
+      "input": "Rewrite this email to sound polite but direct. Keep all names, dates, numbers, and commitments unchanged. Return only the revised email.",
+      "output": "Subject: Follow-Up on Project Timeline and Deliverables  \n\nDear [Recipient's Name],  \n\nI hope this message finds you well. I wanted to follow up regarding the project timeline and deliverables we discussed. As outlined, the key milestones are as follows:  \n\n- **Milestone 1:** [Specific Task] – Due by [Date]  \n- **Milestone 2:** [Specific Task] – Due by [Date]  \n- **Final Deliverable:** [Description] – Due by [Date]  \n\nCould you please confirm that we are on track to meet these deadlines? If there are any potential challenges or adjustments needed, I would appreciate your input at your earliest convenience.  \n\nThank you for your attention to this matter. I look forward to your response.  \n\nBest regards,  \n[Your Name]  \n[Your Position]  \n[Your Contact Information]",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "mixed-code",
+      "status": 200,
+      "seconds": 16.734095667,
+      "input": "这段 TypeScript 有 bug，please explain the root cause and propose a minimal fix，不要改公共接口，也不要添加依赖。",
+      "output": "请分析以下 TypeScript 代码中的 bug，指出其根本原因（root cause），并提供最小改动（minimal fix）的修复方案。\n\n约束要求：\n1. 严禁修改任何公共接口、导出类型或函数签名（public API）。\n2. 不得引入任何第三方依赖。\n3. 确保修复方案保持类型安全且改动精准。\n\n[在此粘贴 TypeScript 代码]",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "mixed-launch",
+      "status": 504,
+      "seconds": 45.007592709,
+      "input": "帮我整理 launch checklist，保留 API、deploy、rollback 这些词，用中英自然混合表达，最多 6 条，不要虚构负责人或日期。",
+      "output": "",
+      "error_code": "timeout",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 1
+      }
+    },
+    {
+      "completed_before_cancel": true,
+      "event": "cancel",
+      "request_age_at_cancel_seconds": 0.135109584,
+      "slot_release_seconds": 0.007970916,
+      "tcp_after": 0,
+      "tcp_release_seconds": 0.10780425,
+      "trial": 1,
+      "upstream_socket_observed": false
+    },
+    {
+      "completed_before_cancel": false,
+      "event": "cancel",
+      "request_age_at_cancel_seconds": 0.358523125,
+      "slot_release_seconds": 0.11687525,
+      "tcp_after": 1,
+      "tcp_release_seconds": -1,
+      "trial": 2,
+      "upstream_socket_observed": true
+    },
+    {
+      "event": "after_cancel_health",
+      "output": "请将以下说明文本进行精简改写。要求在完整、准确地保留所有核心事实和关键信息的前提下，去除冗余表述，使语言更加简明扼要、条理清晰。",
+      "seconds": 10.0059015,
+      "status": 200
+    },
+    {
+      "credential_artifact_scan_clean": true,
+      "event": "final",
+      "sessions": 0,
+      "tcp_connections": 1
+    }
+  ],
+  "exit_code": 0
+}

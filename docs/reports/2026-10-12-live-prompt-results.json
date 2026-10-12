@@ -1,0 +1,158 @@
+{
+  "endpoint": "https://ai.gogosling.ca/v1",
+  "requested_model": "auto:fast",
+  "samples": [
+    {
+      "event": "ready",
+      "model": "auto:fast",
+      "started_at": "2026-10-12T11:02:05Z",
+      "tcp_baseline": 0,
+      "worker_pid": 53157
+    },
+    {
+      "name": "zh-code",
+      "status": 200,
+      "seconds": 2.725434125,
+      "input": "请帮我解释这段代码的功能，不改动代码，回答控制在200字以内。",
+      "output": "请在200字以内说明这段代码的主要功能和执行流程，不修改代码。",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "zh-report",
+      "status": 200,
+      "seconds": 15.267933,
+      "input": "根据我提供的本周工作记录写一份周报，只写已完成事项和下周计划，不能编造数据，缺失信息标注待补充。",
+      "output": "请根据我提供的本周工作记录撰写一份周报。内容仅包含“已完成事项”和“下周计划”两个部分，严禁编造任何数据，对于缺失的信息请统一标注为“待补充”。",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "en-code",
+      "status": 200,
+      "seconds": 11.900291875,
+      "input": "Explain what this code does. Do not modify it. Keep the explanation under 120 words and mention any relevant edge cases.",
+      "output": "Explain the functionality of the provided code without modifying it. Keep the explanation under 120 words and include a discussion of any relevant edge cases.",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "en-email",
+      "status": 200,
+      "seconds": 1.116766,
+      "input": "Rewrite this email to sound polite but direct. Keep all names, dates, numbers, and commitments unchanged. Return only the revised email.",
+      "output": "Revise the provided email to sound polite yet direct while keeping all names, dates, numbers, and commitments unchanged. Return only the revised email.",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "mixed-code",
+      "status": 200,
+      "seconds": 15.840378,
+      "input": "这段 TypeScript 有 bug，please explain the root cause and propose a minimal fix，不要改公共接口，也不要添加依赖。",
+      "output": "请分析这段 TypeScript 代码中的 bug，explain the root cause and propose a minimal fix。要求在不修改公共接口且不添加新依赖的前提下完成修复。",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "mixed-launch",
+      "status": 200,
+      "seconds": 12.047837417,
+      "input": "帮我整理 launch checklist，保留 API、deploy、rollback 这些词，用中英自然混合表达，最多 6 条，不要虚构负责人或日期。",
+      "output": "请整理一份 launch checklist，要求使用中英自然混合的表达方式，并保留 API、deploy、rollback 等术语。清单内容请控制在最多 6 条以内，严禁虚构任何负责人或日期。",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "zh-feedback",
+      "status": 200,
+      "seconds": 16.632122416,
+      "input": "请解释这段代码的功能，不改代码，200字以内。",
+      "output": "请在100字以内解释这段代码的主要功能，不要修改代码。",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "name": "mixed-feedback",
+      "status": 200,
+      "seconds": 3.383149375,
+      "input": "Review this API handler，解释 bug 原因，不要增加依赖。",
+      "output": "Review this API handler，explain the root cause of the bug，并提供一个 minimal regression test。要求保留现有接口，且不要增加任何新依赖。",
+      "resources_after": {
+        "awaiting_approval": 0,
+        "max_parallel": 2,
+        "max_queued": 32,
+        "queued": 0,
+        "running": 0
+      }
+    },
+    {
+      "completed_before_cancel": false,
+      "event": "cancel",
+      "request_age_at_cancel_seconds": 0.045920208,
+      "slot_release_seconds": 0.083000542,
+      "tcp_after": 1,
+      "tcp_release_seconds": -1,
+      "trial": 1,
+      "upstream_socket_observed": true
+    },
+    {
+      "completed_before_cancel": false,
+      "event": "cancel",
+      "request_age_at_cancel_seconds": 0.330696917,
+      "slot_release_seconds": 0.107053167,
+      "tcp_after": 2,
+      "tcp_release_seconds": -1,
+      "trial": 2,
+      "upstream_socket_observed": true
+    },
+    {
+      "event": "after_cancel_health",
+      "output": "请将提供的说明改写得更加简洁，同时严格保留所有原事实，不添加或删减任何信息。",
+      "seconds": 1.05679725,
+      "status": 200
+    },
+    {
+      "credential_artifact_scan_clean": true,
+      "event": "final",
+      "sessions": 0,
+      "tcp_connections": 2
+    }
+  ],
+  "exit_code": 0
+}

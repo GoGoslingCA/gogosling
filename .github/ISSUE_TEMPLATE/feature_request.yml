@@ -1,0 +1,31 @@
+name: Feature proposal
+description: Propose a focused improvement to local work.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What task is difficult today?
+      description: Describe the user, workflow, and current workaround.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Include the smallest useful scope and alternatives considered.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Resource and compatibility considerations
+      description: Memory, background processes, disk, network access, existing workflows, or platform limits.
+  - type: checkboxes
+    id: participation
+    attributes:
+      label: How would you like to help?
+      options:
+        - label: I can contribute a PR.
+        - label: I can test or provide synthetic fixtures.
+        - label: I am interested in ongoing module maintenance.
