@@ -38,6 +38,4 @@
 
 .preview-code .syntax-keyword{color:#8c57b1}.preview-code .syntax-string{color:#307257}.preview-code .syntax-comment{color:var(--text-2)}.preview-code .syntax-number{color:#a16c29}
 
-.artifact-editor-preserved{height:100%;min-height:0}.artifact-editor-preserved[hidden]{display:none}
-
 .preview-pdf-reader{min-height:100%;background:var(--surface-2)}.preview-pdf-page{width:100%;padding:12px 0;text-align:center;overflow:auto}.preview-pdf-page canvas{display:block;margin:auto;max-width:100%;background:white;box-shadow:0 1px 6px #0002}.preview-pdf-page pre{text-align:left}

@@ -863,6 +863,8 @@ kbd { font: 11px var(--font); color: var(--text-2); border: 1px solid var(--bord
 .attachment-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .composer-actions { gap: 6px; }
 .artifact-container { position: relative; flex: 0 0 var(--artifact-width); width: var(--artifact-width); min-width: 0; height: 100%; border-left: 1px solid var(--border); background: var(--surface-2); }
+.artifact-editor-preserved { height: 100%; min-height: 0; }
+.artifact-editor-preserved[hidden] { display: none; }
 .panel-resize { position: absolute; z-index: 5; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; touch-action: none; }
 .panel-resize:hover, .panel-resize:focus-visible { background: #2867bf30; }
 .panel-resize:after { content: ""; display: block; position: absolute; top: 50%; width: 3px; height: 28px; left: 2px; border-radius: 3px; background: var(--border); }
