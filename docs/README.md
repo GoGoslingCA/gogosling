@@ -16,6 +16,7 @@ Documentation for gogosling, developed by Gogosling.ca, a Canadian company. Publ
 - [Detailed architecture](architecture.md) and [contributor instructions](../AGENTS.md): authoritative dependency and safety rules.
 - [HTTP API](../api/openapi/openapi.yaml) and [worker RPC](../api/worker-rpc/protocol.md).
 - [Optional desktop diagnostics](../apps/desktop/README.md#optional-release-diagnostics) and [server integration proposal](development/diagnostics-server-handoff.md).
+- [Multi-agent collaboration proposal](design/multi-agent-collaboration.md): consent, allocation preview, token budgets, scheduling, and recovery. This is a design proposal, not a released capability.
 - [Security reporting](../SECURITY.md).
 
 ## Validation records
