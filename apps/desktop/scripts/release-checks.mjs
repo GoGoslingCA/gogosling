@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { assertSuccessfulCI, assetNames, compareAppTrees, releaseBody, releaseMarker, sha256, validateReleaseContext, validateRetryDraft, validateRuntimeManifest, validateVersions, verifyReleaseAssets } from "./release.mjs";
+import { assertSuccessfulCI, assetNames, compareAppTrees, existingRelease, releaseBody, releaseMarker, sha256, validateReleaseContext, validateRetryDraft, validateRuntimeManifest, validateVersions, verifyReleaseAssets, waitForReleaseState } from "./release.mjs";
 
 const sha = "a".repeat(40);
 const environment = { GITHUB_ACTIONS: "true", GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REF: "refs/heads/main", GITHUB_REPOSITORY: "GoGoslingCA/gogosling", GITHUB_SHA: sha, RELEASE_TAG: "v0.0.1104-beta" };
@@ -126,4 +126,46 @@ test("relative release images use raw tag URLs while document links keep the blo
     assert.ok(body.includes(`![Local preview timing](https://raw.githubusercontent.com/${context.repository}/${context.tag}/docs/assets/preview-performance.svg)`));
     assert.ok(body.includes(`[Contributing](https://github.com/${context.repository}/blob/${context.tag}/CONTRIBUTING.md)`));
   } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test("draft lookup resolves its pending tag through GraphQL and reads the exact REST ID", async () => {
+  const calls = [], draft = { id: 123, tag_name: context.tag, draft: true, assets: [] };
+  const actual = await existingRelease(context.tag, {
+    query: async tag => { calls.push(["pending-tag", tag]); return { databaseId: 123, tagName: tag, isDraft: true }; },
+    read: async id => { calls.push(["release-id", id]); return draft; },
+  });
+  assert.equal(actual, draft);
+  assert.deepEqual(calls, [["pending-tag", context.tag], ["release-id", 123]]);
+  assert.equal(await existingRelease(context.tag, { query: async () => null, read: async () => { throw new Error("Absent tag must not trigger an ID read"); } }), null);
+});
+
+test("release lookup fails closed on API errors or a substituted release identity", async () => {
+  await assert.rejects(() => existingRelease(context.tag, { query: async () => { throw new Error("Synthetic authorization failure"); } }), /authorization/);
+  await assert.rejects(() => existingRelease(context.tag, { query: async () => ({ databaseId: "../outside", tagName: context.tag }), read: async () => null }), /unexpected release/);
+  await assert.rejects(() => existingRelease(context.tag, { query: async () => ({ databaseId: 123, tagName: context.tag }), read: async () => ({ id: 456, tag_name: context.tag }) }), /identity differs/);
+});
+
+test("bounded readback waits for creation, uploaded assets, and final publication without repeating writes", async () => {
+  const draft = { id: 123, draft: true, assets: [] };
+  const uploaded = { ...draft, assets: [{ name: "file.dmg", state: "uploaded" }] };
+  const published = { ...uploaded, draft: false };
+  const scenarios = [
+    { states: [null, null, draft], ready: value => value !== null },
+    { states: [draft, draft, uploaded], ready: value => value?.assets?.some(asset => asset.name === "file.dmg" && asset.state === "uploaded") },
+    { states: [uploaded, uploaded, published], ready: value => value?.draft === false },
+  ];
+  for (const scenario of scenarios) {
+    let reads = 0; const waits = [];
+    const result = await waitForReleaseState(async () => scenario.states[reads++], scenario.ready, { sleep: async delay => { waits.push(delay); } });
+    assert.equal(result, scenario.states[2]); assert.equal(reads, 3); assert.deepEqual(waits, [250, 500]);
+  }
+});
+
+test("readback stops at its limit and does not retry authorization failures", async () => {
+  let reads = 0;
+  await assert.rejects(() => waitForReleaseState(async () => { reads++; return null; }, value => value !== null, { sleep: async () => {} }), /bounded readback window/);
+  assert.equal(reads, 7);
+  reads = 0;
+  await assert.rejects(() => waitForReleaseState(async () => { reads++; throw new Error("Synthetic forbidden response"); }, () => true, { sleep: async () => {} }), /forbidden/);
+  assert.equal(reads, 1);
 });

@@ -124,7 +124,7 @@ function command(binary, args, options = {}) {
 
 async function api(route, options = {}) {
   if (!process.env.GH_TOKEN) throw new Error("The short-lived workflow token is unavailable");
-  const response = await fetch(`https://api.github.com/repos/${repository}/${route}`, { headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: options.binary ? "application/octet-stream" : "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, signal: AbortSignal.timeout(options.binary ? 180000 : 30000) });
+  const response = await fetch(`https://api.github.com/repos/${repository}/${route}`, { headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: options.binary ? "application/octet-stream" : "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Cache-Control": "no-cache" }, cache: "no-store", signal: AbortSignal.timeout(options.binary ? 180000 : 30000) });
   if (response.status === 404 && options.optional) return null;
   if (!response.ok) { await response.body?.cancel(); throw new Error(`GitHub release API failed (${response.status})`); }
   return options.binary ? response : response.json();
@@ -181,16 +181,45 @@ async function prepare(context) {
   console.log("Verified installer, source manifest, license notices, brand icon, and SHA-256 checksums.");
 }
 
-async function existingRelease(tag) {
-  for (let page = 1; page <= 100; page++) {
-    const releases = await api(`releases?per_page=100&page=${page}`);
-    if (!Array.isArray(releases)) throw new Error("Invalid release list response");
-    const found = releases.filter(release => release.tag_name === tag);
-    if (found.length > 1) throw new Error("Multiple releases use this tag");
-    if (found.length) return found[0];
-    if (releases.length < 100) return null;
+async function releaseTagReference(tag) {
+  if (!process.env.GH_TOKEN) throw new Error("The short-lived workflow token is unavailable");
+  const [owner, name] = repository.split("/");
+  const response = await fetch("https://api.github.com/graphql", {
+    method: "POST", headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, "Content-Type": "application/json", "Cache-Control": "no-cache" }, cache: "no-store", signal: AbortSignal.timeout(30000),
+    body: JSON.stringify({ query: "query($owner:String!,$name:String!,$tag:String!){repository(owner:$owner,name:$name){release(tagName:$tag){databaseId tagName isDraft}}}", variables: { owner, name, tag } }),
+  });
+  if (!response.ok) { await response.body?.cancel(); throw new Error(`GitHub release lookup failed (${response.status})`); }
+  const payload = await response.json();
+  if (payload.errors?.length || !payload.data?.repository || !Object.hasOwn(payload.data.repository, "release")) throw new Error("GitHub pending-tag release lookup failed");
+  return payload.data.repository.release;
+}
+
+async function releaseById(id) {
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error("Invalid release identifier");
+  const release = await api(`releases/${id}`, { optional: true });
+  if (release && release.id !== id) throw new Error("Release identifier changed during lookup");
+  return release;
+}
+
+// 与官方 gh 一样，通过 GraphQL pending tag 定位草稿，再按精确 ID 读 REST 元数据。
+export async function existingRelease(tag, { query = releaseTagReference, read = releaseById } = {}) {
+  if (!tagPattern.test(tag)) throw new Error("Invalid beta tag");
+  const reference = await query(tag);
+  if (reference === null) return null;
+  if (!reference || !Number.isSafeInteger(reference.databaseId) || reference.databaseId < 1 || reference.tagName !== tag) throw new Error("Pending-tag lookup returned an unexpected release");
+  const release = await read(reference.databaseId);
+  if (release && (release.id !== reference.databaseId || release.tag_name !== tag)) throw new Error("Release identity differs from its pending tag");
+  return release;
+}
+
+// 创建、上传和转公开后均可能短暂读到旧状态；只重复读取，不重复执行写入。
+export async function waitForReleaseState(read, ready, { description = "Release change", sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  for (const delay of [0, 250, 500, 1000, 2000, 4000, 8000]) {
+    if (delay) await sleep(delay);
+    const release = await read();
+    if (ready(release)) return release;
   }
-  throw new Error("Release lookup exceeded its bounded page limit");
+  throw new Error(`${description} could not be confirmed within the bounded readback window; existing drafts and assets were preserved`);
 }
 
 async function checkTag(context) {
@@ -227,32 +256,36 @@ async function publish(context) {
     const notes = path.join(temporary, "release.md"); await fs.writeFile(notes, body, { mode: 0o600 });
     if (!release) {
       command("gh", ["release", "create", context.tag, "--repo", context.repository, "--target", context.sha, "--title", `gogosling ${context.version}`, "--notes-file", notes, "--prerelease", "--draft", "--latest=false"]);
-      release = await existingRelease(context.tag);
-      if (!release) throw new Error("Created draft could not be read back");
+      release = await waitForReleaseState(() => existingRelease(context.tag), value => value !== null, { description: "Created draft" });
       validateRetryDraft(release, context, body, assets);
     }
+    const releaseId = release.id;
+    const readDraft = async (complete = false) => {
+      const value = await waitForReleaseState(() => releaseById(releaseId), item => item !== null && (!complete || assets.every(local => item?.assets?.some(asset => asset.name === local.name && asset.state === "uploaded"))), { description: "Release draft" });
+      validateRetryDraft(value, context, body, assets);
+      return value;
+    };
     // 重试只补不存在的资产；已有资产须逐字节核对，冲突或额外文件一律保留并停止。
     for (const local of assets) {
-      release = await existingRelease(context.tag);
-      if (!release) throw new Error("Release draft disappeared before upload");
-      validateRetryDraft(release, context, body, assets);
+      release = await readDraft();
       const remote = release.assets.find(asset => asset.name === local.name);
       if (remote) await verifyRemoteAsset(remote, local);
-      else command("gh", ["release", "upload", context.tag, local.file, "--repo", context.repository]);
+      else {
+        command("gh", ["release", "upload", context.tag, local.file, "--repo", context.repository]);
+        release = await waitForReleaseState(() => releaseById(releaseId), value => value?.assets?.some(asset => asset.name === local.name && asset.state === "uploaded") === true, { description: "Uploaded asset" });
+        validateRetryDraft(release, context, body, assets);
+      }
     }
-    release = await existingRelease(context.tag);
-    if (!release) throw new Error("Release draft disappeared before verification");
+    release = await waitForReleaseState(() => releaseById(releaseId), value => assets.every(local => value?.assets?.some(asset => asset.name === local.name && asset.state === "uploaded")), { description: "Complete release asset set" });
     validateRetryDraft(release, context, body, assets);
     if (release.assets.length !== assets.length) throw new Error("Release draft is missing an asset");
     for (const local of assets) await verifyRemoteAsset(release.assets.find(asset => asset.name === local.name), local);
     await checkTag(context);
     await assertCI(context);
-    release = await existingRelease(context.tag);
-    if (!release) throw new Error("Release draft disappeared before publication");
-    validateRetryDraft(release, context, body, assets);
+    release = await readDraft(true);
     if (release.assets.length !== assets.length) throw new Error("Release draft changed before publication");
     command("gh", ["release", "edit", context.tag, "--repo", context.repository, "--draft=false", "--prerelease", "--latest=false"]);
-    const published = await existingRelease(context.tag);
+    const published = await waitForReleaseState(() => releaseById(releaseId), value => value?.draft === false, { description: "Published release" });
     if (!published || published.draft || !published.prerelease || published.target_commitish !== context.sha || published.author?.login !== "github-actions[bot]") throw new Error("Published release metadata could not be confirmed");
     console.log(`Published https://github.com/${context.repository}/releases/tag/${context.tag}`);
   } finally { await fs.rm(temporary, { recursive: true, force: true }); }
