@@ -1,0 +1,12 @@
+.task-failure { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); color: var(--text); font-size: 13px; }
+.task-failure-heading { display: flex; align-items: center; gap: 8px; }
+.task-failure-heading > [role="status"] { line-height: 1.6; }
+.task-failure-heading > .spacer { flex: 1; }
+.task-failure-heading button { flex-shrink: 0; }
+.task-failure-details { font-size: 12px; }
+.task-failure-details summary { width: fit-content; cursor: pointer; color: var(--text-2); padding: 4px 0; }
+.task-failure-details pre { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 140px; overflow: auto; font: inherit; }
+.task-failure-details dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; margin: 10px 0 0; }
+.task-failure-details dt { color: var(--text-2); }
+.task-failure-details dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .task-failure-heading { flex-wrap: wrap; } .task-failure-heading > [role="status"] { flex-basis: calc(100% - 38px); } }

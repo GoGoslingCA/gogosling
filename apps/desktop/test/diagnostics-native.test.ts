@@ -4,7 +4,7 @@ import { parentedDiagnosticDialog, reviewNativeDiagnostics } from "../src/main/d
 import type { MessageBoxOptions, MessageBoxReturnValue } from "electron";
 
 function service(fetch: (url: string, init: RequestInit) => Promise<Response>) {
-  return new DesktopDiagnostics({ enabled: true, version: "0.1.0", platform: "darwin", arch: "arm64", snapshot: () => ({}), fetch });
+  return new DesktopDiagnostics({ enabled: true, version: "0.1.0", platform: "darwin", arch: "arm64", snapshot: () => ({ daemonState: "failed" }), fetch });
 }
 
 it("原生预览取消不会申请凭据或上传，关闭后释放预览", async () => {

@@ -6,7 +6,7 @@ import type { DesktopDiagnostics } from "./diagnostics.js";
 export function installDiagnosticsIpc<Event>(options: {
   handle: (channel: string, listener: (event: Event, ...args: unknown[]) => unknown) => void;
   assertTrusted: (event: Event) => void;
-  diagnostics: Pick<DesktopDiagnostics, "status" | "preview" | "send" | "cancel">;
+  diagnostics: Pick<DesktopDiagnostics, "status" | "preview" | "prepareTask" | "cancelPreparation" | "send" | "cancel">;
 }): void {
   const { handle, assertTrusted, diagnostics } = options;
   handle(IPC.diagnosticsStatus, event => {
@@ -17,6 +17,14 @@ export function installDiagnosticsIpc<Event>(options: {
   handle(IPC.diagnosticsPreview, (event, category) => {
     assertTrusted(event);
     return diagnostics.preview(category);
+  });
+  handle(IPC.diagnosticsTaskPreview, (event, request) => {
+    assertTrusted(event);
+    return diagnostics.prepareTask(request);
+  });
+  handle(IPC.diagnosticsCancelPreparation, (event, requestId) => {
+    assertTrusted(event);
+    diagnostics.cancelPreparation(requestId);
   });
   handle(IPC.diagnosticsSend, (event, id) => {
     assertTrusted(event);

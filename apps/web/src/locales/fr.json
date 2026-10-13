@@ -915,14 +915,7 @@
   },
   "diagnostics": {
     "title": "Rapport de diagnostic",
-    "entryHint": "Consultez un rapport, puis envoyez-le si vous le souhaitez.",
-    "open": "Voir le rapport",
-    "summary": "Contient l’état et les versions de l’application, sans conversations, contenus de fichiers, identifiants secrets ni journaux bruts. Rien n’est envoyé avant de cliquer sur Envoyer.",
-    "category": "Type de problème",
-    "category_connection": "Connexion",
-    "category_task": "Exécution des tâches",
-    "category_preview": "Aperçu des fichiers",
-    "category_application": "Application",
+    "summary": "Le rapport contient la version de l’application, la plateforme, les ID locaux de tâche et d’exécution, l’heure de l’échec et un code d’erreur fixe. Il exclut les conversations, fichiers, identifiants secrets, journaux bruts et le texte d’erreur ci-dessus. Rien n’est envoyé avant votre accord.",
     "preparing": "Préparation sur cet appareil…",
     "destination": "Envoi vers {{destination}} · Conservation de {{days}} jours.",
     "review": "Voir le rapport · {{bytes}} octets",
@@ -949,11 +942,26 @@
       "unavailable": "Le service de rapports est inaccessible. Réessayez plus tard.",
       "rate_limited": "Trop de rapports envoyés. Patientez avant de réessayer.",
       "unauthorized": "L’autorisation d’envoi est indisponible. Réessayez plus tard.",
-      "invalid_response": "Le service a renvoyé une réponse inattendue. Vous pouvez réessayer."
+      "invalid_response": "Le service a renvoyé une réponse inattendue. Vous pouvez réessayer.",
+      "no_error": "Cette exécution n’a pas d’erreur confirmée à signaler.",
+      "unsupported_report": "Le service ne prend pas encore en charge les rapports de tâche. Rien n’a été envoyé."
     }
   },
   "profile": {
     "menuLabel": "Préférences",
     "version": "Version : {{version}}"
+  },
+  "taskFailure": {
+    "title": "Erreur de tâche",
+    "message": "Cette tâche n’a pas abouti.",
+    "report": "Signaler le problème",
+    "dismiss": "Fermer l’avis d’erreur",
+    "details": "Détails techniques",
+    "localOnly": "Ces détails restent sur cet appareil. L’aperçu indique exactement ce qui sera envoyé.",
+    "code": "Code d’erreur de l’application",
+    "runId": "ID d’exécution local",
+    "sessionId": "ID de tâche local",
+    "time": "Date et heure",
+    "version": "Version de l’application"
   }
 }

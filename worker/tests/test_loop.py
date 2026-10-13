@@ -4,6 +4,7 @@ import asyncio
 
 import pytest
 
+from gogosling_worker.i18n import tr
 from gogosling_worker.protocol import (
     Message,
     Part,
@@ -15,6 +16,7 @@ from gogosling_worker.protocol import (
     run_event,
 )
 from gogosling_worker.providers.base import (
+    Chunk,
     Done,
     ProviderError,
     ReasoningDelta,
@@ -85,6 +87,79 @@ async def test_plain_completion_event_order_and_message() -> None:
     sent_messages = provider.calls[0][0]
     assert sent_messages[0].role == "system" and sent_messages[0].text() == "你是助理"
     assert sent_messages[1] == USER
+
+
+@pytest.mark.parametrize("locale", ["zh", "en", "fr"])
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        [],
+        [Done(None)],
+        [UsageChunk(Usage(8, 2)), Done("stop")],
+        [ReasoningDelta("thinking without an answer"), Done("stop")],
+        [TextDelta(" \n\t\u3000"), Done("stop")],
+        [TextDelta(" \n"), Done("length")],
+    ],
+    ids=["no-chunks", "done-only", "usage-only", "reasoning-only", "whitespace", "blank-limit"],
+)
+async def test_empty_response_fails_without_retry(chunks: list[Chunk], locale: str) -> None:
+    provider = FakeProvider([chunks])
+    host = FakeHost(locale=locale)
+    await DefaultEngine().run(make_request(messages=[USER]), host, provider)
+
+    assert host.events[-1] == {
+        "type": "run.failed",
+        "error": tr("provider.empty_response", locale),
+    }
+    assert host.types().count("run.failed") == 1
+    assert "run.completed" not in host.types()
+    assert len(provider.calls) == 1
+    assert host.tool_calls == []
+    expected_usage = [chunk.usage for chunk in chunks if isinstance(chunk, UsageChunk)]
+    assert [event["usage"] for event in host.events if event["type"] == "usage"] == expected_usage
+
+
+async def test_empty_final_response_keeps_tool_results_and_reported_usage() -> None:
+    provider = FakeProvider(
+        [
+            [
+                ToolCallDelta(index=0, id="call_1", name="read_file", arguments="{}"),
+                UsageChunk(Usage(4, 1)),
+                Done("tool_calls"),
+            ],
+            [
+                ReasoningDelta("no final answer"),
+                UsageChunk(Usage(8, 1, cache_read_tokens=2)),
+                UsageChunk(Usage(8, 3, cache_write_tokens=1)),
+                Done("stop"),
+            ],
+        ]
+    )
+    host = FakeHost()
+    await DefaultEngine().run(make_request(messages=[USER], tools=[READ_FILE]), host, provider)
+
+    assert len(provider.calls) == 2
+    assert host.tool_calls == [ToolCall("call_1", "read_file", {})]
+    assert [
+        event["tool_result"] for event in host.events if event["type"] == "tool.call.completed"
+    ] == [ToolResult("call_1", "ok:read_file")]
+    assert [event["usage"] for event in host.events if event["type"] == "usage"] == [
+        Usage(4, 1),
+        Usage(8, 3, cache_read_tokens=2, cache_write_tokens=1),
+    ]
+    assert host.types()[-2:] == ["usage", "run.failed"]
+    assert host.events[-1]["error"] == tr("provider.empty_response")
+    assert "run.completed" not in host.types()
+
+
+async def test_refusal_text_remains_a_normal_model_answer() -> None:
+    answer = "I cannot comply with that request."
+    provider = FakeProvider([[TextDelta(answer), Done("stop")]])
+    host = FakeHost()
+    await DefaultEngine().run(make_request(messages=[USER]), host, provider)
+
+    assert host.types() == ["run.started", "text.delta", "run.completed"]
+    assert host.events[-1]["message"].text() == answer
 
 
 async def test_history_system_messages_are_ignored() -> None:
@@ -278,7 +353,7 @@ async def test_multiple_tool_calls_in_one_step_run_in_order() -> None:
                 ToolCallDelta(index=0, id="a", name="read_file", arguments='{"path": "a"}'),
                 Done("tool_calls"),
             ],
-            [Done("stop")],
+            [TextDelta("完成"), Done("stop")],
         ]
     )
     host = FakeHost()
@@ -382,7 +457,7 @@ async def test_completed_message_round_trips_through_run_start_parser() -> None:
                 ToolCallDelta(index=1, arguments="{}"),
                 Done("tool_calls"),
             ],
-            [Done("stop")],
+            [TextDelta("完成"), Done("stop")],
         ],
     ]
     for script in scenarios:

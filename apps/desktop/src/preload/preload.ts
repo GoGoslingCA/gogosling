@@ -18,6 +18,8 @@ const CHANNELS = {
   daemonStatusSubscribe: "gogosling:daemon:status:subscribe",
   diagnosticsStatus: "gogosling:diagnostics:status",
   diagnosticsPreview: "gogosling:diagnostics:preview",
+  diagnosticsTaskPreview: "gogosling:diagnostics:task-preview",
+  diagnosticsCancelPreparation: "gogosling:diagnostics:cancel-preparation",
   diagnosticsSend: "gogosling:diagnostics:send",
   diagnosticsCancel: "gogosling:diagnostics:cancel",
 } as const satisfies IpcChannelMap;
@@ -41,6 +43,8 @@ const bridge: GogoslingBridge = {
   getVersion: () => ipcRenderer.invoke(CHANNELS.getVersion) as Promise<ShellVersion>,
   diagnosticsStatus: () => ipcRenderer.invoke(CHANNELS.diagnosticsStatus) as Promise<DiagnosticStatus>,
   diagnosticsPreview: category => ipcRenderer.invoke(CHANNELS.diagnosticsPreview, category) as Promise<DiagnosticResult<DiagnosticPreview>>,
+  diagnosticsTaskPreview: request => ipcRenderer.invoke(CHANNELS.diagnosticsTaskPreview, request) as Promise<DiagnosticResult<DiagnosticPreview>>,
+  diagnosticsCancelPreparation: requestId => ipcRenderer.invoke(CHANNELS.diagnosticsCancelPreparation, requestId) as Promise<void>,
   diagnosticsSend: id => ipcRenderer.invoke(CHANNELS.diagnosticsSend, id) as Promise<DiagnosticResult<DiagnosticReceipt>>,
   diagnosticsCancel: (id, discard) => ipcRenderer.invoke(CHANNELS.diagnosticsCancel, id, discard) as Promise<void>,
 };

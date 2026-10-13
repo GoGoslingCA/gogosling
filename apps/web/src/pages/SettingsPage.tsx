@@ -16,7 +16,6 @@ import { applyAppearance, clampArtifactWidth, readUiPreferences, writeUiPreferen
 import type { Locale, Settings } from "../api/types";
 import "./settings.css";
 import { ResourceSettings } from "./ResourceSettings";
-import { DiagnosticsSettings } from "./DiagnosticsSettings";
 import { settingsHref, settingsReturnTarget, settingsSection, type SettingsSection } from "../lib/settingsNavigation";
 
 // 管理模块仅在选择时载入；侧栏不会同时启动模型、扩展和通道查询。
@@ -171,7 +170,6 @@ export function SettingsPage() {
               <SettingsRow label={t("settingsLayout.workerStatus")} description={[version.data.worker?.version, version.data.worker?.python].filter(Boolean).join(" · ") || undefined}><span className="settings-readonly">{t(version.data.worker?.status === "ready" || version.data.worker?.status === "starting" || version.data.worker?.status === "unavailable" ? `status.worker_${version.data.worker.status}` : "common.unknown")}</span></SettingsRow>
               <SettingsRow label={t("settingsLayout.capabilities")} description={t("settingsLayout.capabilitiesHint")}><ul className="settings-capabilities">{CAPABILITY_LABELS.filter(([key]) => version.data?.capabilities?.[key] === 1).map(([key, label]) => <li key={key}>{t(label)}</li>)}{CAPABILITY_LABELS.every(([key]) => version.data?.capabilities?.[key] !== 1) ? <li>{t("settingsLayout.capabilitiesNone")}</li> : null}</ul></SettingsRow>
             </> : null}
-            <DiagnosticsSettings />
           </section>
         </> : null}
         {selected.id === "appearance" ? <section className="settings-card" aria-label={t("preferences.appearance")}>

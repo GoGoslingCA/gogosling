@@ -2,12 +2,13 @@
 
 Gogosling.ca is a Canadian company developing the gogosling local-first workbench. Desktop diagnostics are optional: users review a small report and choose whether to send it to Gogosling.ca.
 
-**Status:** deployed in the service's [OpenAPI 1.1.0](https://api.gogosling.ca/v1/error-logs/openapi.json). On 2026-10-13, the packaged desktop client was verified against the public service for consent, successful upload, and active cancellation. Its bundled diagnostic module also passed real HTTPS retry and deduplication checks; see the [validation record](../reports/2026-10-13-desktop-diagnostics-validation.md). This is anonymous, limited upload authorization, not proof of official-client or user identity.
+**Schema 1 status:** deployed in the service's [OpenAPI 1.1.0](https://api.gogosling.ca/v1/error-logs/openapi.json). On 2026-10-13, the earlier packaged desktop client was verified against the public service for consent, successful upload, and active cancellation. Its bundled diagnostic module also passed real HTTPS retry and deduplication checks; see the [validation record](../reports/2026-10-13-desktop-diagnostics-validation.md). These checks preceded the error-only, task-specific flow described below. Schema 2 requires a separate server rollout and live acceptance. This is anonymous, limited upload authorization, not proof of official-client or user identity.
 
 ## Boundaries
 
 - Source development builds retain actionable local failure messages but do not show an upload entry point. Packaged releases can enable manual reporting through an explicit release configuration; packaging alone does not enable it.
 - No automatic reporting, background retry, persistent upload queue, periodic polling, or durable device identifier. A failed or canceled report remains local until the user chooses to send it again.
+- Reporting starts from an actual error, not a general settings category. A task report is prepared only after the main process verifies a failed run using the authenticated local daemon API. Successful, running, canceled, missing, or mismatched runs cannot produce a task report.
 - A report contains only allowlisted diagnostic codes and technical metadata. It excludes raw log lines, stack traces, paths, prompts, document contents, account details, headers, and credentials.
 - The user reviews the exact JSON body before sending. The desktop main process freezes that body, computes its digest, obtains a ticket, and uploads the same bytes. The renderer never receives the ticket or a product credential.
 - Shared server credentials must stay on the server. Do not embed them in source, builds, configuration distributed with an installer, or update metadata.
@@ -150,3 +151,48 @@ Before enabling the feature in a distributed release:
 7. Verify the source build has no diagnostics-upload entry point or diagnostics network activity; an enabled packaged build supports preview, send, cancel, and manual retry. Confirm no upload occurs before Send.
 
 Repeat these acceptance checks when changing either side of the integration. Offline unit tests alone do not establish successful deployment or receipt of a live report; the linked validation record distinguishes native UI checks, real transport checks, and controlled fault injection.
+
+## Task failure reports: schema 2
+
+**Server extension required; not yet verified against production.** The currently published OpenAPI 1.1.0 accepts only schema 1. The client must report `unsupported_report` when its schema-2 ticket request receives `422`; it must not silently substitute a generic application report. Keep schema 1 for earlier clients and actual native application/startup failures.
+
+The task flow is: a real failed run shows a compact notice above the composer; the user opens a report, reviews the frozen payload, explicitly agrees, and sends it. Opening details makes no external request. Closing during preparation aborts the local read; closing or canceling an upload aborts its active request. There is no automatic retry or compensation/payment action.
+
+### Client verification
+
+The renderer supplies only `{kind: "task", requestId, sessionId, runId}` over the task-preview IPC. `requestId` is a local preparation UUID used for cancellation and is never uploaded. Run and session identifiers must be strict ULIDs. The main process reads only the fixed `GET /api/v1/runs/{runId}` path on its current authenticated daemon connection, with a three-second deadline, a 64 KiB response limit, and redirects forbidden. The returned IDs must match, status must be `failed`, and `ended_at` must be a valid timestamp. No free-form renderer error, request URL, header, or body is accepted.
+
+The current run API does not expose a structured provider error code, upstream request ID, or trace ID. Do not invent these identifiers or derive them from localized error text. The initial task classification is the fixed `run_failed`, meaning only that the verified run failed. Local details can show the existing user-facing reason; it does not enter the upload. Future provider diagnostics require a separate structured contract through provider, worker, daemon, and API.
+
+### Server change
+
+Extend `POST /v1/desktop-diagnostics/tickets` to accept `schema_version: 2` as well as `1`. Store the version with the ticket binding; do not change its digest, byte-count, event UUID, expiry, scope, rate-limit, or one-use behavior. A schema-1 ticket must not accept schema-2 fields.
+
+For schema 2, preserve the existing envelope, fixed event values, release/platform allowlists, and receipt shape. Require `context.category` to be `task`, `context.recent_errors` to be an empty array, and this additional object:
+
+```json
+{
+  "task_failure": {
+    "run_id": "<local run ULID>",
+    "session_id": "<local session ULID>",
+    "occurred_at": "<UTC RFC3339 timestamp>",
+    "status": "failed",
+    "error_code": "run_failed"
+  }
+}
+```
+
+- `run_id` and `session_id`: match `^[0-7][0-9A-HJKMNP-TV-Z]{25}$`. These are local task identifiers, not provider request IDs, user IDs, or authentication evidence.
+- `occurred_at`: the verified run's end time, also used as the event `timestamp`; require the two to match.
+- `status` and `error_code`: accept only the exact values shown above.
+- Reject unknown fields at every level. In particular, reject raw errors, `server_detail`, `user_id`, `request_id`, `trace_id`, prompts, file content, paths, and credentials. Do not relax the schema to an arbitrary metadata dictionary.
+
+The report's random `event_id` remains its receipt and deduplication identifier. A manual retry keeps the same frozen body, UUID, and schema version and requests a fresh ticket. Do not use local run IDs as identities for querying reports, and do not overwrite prior events. The client verifies run state locally; the public service still treats all uploaded claims as untrusted.
+
+Publish the additive contract, for example as OpenAPI 1.2.0, while preserving existing backend products and schema-1 behavior. The unchanged response requirements remain `201` for ticket issuance and upload, `401` for expired/consumed tickets, `403` for disallowed scope, `422` for binding/schema mismatches, and `429` with `Retry-After` for throttling.
+
+### Additional acceptance
+
+Use synthetic task IDs and metadata only. Verify schema-1 compatibility, schema-2 exact field validation, version-bound tickets, invalid/extra IDs and fields, digest/byte/UUID mismatches, matching timestamps, cancellation, explicit retries, lost acknowledgements, deduplication, concurrent ticket consumption, restart behavior, and existing rate limits. Audit application/proxy logs without printing tickets or request bodies. Confirm the new endpoint still cannot authenticate an official client, query reports, or change other products' access.
+
+After the server rollout, repeat packaged-client preview, send, receipt, cancel, and retry acceptance. Until then, task-report upload is integration-pending even when local tests pass. No refund or token-credit guarantee is inferred from sending a report.

@@ -42,6 +42,7 @@ _TEXTS: dict[str, dict[str, str]] = {
         "provider.stream_error": "模型服务在流式响应中报错：{detail}",
         "provider.bad_response": "模型服务的响应无法识别：{detail}",
         "provider.incomplete_response": "模型服务的响应在完成前中断，请重试",
+        "provider.empty_response": "模型没有返回可显示的内容或工具调用，请重试",
         "provider.unsupported_kind": "不支持的供应商类型：{kind}",
         "provider.missing_base_url": "供应商 {kind} 缺少 base_url",
     },
@@ -81,6 +82,9 @@ _TEXTS: dict[str, dict[str, str]] = {
         "provider.stream_error": "model service reported an error in the stream: {detail}",
         "provider.bad_response": "unrecognised response from the model service: {detail}",
         "provider.incomplete_response": "the model response ended before completion; please retry",
+        "provider.empty_response": (
+            "the model returned no visible content or tool calls; please retry"
+        ),
         "provider.unsupported_kind": "unsupported provider kind: {kind}",
         "provider.missing_base_url": "provider {kind} has no base_url",
     },
@@ -130,6 +134,9 @@ _TEXTS: dict[str, dict[str, str]] = {
         "provider.bad_response": "réponse du service de modèle non reconnue : {detail}",
         "provider.incomplete_response": (
             "la réponse du modèle s'est interrompue avant la fin ; veuillez réessayer"
+        ),
+        "provider.empty_response": (
+            "le modèle n'a renvoyé aucun contenu affichable ni appel d'outil ; veuillez réessayer"
         ),
         "provider.unsupported_kind": "type de fournisseur non pris en charge : {kind}",
         "provider.missing_base_url": "le fournisseur {kind} n'a pas de base_url",

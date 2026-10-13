@@ -915,14 +915,7 @@
   },
   "diagnostics": {
     "title": "诊断报告",
-    "entryHint": "查看报告，自愿发送。",
-    "open": "查看报告",
-    "summary": "仅含应用状态与版本，不含对话、文件内容、凭据或原始日志。点击发送后才会上传。",
-    "category": "问题类型",
-    "category_connection": "连接",
-    "category_task": "任务执行",
-    "category_preview": "文件预览",
-    "category_application": "应用",
+    "summary": "报告包含应用版本、系统平台、本地任务与运行 ID、失败时间及固定错误代码，不包含对话、文件内容、凭据、原始日志或上方错误正文。点击发送后才会上传。",
     "preparing": "正在本机准备…",
     "destination": "发送至 {{destination}} · 保留 {{days}} 天。",
     "review": "查看报告 · {{bytes}} 字节",
@@ -949,11 +942,26 @@
       "unavailable": "暂时无法连接报告服务，请稍后重试。",
       "rate_limited": "发送过于频繁，请稍后重试。",
       "unauthorized": "暂时无法取得上传授权，请稍后重试。",
-      "invalid_response": "服务响应异常，可以重试。"
+      "invalid_response": "服务响应异常，可以重试。",
+      "no_error": "这次运行没有可确认的错误，无需报告。",
+      "unsupported_report": "报告服务尚未支持任务报告，本次未上传。"
     }
   },
   "profile": {
     "menuLabel": "个人设置",
     "version": "版本：{{version}}"
+  },
+  "taskFailure": {
+    "title": "任务错误",
+    "message": "这次任务没有完成。",
+    "report": "报告问题",
+    "dismiss": "关闭错误提示",
+    "details": "技术详情",
+    "localOnly": "详情仅在本机显示，发送内容以报告预览为准。",
+    "code": "应用错误代码",
+    "runId": "本地运行 ID",
+    "sessionId": "本地任务 ID",
+    "time": "发生时间",
+    "version": "应用版本"
   }
 }

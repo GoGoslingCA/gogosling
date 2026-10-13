@@ -17,6 +17,7 @@ import { DaemonManager, canRestart } from "./daemon.js";
 import { resolveDataDir } from "./daemon-logic.js";
 import { DeepLinkGate } from "./deep-link.js";
 import { DesktopDiagnostics } from "./diagnostics.js";
+import { readDiagnosticTask } from "./diagnostics-task.js";
 import { installDiagnosticsIpc } from "./diagnostics-ipc.js";
 import { releaseDiagnosticsEnabled } from "./diagnostics-policy.js";
 import { parentedDiagnosticDialog, reviewNativeDiagnostics } from "./diagnostics-native.js";
@@ -552,6 +553,9 @@ function bootstrap(): void {
       readMetadata: () => JSON.parse(fs.readFileSync(path.join(app.getAppPath(), "package.json"), "utf8")) as unknown,
     }),
     version: app.getVersion(), platform: process.platform, arch: process.arch,
+    loadTask: (request, signal) => readDiagnosticTask(request, signal, {
+      connection: () => daemon.getConnection(), fetch: (url, init) => net.fetch(url, init),
+    }),
     snapshot: () => {
       const status = daemon.getStatus();
       return { daemonState: status.state, daemonOwned: status.owned, restartAttempts: status.attempt, errorCode: status.error, exitCode: status.lastExit?.code };

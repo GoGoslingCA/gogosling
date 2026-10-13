@@ -20,6 +20,8 @@ import { SessionList } from "./SessionList";
 import { MessageList } from "./MessageList";
 import { Composer } from "./Composer";
 import { StartPage, type StartReferences } from "./StartPage";
+import { TaskFailureBanner } from "./TaskFailureBanner";
+import { latestTaskRunId, resolveTaskFailure } from "./taskFailure";
 import { TaskProgress } from "./TaskProgress";
 import { SavedArtifactEditor } from "./SavedArtifactEditor";
 import { extractArtifacts, preferredArtifact, artifactExtension, safeArtifactFilename } from "../../lib/artifacts";
@@ -308,8 +310,9 @@ function ChatWorkspace() {
     onSuccess: (saved, input) => { void queryClient.invalidateQueries({ queryKey: queryKeys.artifacts }); if (mounted.current && input.intent === artifactIntent.current && saved.session_id === activeSessionRef.current) openPersistent(saved.id); },
     onError: (error) => toast.show(describeError(error, t), "error"),
   });
-  const lastRunId = (messages.data ? [...messages.data].reverse() : []).find((message) => message.run_id)?.run_id;
+  const lastRunId = latestTaskRunId(sessionId, messages.data ?? [], liveRuns);
   const latestRun = useQuery({ queryKey: queryKeys.run(lastRunId ?? ""), queryFn: () => api.runs.get(lastRunId ?? ""), enabled: !!lastRunId && !activeRunId });
+  const taskFailure = resolveTaskFailure(sessionId, lastRunId, liveRuns, latestRun.data, activeRunId);
   const selectSession = (id: string) => { setHistoryOpen(false); void navigate(chatUrl(id)); };
   const beginRename = (item: Session) => { setRenaming(item); setRenameValue(item.title ?? ""); };
   const showHistory = () => { setHistoryOpen(true); requestAnimationFrame(() => searchInput.current?.focus()); };
@@ -390,6 +393,7 @@ function ChatWorkspace() {
         if (created) void navigate(chatUrl(created.id));
       }}>{t("phase2.openCreatedTask")}</button> : <button className="btn" onClick={showHistory}>{t("work.history")}</button>}{startOutcomeUnknown ? <button className="btn ghost" onClick={() => { if (window.confirm(t("phase2.confirmStartOver"))) { taskStarter.current = null; checkpointDraft.current = null; setStartOutcomeUnknown(false); setStartError(null); } }}>{t("phase2.startOver")}</button> : null}</div> : null}
       <div className="workspace-composer" hidden={!sessionId}>
+        {taskFailure ? <TaskFailureBanner key={`${taskFailure.sessionId}:${taskFailure.runId}`} failure={taskFailure} timeZone={timeZone} /> : null}
         {session ? <SessionProjectControl session={session} running={!!activeRunId || send.isPending} /> : null}
         <Composer contextActions={agentOfSession ? <TaskContextBar part="context" key={sessionId} usage={active?.usage ?? latestRun.data?.usage ?? null} agent={agentOfSession} messages={messages.data ?? []} disabled={!!archived} onAddMaterial={(attachment) => setPendingContext({ sessionId: sessionId ?? "", attachment })} /> : null} modelAction={agentOfSession ? <TaskContextBar part="model" key={sessionId} usage={active?.usage ?? latestRun.data?.usage ?? null} agent={agentOfSession} messages={messages.data ?? []} disabled={!!archived} onAddMaterial={(attachment) => setPendingContext({ sessionId: sessionId ?? "", attachment })} /> : null} enhancementEnabled={caps.enhancePrompt} agentId={agentOfSession?.id} projectId={session?.project_id} onDraftDirtyChange={setComposerDirty} draftRequest={retryDraft?.sessionId === sessionId ? retryDraft : undefined} onDraftRequestConsumed={() => setRetryDraft(null)} draftKey={sessionId ?? ""} pendingAttachment={pendingContext?.sessionId === sessionId ? pendingContext.attachment : null} onAttachmentConsumed={() => setPendingContext(null)} disabled={!session || archived || actionBusy} busy={send.isPending} cancelBusy={cancel.isPending} activeRunId={activeRunId}
           onSend={(text, attachments, materialIds) => send.mutateAsync({ id: sessionId ?? "", text, attachments, materialIds })} onCancel={() => { if (activeRunId && !cancel.isPending) cancel.mutate(activeRunId); }} upload={upload} />

@@ -250,6 +250,10 @@ class DefaultEngine(Engine):
                 host.emit(EVENT_USAGE, usage=step_usage)
 
         text = "".join(text_parts)
+        # 结束标记、用量或思考分片本身不代表已答复；按本次调用判断，不能用之前的
+        # 文本或工具结果掩盖空的最终回复。直接失败，不自动重放可能已计费的请求。
+        if not text.strip() and not len(calls):
+            raise ProviderError(tr("provider.empty_response", host.locale))
         assistant_parts: list[Part] = []
         if text:
             part = Part.of_text(text)

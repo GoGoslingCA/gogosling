@@ -35,7 +35,7 @@ describe("release diagnostics boundary", () => {
   });
   it("所有通道在读取任何诊断前拒绝不可信页面", () => {
     const { handlers, diagnostics } = register(true);
-    expect(handlers.size).toBe(4);
+    expect(handlers.size).toBe(6);
     for (const handle of handlers.values()) expect(() => handle({ trusted: false }, "application", true)).toThrow("untrusted sender");
     expect(handlers.get(IPC.diagnosticsPreview)!({ trusted: true }, "not-a-category")).toEqual({ ok: false, code: "invalid_request" });
     diagnostics.dispose();

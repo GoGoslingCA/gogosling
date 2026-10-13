@@ -915,14 +915,7 @@
   },
   "diagnostics": {
     "title": "Diagnostic report",
-    "entryHint": "Review a small report and send it only if you choose.",
-    "open": "Review report",
-    "summary": "Includes app status and versions, without chats, file contents, credentials or raw logs. Nothing is uploaded until you select Send.",
-    "category": "Issue type",
-    "category_connection": "Connection",
-    "category_task": "Task execution",
-    "category_preview": "File preview",
-    "category_application": "Application",
+    "summary": "Includes the app version, platform, local task and run IDs, failure time and a fixed error code. Does not include chats, file contents, credentials, raw logs or the error text above. Nothing is uploaded until you select Send.",
     "preparing": "Preparing on this device…",
     "destination": "Send to {{destination}} · Retained for {{days}} days.",
     "review": "View report · {{bytes}} bytes",
@@ -949,11 +942,26 @@
       "unavailable": "Could not reach the reporting service. Try again later.",
       "rate_limited": "Too many reports. Please wait before retrying.",
       "unauthorized": "Upload authorization is unavailable. Try again later.",
-      "invalid_response": "The service returned an unexpected response. You can retry."
+      "invalid_response": "The service returned an unexpected response. You can retry.",
+      "no_error": "This run has no confirmed error to report.",
+      "unsupported_report": "The reporting service does not support task reports yet. Nothing was uploaded."
     }
   },
   "profile": {
     "menuLabel": "Preferences",
     "version": "Version: {{version}}"
+  },
+  "taskFailure": {
+    "title": "Task error",
+    "message": "This task did not finish.",
+    "report": "Report issue",
+    "dismiss": "Dismiss error notice",
+    "details": "Technical details",
+    "localOnly": "Shown on this device. The report preview lists exactly what would be sent.",
+    "code": "Application error code",
+    "runId": "Local run ID",
+    "sessionId": "Local task ID",
+    "time": "Occurred at",
+    "version": "App version"
   }
 }

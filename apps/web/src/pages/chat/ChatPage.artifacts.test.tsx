@@ -67,6 +67,18 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); router?.dispose(); client.clear(); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("ChatPage 成果入口兼容与打开目标", () => {
+  it("当前失败在输入区上方显示；切换任务清除提示且不重复请求运行状态", async () => {
+    api.sessions.listMessagesAfter.mockResolvedValue([...messages, { id: "failure-user", session_id: "s1", run_id: "failed-run", seq: 5, role: "user", parts: [{ type: "text", text: "Synthetic task" }], created_at: date }]);
+    api.runs.get.mockResolvedValue({ id: "failed-run", session_id: "s1", agent_id: agent.id, status: "failed", trigger: "user", usage: {}, created_at: date, ended_at: date, error: "Synthetic task failure" });
+    await mount();
+    await ready(() => expect(host.querySelector(".workspace-composer > .task-failure")?.textContent).toContain("taskFailure.message"));
+    expect(host.querySelector(".workspace-composer")?.firstElementChild?.className).toBe("task-failure");
+    expect(api.runs.get).toHaveBeenCalledExactlyOnceWith("failed-run");
+    expect(host.textContent).not.toContain("taskFailure.report");
+    await act(async () => { await router.navigate("/chat/s2"); });
+    await ready(() => expect(host.querySelector(".task-failure")).toBeNull());
+  });
+
   it("旧daemon缺能力时使用原副本编辑区，不探测或调用新成果草稿接口", async () => {
     api.system.version.mockResolvedValue({ version: "old-daemon" });
     const writes = vi.spyOn(Storage.prototype, "setItem");

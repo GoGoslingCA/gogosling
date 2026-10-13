@@ -1,7 +1,5 @@
 /* 沿用通用设置卡片和原生对话框；长内容仅在展开后显示。 */
 .diagnostics-dialog .diagnostics-hint { margin: 0 0 16px; color: var(--text-2); font-size: 13px; line-height: 1.6; }
-.diagnostics-category { display: flex; justify-content: space-between; align-items: center; gap: 16px; font-size: 14px; }
-.diagnostics-category select { max-width: 60%; min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface); }
 .diagnostics-destination { font-size: 12px; color: var(--text-2); line-height: 1.7; overflow-wrap: anywhere; margin: 14px 0; }
 .diagnostics-preview { border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
 .diagnostics-preview summary { cursor: pointer; padding: 10px 12px; font-size: 13px; }

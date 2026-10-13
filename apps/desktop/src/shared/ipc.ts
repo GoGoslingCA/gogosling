@@ -7,7 +7,7 @@
 // 这里的任何对象都可能被发送到渲染进程，因此 DaemonStatus 不得携带令牌；
 // 打包后 ConnectionInfo 也不带令牌（proxy 模式），只有开发模式（direct）才把令牌交给页面。
 
-import type { DiagnosticCategory, DiagnosticPreview, DiagnosticReceipt, DiagnosticResult, DiagnosticStatus } from "./diagnostics.js";
+import type { DiagnosticCategory, DiagnosticPreview, DiagnosticReceipt, DiagnosticResult, DiagnosticStatus, DiagnosticTaskRequest } from "./diagnostics.js";
 
 /** IPC 通道名。前缀 gogosling: 避免与第三方 preload（无）或 Electron 内部通道冲突。 */
 export const IPC = {
@@ -23,6 +23,8 @@ export const IPC = {
   daemonStatusSubscribe: "gogosling:daemon:status:subscribe",
   diagnosticsStatus: "gogosling:diagnostics:status",
   diagnosticsPreview: "gogosling:diagnostics:preview",
+  diagnosticsTaskPreview: "gogosling:diagnostics:task-preview",
+  diagnosticsCancelPreparation: "gogosling:diagnostics:cancel-preparation",
   diagnosticsSend: "gogosling:diagnostics:send",
   diagnosticsCancel: "gogosling:diagnostics:cancel",
 } as const;
@@ -126,6 +128,8 @@ export interface GogoslingBridge {
   getVersion(): Promise<ShellVersion>;
   diagnosticsStatus(): Promise<DiagnosticStatus>;
   diagnosticsPreview(category: DiagnosticCategory): Promise<DiagnosticResult<DiagnosticPreview>>;
+  diagnosticsTaskPreview(request: DiagnosticTaskRequest): Promise<DiagnosticResult<DiagnosticPreview>>;
+  diagnosticsCancelPreparation(requestId: string): Promise<void>;
   diagnosticsSend(id: string): Promise<DiagnosticResult<DiagnosticReceipt>>;
   diagnosticsCancel(id: string, discard: boolean): Promise<void>;
 }

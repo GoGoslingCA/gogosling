@@ -1,16 +1,20 @@
 /** 手动诊断：仅内存中的白名单状态，经用户确认后使用短效票据上传。 */
 import { createHash, randomUUID } from "node:crypto";
 import type {
-  DiagnosticCategory, DiagnosticErrorCode, DiagnosticPreview, DiagnosticReceipt,
-  DiagnosticResult, DiagnosticStatus,
+  DiagnosticErrorCode, DiagnosticPreview, DiagnosticReceipt,
+  DiagnosticResult, DiagnosticStatus, DiagnosticTaskRequest,
 } from "../shared/diagnostics.js";
+import { DiagnosticTaskReadError } from "./diagnostics-task.js";
 
 const DESTINATION = "https://api.gogosling.ca/v1/error-logs";
 const TICKET_ENDPOINT = "https://api.gogosling.ca/v1/desktop-diagnostics/tickets";
 const PREVIEW_TTL = 10 * 60_000;
 const REQUEST_TIMEOUT = 15_000;
 const RESPONSE_LIMIT = 8 * 1024;
-const categories = new Set(["connection", "task", "preview", "application"]);
+const PREPARATION_TIMEOUT = 3000;
+const categories = new Set(["connection", "preview", "application"]);
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ulid = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 const states = new Set(["idle", "attaching", "locating", "starting", "ready", "restarting", "stopping", "stopped", "failed"]);
 const daemonCodes = new Set(["executable_not_found", "spawn_failed", "ready_timeout", "exited", "stale_handle", "restart_limit"]);
 const recordCodes = new Set([
@@ -28,12 +32,14 @@ export interface DiagnosticDependencies {
   platform: string;
   arch: string;
   snapshot: () => unknown;
+  loadTask?: (request: DiagnosticTaskRequest, signal: AbortSignal) => Promise<unknown>;
   fetch?: (url: string, init: RequestInit) => Promise<Response>;
   now?: () => number;
 }
 
-interface StoredPreview { value: DiagnosticPreview; eventId: string; expires: number }
+interface StoredPreview { value: DiagnosticPreview; eventId: string; expires: number; schemaVersion: 1 | 2 }
 interface ActiveSend { id: string; controller: AbortController; reason?: "cancelled" | "timeout" }
+interface ActivePreparation { requestId: string; controller: AbortController; reason?: "cancelled" | "timeout" }
 interface RecentError { code: string; timestamp: string }
 
 class Failure extends Error {
@@ -49,6 +55,24 @@ function field(value: unknown, key: string): unknown {
   if (typeof value !== "object" || value === null) return undefined;
   const descriptor = Object.getOwnPropertyDescriptor(value, key);
   return descriptor && "value" in descriptor ? descriptor.value : undefined;
+}
+
+function taskRequest(value: unknown): DiagnosticTaskRequest | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(value) as object | null)) return null;
+  const keys = Reflect.ownKeys(value);
+  if (keys.length !== 4 || keys.some(key => typeof key !== "string" || !["kind", "requestId", "runId", "sessionId"].includes(key))) return null;
+  const requestId = field(value, "requestId"), runId = field(value, "runId"), sessionId = field(value, "sessionId");
+  if (field(value, "kind") !== "task" || typeof requestId !== "string" || !uuid.test(requestId) ||
+      typeof runId !== "string" || !ulid.test(runId) || typeof sessionId !== "string" || !ulid.test(sessionId)) return null;
+  return { kind: "task", requestId, runId, sessionId };
+}
+
+function failedAt(value: unknown): string | null {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|\+00:00)$/.test(value)) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 19) !== value.slice(0, 19)) return null;
+  return value;
 }
 
 function safeSnapshot(value: unknown): Record<string, string | number | boolean> {
@@ -125,6 +149,7 @@ export class DesktopDiagnostics {
   private current?: StoredPreview;
   private previewTimer?: ReturnType<typeof setTimeout>;
   private active?: ActiveSend;
+  private preparing?: ActivePreparation;
   private disposed = false;
   private cooldown?: { until: number; code: "rate_limited" | "unavailable" };
 
@@ -136,7 +161,10 @@ export class DesktopDiagnostics {
     this.arch = architectures.has(deps.arch) ? deps.arch : "unknown";
   }
 
-  status(): DiagnosticStatus { return { available: this.deps.enabled && !this.disposed }; }
+  status(): DiagnosticStatus {
+    const available = this.deps.enabled && !this.disposed;
+    return { available, ...(available && this.deps.loadTask ? { taskReports: true } : {}) };
+  }
 
   /** 未启用时也不收集状态；不接受自由文本错误或任意附加字段。 */
   record(code: unknown): void {
@@ -147,41 +175,88 @@ export class DesktopDiagnostics {
 
   preview(category: unknown): DiagnosticResult<DiagnosticPreview> {
     if (!this.status().available) return fail("disabled");
-    if (this.active) return fail("busy");
+    if (this.active || this.preparing) return fail("busy");
     if (typeof category !== "string" || !categories.has(category)) return fail("invalid_request");
     try {
-      const now = this.now();
-      const eventId = randomUUID();
-      const body = JSON.stringify({
-        product: "gogosling-desktop",
-        events: [{
-          event_id: eventId, timestamp: new Date(now).toISOString(), environment: "production",
-          level: "error", service: "gogosling-desktop", message: "desktop_diagnostic_report",
-          release: this.version,
-          tags: { platform: this.platform, arch: this.arch, ...safeSnapshot(this.deps.snapshot()) },
-          context: { category: category as DiagnosticCategory, recent_errors: this.recent.map((entry) => ({ ...entry })) },
-        }],
-      });
-      const byteLength = Buffer.byteLength(body, "utf8");
-      if (byteLength > 16 * 1024) return fail("invalid_request");
-      const expires = now + PREVIEW_TTL;
-      const value: DiagnosticPreview = Object.freeze({
-        id: randomUUID(), expiresAt: new Date(expires).toISOString(), body, byteLength,
-        sha256: createHash("sha256").update(body, "utf8").digest("hex"),
-        destination: DESTINATION, retentionDays: 90,
-      });
-      this.clearPreview();
-      this.current = { value, eventId, expires };
-      this.previewTimer = setTimeout(() => this.clearPreview(), PREVIEW_TTL);
-      this.previewTimer.unref?.();
-      return { ok: true, value };
+      const snapshot = safeSnapshot(this.deps.snapshot());
+      if (!this.recent.length && snapshot.daemon_state !== "failed") return fail("no_error");
+      return this.storePreview(new Date(this.now()).toISOString(), snapshot,
+        { category, recent_errors: this.recent.map((entry) => ({ ...entry })) }, 1);
     } catch { return fail("unavailable"); }
+  }
+
+  /** 渲染进程只指定任务；由主进程核实已失败的运行后冻结一份独立报告。 */
+  async prepareTask(input: unknown): Promise<DiagnosticResult<DiagnosticPreview>> {
+    if (!this.status().available || !this.deps.loadTask) return fail("disabled");
+    if (this.active || this.preparing) return fail("busy");
+    let request: DiagnosticTaskRequest | null;
+    try { request = taskRequest(input); } catch { return fail("invalid_request"); }
+    if (!request) return fail("invalid_request");
+    this.clearPreview();
+    const preparing: ActivePreparation = { requestId: request.requestId, controller: new AbortController() };
+    this.preparing = preparing;
+    const timer = setTimeout(() => { preparing.reason = "timeout"; preparing.controller.abort(); }, PREPARATION_TIMEOUT);
+    timer.unref?.();
+    try {
+      const run = await abortable(this.deps.loadTask(request, preparing.controller.signal), preparing.controller.signal);
+      if (preparing.controller.signal.aborted || this.preparing !== preparing) return fail(preparing.reason ?? "cancelled");
+      if (field(run, "id") !== request.runId || field(run, "session_id") !== request.sessionId) return fail("invalid_response");
+      if (field(run, "status") !== "failed") return fail("no_error");
+      const occurredAt = failedAt(field(run, "ended_at"));
+      if (!occurredAt) return fail("invalid_response");
+      return this.storePreview(occurredAt, {}, {
+        category: "task", recent_errors: [],
+        task_failure: { run_id: request.runId, session_id: request.sessionId, occurred_at: occurredAt, status: "failed", error_code: "run_failed" },
+      }, 2);
+    } catch (error) {
+      if (preparing.reason) return fail(preparing.reason);
+      return error instanceof DiagnosticTaskReadError ? fail(error.code) : fail("unavailable");
+    } finally {
+      clearTimeout(timer);
+      if (this.preparing === preparing) this.preparing = undefined;
+    }
+  }
+
+  /** 只中断匹配的准备请求，旧弹窗的清理不得取消后来打开的任务。 */
+  cancelPreparation(requestId: unknown): void {
+    if (typeof requestId !== "string" || this.preparing?.requestId !== requestId) return;
+    const preparing = this.preparing;
+    this.preparing = undefined;
+    preparing.reason = "cancelled";
+    preparing.controller.abort();
+  }
+
+  private storePreview(timestamp: string, snapshot: Record<string, string | number | boolean>, context: object, schemaVersion: 1 | 2): DiagnosticResult<DiagnosticPreview> {
+    const now = this.now();
+    const eventId = randomUUID();
+    const body = JSON.stringify({
+      product: "gogosling-desktop",
+      events: [{
+        event_id: eventId, timestamp, environment: "production",
+        level: "error", service: "gogosling-desktop", message: "desktop_diagnostic_report",
+        release: this.version,
+        tags: { platform: this.platform, arch: this.arch, ...snapshot }, context,
+      }],
+    });
+    const byteLength = Buffer.byteLength(body, "utf8");
+    if (byteLength > 16 * 1024) return fail("invalid_request");
+    const expires = now + PREVIEW_TTL;
+    const value: DiagnosticPreview = Object.freeze({
+      id: randomUUID(), expiresAt: new Date(expires).toISOString(), body, byteLength,
+      sha256: createHash("sha256").update(body, "utf8").digest("hex"),
+      destination: DESTINATION, retentionDays: 90,
+    });
+    this.clearPreview();
+    this.current = { value, eventId, expires, schemaVersion };
+    this.previewTimer = setTimeout(() => this.clearPreview(), PREVIEW_TTL);
+    this.previewTimer.unref?.();
+    return { ok: true, value };
   }
 
   async send(id: unknown): Promise<DiagnosticResult<DiagnosticReceipt>> {
     if (!this.status().available) return fail("disabled");
     if (typeof id !== "string") return fail("invalid_request");
-    if (this.active) return fail("busy");
+    if (this.active || this.preparing) return fail("busy");
     const preview = this.current;
     if (!preview || preview.value.id !== id || preview.expires <= this.now()) return fail("stale_preview");
     if (this.cooldown && this.cooldown.until > this.now()) {
@@ -197,9 +272,9 @@ export class DesktopDiagnostics {
     let token = "";
     try {
       const ticket = await this.request(TICKET_ENDPOINT, JSON.stringify({
-        schema_version: 1, body_sha256: preview.value.sha256,
+        schema_version: preview.schemaVersion, body_sha256: preview.value.sha256,
         body_bytes: preview.value.byteLength, event_id: preview.eventId,
-      }), active, undefined, [201]);
+      }), active, undefined, [201], preview.schemaVersion === 2);
       const credential = field(ticket, "token");
       const expiration = field(ticket, "expires_at");
       const expiry = typeof expiration === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(expiration)
@@ -251,6 +326,7 @@ export class DesktopDiagnostics {
 
   /** 页面离开时清除预览和请求，保留有限的安全生命周期代码。 */
   clear(): void {
+    if (this.preparing) this.cancelPreparation(this.preparing.requestId);
     if (this.active) {
       this.active.reason = "cancelled";
       this.active.controller.abort();
@@ -272,7 +348,7 @@ export class DesktopDiagnostics {
     this.current = undefined;
   }
 
-  private async request(url: string, body: string, active: ActiveSend, token: string | undefined, success: number[]): Promise<unknown> {
+  private async request(url: string, body: string, active: ActiveSend, token: string | undefined, success: number[], taskTicket = false): Promise<unknown> {
     const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
     const signal = active.controller.signal;
@@ -289,6 +365,7 @@ export class DesktopDiagnostics {
       discardBody(response);
       const retry = this.retryAfter(response.headers.get("retry-after"));
       if (response.status === 401 || response.status === 403) throw new Failure("unauthorized");
+      if (taskTicket && response.status === 422) throw new Failure("unsupported_report");
       if (response.status === 429) throw new Failure("rate_limited", retry);
       if (response.status === 503) throw new Failure("unavailable", retry);
       if (response.status >= 200 && response.status < 400) throw new Failure("invalid_response");

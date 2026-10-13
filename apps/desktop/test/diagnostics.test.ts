@@ -33,7 +33,7 @@ function receipt(call: Call, duplicate = false): Response {
 
 function setup(overrides: Partial<DiagnosticDependencies> = {}, respond?: (call: Call) => Response | Promise<Response>) {
   const calls: Call[] = [];
-  const snapshot = vi.fn(() => ({ daemonState: "ready", daemonOwned: true, restartAttempts: 0 }));
+  const snapshot = vi.fn(() => ({ daemonState: "failed", daemonOwned: true, restartAttempts: 0 }));
   const fetch = vi.fn(async (url: string, init: RequestInit) => {
     const call = { url, init };
     calls.push(call);
@@ -106,6 +106,7 @@ describe("手动诊断的可见性与隐私边界", () => {
       errorCode: { value: "private-marker" }, exitCode: { value: 4294967296 },
     });
     const { diagnostics } = setup({ snapshot: () => untrusted, version: "0.1.0+private-marker", platform: "private-marker", arch: "private-marker" });
+    diagnostics.record("load_failed");
     const result = preview(diagnostics);
     expect((JSON.parse(result.body) as Batch).events[0].tags).toEqual({ platform: "unknown", arch: "unknown" });
     expect(result.body).not.toContain("private-marker");
@@ -129,6 +130,7 @@ describe("手动诊断的可见性与隐私边界", () => {
     const snapshot = vi.fn<() => unknown>().mockImplementationOnce(() => { throw new Error("private-marker"); }).mockReturnValue({});
     const { diagnostics } = setup({ snapshot });
     expect(diagnostics.preview("application")).toEqual({ ok: false, code: "unavailable" });
+    diagnostics.record("load_failed");
     expect(preview(diagnostics).body).not.toContain("private-marker");
   });
 });
@@ -181,7 +183,7 @@ describe("确认内容与短效上传票据", () => {
     expect(await diagnostics.send(report.id)).toEqual({ ok: false, code: "stale_preview" });
     expect(diagnostics.cancel(report.id, true)).toEqual({ ok: false, code: "stale_preview" });
     expect(calls).toHaveLength(2);
-    expect(diagnostics.preview("task").ok).toBe(true);
+    expect(diagnostics.preview("application").ok).toBe(true);
   });
 
   it("人工重试保持原事件与字节，每次获取新票据并识别服务端去重", async () => {
@@ -338,7 +340,7 @@ describe("中断、截止时间与资源回收", () => {
     expect(await pending).toEqual({ ok: false, code: "cancelled" });
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(await diagnostics.send(report.id)).toEqual({ ok: false, code: "stale_preview" });
-    expect(diagnostics.preview("task").ok).toBe(true);
+    expect(diagnostics.preview("application").ok).toBe(true);
   });
 
   it.each([TICKET, INGEST])("%s 挂起时十五秒截止，后续预览仍可正常打开", async (phase) => {
@@ -351,7 +353,7 @@ describe("中断、截止时间与资源回收", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(await pending).toEqual({ ok: false, code: "timeout" });
     expect(calls.at(-1)?.init.signal?.aborted).toBe(true);
-    expect(diagnostics.preview("task").ok).toBe(true);
+    expect(diagnostics.preview("application").ok).toBe(true);
   });
 
   it.each([TICKET, INGEST])("%s 响应体挂起仍执行十五秒截止并关闭阅读器", async (phase) => {
@@ -365,7 +367,7 @@ describe("中断、截止时间与资源回收", () => {
     expect(await pending).toEqual({ ok: false, code: "timeout" });
     expect(calls.at(-1)?.init.signal?.aborted).toBe(true);
     expect(cancel).toHaveBeenCalledTimes(1);
-    expect(diagnostics.preview("task").ok).toBe(true);
+    expect(diagnostics.preview("application").ok).toBe(true);
   });
 
   it("两个阶段共用十五秒而不是分别计时", async () => {
