@@ -1,4 +1,4 @@
-// 渲染进程与主进程之间的最小桥：只暴露四个函数。
+// 渲染进程与主进程之间的最小桥；诊断通道只传递脱敏预览和枚举参数。
 // getConnection 打包后返回 { endpoint: "app://gogosling", token: "", mode: "proxy" }：页面同源访问、
 // 主进程代理并注入令牌，令牌不进入页面；只有开发模式（mode: "direct"）才把令牌交给页面内存。
 //
@@ -8,6 +8,7 @@
 
 import { contextBridge, ipcRenderer } from "electron";
 import type { ConnectionInfo, DaemonStatus, GogoslingBridge, IpcChannelMap, ShellVersion } from "../shared/ipc.js";
+import type { DiagnosticPreview, DiagnosticReceipt, DiagnosticResult, DiagnosticStatus } from "../shared/diagnostics.js";
 
 const CHANNELS = {
   getConnection: "gogosling:connection:get",
@@ -15,6 +16,10 @@ const CHANNELS = {
   openExternal: "gogosling:shell:open-external",
   daemonStatus: "gogosling:daemon:status",
   daemonStatusSubscribe: "gogosling:daemon:status:subscribe",
+  diagnosticsStatus: "gogosling:diagnostics:status",
+  diagnosticsPreview: "gogosling:diagnostics:preview",
+  diagnosticsSend: "gogosling:diagnostics:send",
+  diagnosticsCancel: "gogosling:diagnostics:cancel",
 } as const satisfies IpcChannelMap;
 
 const bridge: GogoslingBridge = {
@@ -34,6 +39,10 @@ const bridge: GogoslingBridge = {
   openExternal: (url) => ipcRenderer.invoke(CHANNELS.openExternal, String(url)) as Promise<void>,
 
   getVersion: () => ipcRenderer.invoke(CHANNELS.getVersion) as Promise<ShellVersion>,
+  diagnosticsStatus: () => ipcRenderer.invoke(CHANNELS.diagnosticsStatus) as Promise<DiagnosticStatus>,
+  diagnosticsPreview: category => ipcRenderer.invoke(CHANNELS.diagnosticsPreview, category) as Promise<DiagnosticResult<DiagnosticPreview>>,
+  diagnosticsSend: id => ipcRenderer.invoke(CHANNELS.diagnosticsSend, id) as Promise<DiagnosticResult<DiagnosticReceipt>>,
+  diagnosticsCancel: (id, discard) => ipcRenderer.invoke(CHANNELS.diagnosticsCancel, id, discard) as Promise<void>,
 };
 
 contextBridge.exposeInMainWorld("gogosling", bridge);

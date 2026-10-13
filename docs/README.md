@@ -15,6 +15,7 @@ Documentation for gogosling, developed by Gogosling.ca, a Canadian company. Publ
 - [Architecture guide](development/architecture-guide.md).
 - [Detailed architecture](architecture.md) and [contributor instructions](../AGENTS.md): authoritative dependency and safety rules.
 - [HTTP API](../api/openapi/openapi.yaml) and [worker RPC](../api/worker-rpc/protocol.md).
+- [Optional desktop diagnostics](../apps/desktop/README.md#optional-release-diagnostics) and [server integration proposal](development/diagnostics-server-handoff.md).
 - [Security reporting](../SECURITY.md).
 
 ## Validation records

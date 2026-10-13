@@ -24,7 +24,7 @@ src/main/        Main process (Node, CommonJS)
   i18n.ts          zh/en/fr copy for the shell itself
   png.ts           Generates the tray icon at runtime
   log.ts           Sanitized logs (<dataDir>/logs/desktop.log, 0600)
-src/preload/     Preload script (sandboxed, single file): four functions under window.gogosling
+src/preload/     Sandboxed preload: connection functions and optional diagnostics under window.gogosling
 src/shared/      IPC contracts shared between main process and preload (preload imports types only)
 test/            vitest (without launching Electron)
 ```
@@ -109,6 +109,24 @@ npm run verify:runtime -w @gogosling/desktop
 ```
 
 A new installation uses local settings; existing data is preserved. Configure a model connection if none exists. Optional LibreOffice conversion is not bundled. Packaging adds no automatic diagnostic uploads.
+
+## Optional release diagnostics
+
+Source development, browser clients, and default packages keep normal failure messages but do not expose diagnostic uploads. A distributor can explicitly enable the feature for a native package:
+
+```bash
+npm run package -w @gogosling/desktop -- --diagnostics
+```
+
+The main process requires both a packaged app and the release marker, and rejects development-server overrides. The marker is a feature switch, not proof of client identity. It contains no credential. Source builds do not register the preview or upload IPC handlers.
+
+In enabled releases, **Settings → General → Local service → Diagnostics** opens a local preview. The user chooses a category, reviews the exact report, and explicitly agrees before sending. If the daemon cannot start, its native failure dialog also offers **Review diagnostics**. Reports contain only app/platform metadata, status, and up to 20 allowlisted error codes. Raw logs, paths, chats, files, and credentials are excluded.
+
+Sending first obtains a short-lived ticket bound to that report, then uploads it to the fixed Gogosling.ca endpoint. Tickets remain in main-process memory. There is one active request, a 15-second deadline, no background queue or automatic retry, and a 16 KiB report limit. Explicit retries preserve the report UUID; successful receipt releases the preview. Cancel stops the local request but cannot retract a report already received. The server retention period is 90 days.
+
+**Server integration is pending:** the existing authenticated intake is available, but the proposed ticket endpoint must be deployed before release uploads can succeed. See the [server handoff and acceptance contract](../../docs/development/diagnostics-server-handoff.md). Do not use a long-lived backend credential as a desktop fallback.
+
+The optional IPC methods are `diagnosticsStatus`, `diagnosticsPreview(category)`, `diagnosticsSend(previewId)`, and `diagnosticsCancel(previewId, discard)`. Their result types are defined in [the shared diagnostic contract](src/shared/diagnostics.ts). They accept no arbitrary URL, file path, log body, or credential from the renderer. Existing daemon HTTP and worker RPC contracts are unchanged.
 
 ## Verification
 

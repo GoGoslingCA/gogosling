@@ -16,6 +16,10 @@ import { buildCsp } from "./csp.js";
 import { DaemonManager, canRestart } from "./daemon.js";
 import { resolveDataDir } from "./daemon-logic.js";
 import { DeepLinkGate } from "./deep-link.js";
+import { DesktopDiagnostics } from "./diagnostics.js";
+import { installDiagnosticsIpc } from "./diagnostics-ipc.js";
+import { releaseDiagnosticsEnabled } from "./diagnostics-policy.js";
+import { parentedDiagnosticDialog, reviewNativeDiagnostics } from "./diagnostics-native.js";
 import { pickLocale, t, type ShellLocale } from "./i18n.js";
 import { createFileLogger, type Logger } from "./log.js";
 import { trayIconPng } from "./png.js";
@@ -38,6 +42,7 @@ const ALLOWED_PERMISSIONS: ReadonlySet<string> = new Set(["clipboard-sanitized-w
 
 interface ShellContext {
   daemon: DaemonManager;
+  diagnostics: DesktopDiagnostics;
   logger: Logger;
   /** 壳日志文件路径，用于在错误对话框里提示用户。 */
   logPath: string;
@@ -118,6 +123,7 @@ class DesktopShell {
 
   /** 所有窗口均已完成卸载后，再停止由本壳启动的守护进程。 */
   handleWillQuit(event: { preventDefault(): void }): void {
+    this.ctx.diagnostics.dispose();
     this.quitFlow.willQuit(event);
   }
 
@@ -129,8 +135,15 @@ class DesktopShell {
       // app://gogosling/api/* → 守护进程（注入令牌、流式响应）；其余路径是静态页面。
       const proxied = await proxyApiRequest(request, {
         connection: () => daemon.getConnection(),
-        fetch: (url, init) => net.fetch(url, init),
-        onError: ({ path: apiPath, err }) => logger.warn("代理到守护进程失败", { path: apiPath, err }),
+        fetch: async (url, init) => {
+          const response = await net.fetch(url, init);
+          if (response.status >= 400) this.ctx.diagnostics.record(`http_${response.status}`);
+          return response;
+        },
+        onError: ({ path: apiPath, err }) => {
+          this.ctx.diagnostics.record("api_proxy_failed");
+          logger.warn("代理到守护进程失败", { path: apiPath, err });
+        },
       });
       if (proxied) return proxied;
 
@@ -152,6 +165,7 @@ class DesktopShell {
       } catch (err) {
         const code = (err as NodeJS.ErrnoException).code;
         if (code === "ENOENT" || code === "EISDIR") return textResponse(404, "not found");
+        this.ctx.diagnostics.record("static_resource_failed");
         logger.error("读取静态资源失败", { file: target, err });
         return textResponse(500, "internal error");
       }
@@ -185,6 +199,11 @@ class DesktopShell {
 
   private installIpc(): void {
     const { daemon } = this.ctx;
+    installDiagnosticsIpc<IpcMainInvokeEvent>({
+      handle: (channel, listener) => ipcMain.handle(channel, listener),
+      assertTrusted: event => this.assertTrusted(event),
+      diagnostics: this.ctx.diagnostics,
+    });
     ipcMain.handle(IPC.getConnection, (event) => {
       this.assertTrusted(event);
       // 打包后只给同源代理地址，不给令牌；开发模式保持直连。
@@ -301,18 +320,28 @@ class DesktopShell {
     });
     win.on("close", (event) => {
       saver.flush();
+      this.ctx.diagnostics.clear();
       if (this.quitting) return;
       // 关闭即最小化到托盘；守护进程继续运行。
       event.preventDefault();
       win.hide();
     });
     win.on("closed", () => {
+      this.ctx.diagnostics.clear();
       saver.cancel();
       if (this.windowStateSaver === saver) this.windowStateSaver = null;
       if (this.window === win) this.window = null;
     });
 
     const contents = win.webContents;
+    contents.on("did-start-navigation", (_event, _url, _inPlace, isMainFrame) => {
+      if (isMainFrame) this.ctx.diagnostics.clear();
+    });
+    contents.on("render-process-gone", () => {
+      this.ctx.diagnostics.clear();
+      this.ctx.diagnostics.record("renderer_gone");
+    });
+    win.on("unresponsive", () => this.ctx.diagnostics.record("renderer_unresponsive"));
     contents.on("will-prevent-unload", (event) => {
       // 必须同步取得决定；异步返回时 Electron 已取消卸载，会导致反复关闭与确认。
       const response = dialog.showMessageBoxSync(win, {
@@ -342,7 +371,10 @@ class DesktopShell {
     contents.on("will-attach-webview", (event) => event.preventDefault());
 
     const target = this.ctx.dev ? this.ctx.dev.url : `${APP_ORIGIN}/`;
-    void win.loadURL(target).catch((err: unknown) => this.ctx.logger.error("加载页面失败", { target, err }));
+    void win.loadURL(target).catch((err: unknown) => {
+      this.ctx.diagnostics.record("load_failed");
+      this.ctx.logger.error("加载页面失败", { target, err });
+    });
   }
 
   // ---- 托盘与自启动 ----------------------------------------------------------
@@ -430,6 +462,7 @@ class DesktopShell {
   // ---- 守护进程状态 ----------------------------------------------------------
 
   private onDaemonStatus(status: DaemonStatus): void {
+    if (status.error) this.ctx.diagnostics.record(status.error === "exited" ? "daemon_exited" : status.error);
     this.refreshTray(status);
     this.window?.webContents.send(IPC.daemonStatus, status);
 
@@ -456,11 +489,15 @@ class DesktopShell {
         title: t(this.locale, "dialog.daemonFailed.title"),
         message: t(this.locale, "dialog.daemonFailed.title"),
         detail: `${t(this.locale, errorKey, { max: status.maxAttempts })}\n${t(this.locale, "dialog.daemonFailed.logHint", { logPath: this.ctx.logPath })}`,
-        buttons: [t(this.locale, "dialog.retry"), t(this.locale, "dialog.dismiss")],
+        buttons: [t(this.locale, "dialog.retry"), t(this.locale, "dialog.dismiss"), ...(this.ctx.diagnostics.status().available ? [t(this.locale, "diagnostics.title")] : [])],
         defaultId: 0,
         cancelId: 1,
       });
       if (response === 0) await this.ctx.daemon.start();
+      const parent = this.window;
+      if (response === 2 && !this.quitting && parent && !parent.isDestroyed()) {
+        await reviewNativeDiagnostics(this.ctx.diagnostics, this.locale, parentedDiagnosticDialog(parent, (window, options) => dialog.showMessageBox(window, options)));
+      }
     } finally {
       this.failureDialogOpen = false;
     }
@@ -508,8 +545,21 @@ function bootstrap(): void {
   const dev = parseDevWebUrl(env[ENV_WEB_URL]);
   const webRoot = resolveWebRoot({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath, appPath: app.getAppPath() });
   const daemon = new DaemonManager({ dataDir, resourcesPath: process.resourcesPath, platform: process.platform, env, logger });
+  const diagnostics = new DesktopDiagnostics({
+    enabled: releaseDiagnosticsEnabled({
+      isPackaged: app.isPackaged,
+      hasDevOverride: env[ENV_WEB_URL] !== undefined,
+      readMetadata: () => JSON.parse(fs.readFileSync(path.join(app.getAppPath(), "package.json"), "utf8")) as unknown,
+    }),
+    version: app.getVersion(), platform: process.platform, arch: process.arch,
+    snapshot: () => {
+      const status = daemon.getStatus();
+      return { daemonState: status.state, daemonOwned: status.owned, restartAttempts: status.attempt, errorCode: status.error, exitCode: status.lastExit?.code };
+    },
+  });
   const shellApp = new DesktopShell({
     daemon,
+    diagnostics,
     logger,
     logPath: logger.path,
     dataDir,
@@ -549,6 +599,7 @@ function bootstrap(): void {
       return daemon.start();
     })
     .catch((err: unknown) => {
+      diagnostics.record("daemon_start_failed");
       logger.error("启动失败", { err });
     });
 }

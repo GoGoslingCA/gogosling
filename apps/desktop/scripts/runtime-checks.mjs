@@ -4,7 +4,17 @@ import * as fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { verifyRuntime } from "./verify-runtime.mjs";
+import { diagnosticsBuildArgs } from "./diagnostics-build.mjs";
 import { assertContainedLinks, copyRelocatable, isolatedEnv, nativeTarget, pythonRelative, within } from "./runtime-lib.mjs";
+
+test("diagnostics requires an explicit package flag and has no credential input", () => {
+  assert.ok(diagnosticsBuildArgs([]).includes("--config.extraMetadata.gogoslingDiagnostics.enabled=false"));
+  const release = diagnosticsBuildArgs(["--dir", "--diagnostics"]);
+  assert.ok(release.includes("--dir"));
+  assert.ok(release.includes("--config.extraMetadata.gogoslingDiagnostics.enabled=true"));
+  assert.ok(!release.includes("--diagnostics"));
+  assert.equal(release.some(arg => /token|bearer|secret/i.test(arg)), false);
+});
 
 test("only supported native targets map to release runtimes", () => {
   assert.equal(nativeTarget("darwin", "arm64").goarch, "arm64");

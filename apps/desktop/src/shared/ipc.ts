@@ -7,6 +7,8 @@
 // 这里的任何对象都可能被发送到渲染进程，因此 DaemonStatus 不得携带令牌；
 // 打包后 ConnectionInfo 也不带令牌（proxy 模式），只有开发模式（direct）才把令牌交给页面。
 
+import type { DiagnosticCategory, DiagnosticPreview, DiagnosticReceipt, DiagnosticResult, DiagnosticStatus } from "./diagnostics.js";
+
 /** IPC 通道名。前缀 gogosling: 避免与第三方 preload（无）或 Electron 内部通道冲突。 */
 export const IPC = {
   /** invoke：渲染进程索取连接信息（见 ConnectionInfo）；守护进程未就绪时返回 null。 */
@@ -19,6 +21,10 @@ export const IPC = {
   daemonStatus: "gogosling:daemon:status",
   /** 渲染进程 → 主进程：订阅后立即补发一次当前状态。 */
   daemonStatusSubscribe: "gogosling:daemon:status:subscribe",
+  diagnosticsStatus: "gogosling:diagnostics:status",
+  diagnosticsPreview: "gogosling:diagnostics:preview",
+  diagnosticsSend: "gogosling:diagnostics:send",
+  diagnosticsCancel: "gogosling:diagnostics:cancel",
 } as const;
 
 /** 每个通道的字面量类型；preload 用它校验自己重写的通道名。 */
@@ -108,7 +114,7 @@ export interface ShellVersion {
 
 /**
  * preload 通过 contextBridge 暴露给渲染进程的 window.gogosling。
- * 只有这四个成员；apps/web 的 global.d.ts 应与之保持一致。
+ * 基础连接与可选诊断成员；apps/web 的 global.d.ts 应与之保持一致。
  */
 export interface GogoslingBridge {
   /** 守护进程就绪时返回连接信息（打包后为 proxy 模式、不含令牌），否则 null。 */
@@ -118,4 +124,8 @@ export interface GogoslingBridge {
   /** 只接受 http / https / mailto；其他协议会被拒绝（Promise reject）。 */
   openExternal(url: string): Promise<void>;
   getVersion(): Promise<ShellVersion>;
+  diagnosticsStatus(): Promise<DiagnosticStatus>;
+  diagnosticsPreview(category: DiagnosticCategory): Promise<DiagnosticResult<DiagnosticPreview>>;
+  diagnosticsSend(id: string): Promise<DiagnosticResult<DiagnosticReceipt>>;
+  diagnosticsCancel(id: string, discard: boolean): Promise<void>;
 }
