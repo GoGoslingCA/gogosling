@@ -36,7 +36,7 @@ type Subscription struct {
 	bus    *Bus
 	ch     chan Event
 	filter Filter
-	once   sync.Once
+	stop   func() bool // 解除上下文回调；关闭订阅后不再保留订阅和总线。
 	closed bool
 	lost   bool
 }
@@ -53,7 +53,7 @@ func (s *Subscription) Lost() bool {
 	return s.lost
 }
 
-// Bus 是事件总线。零值不可用，请用 NewBus 创建。
+// Bus 是并发安全的事件总线。零值不可用，请用 NewBus 创建。
 type Bus struct {
 	mu   sync.Mutex
 	seq  uint64
@@ -86,7 +86,6 @@ func (b *Bus) Publish(ev Event) Event {
 		b.size++
 	}
 
-	var overflowed []*Subscription
 	for s := range b.subs {
 		if s.filter != nil && !s.filter(ev) {
 			continue
@@ -94,12 +93,9 @@ func (b *Bus) Publish(ev Event) Event {
 		select {
 		case s.ch <- ev:
 		default:
-			overflowed = append(overflowed, s)
+			s.lost = true
+			b.removeLocked(s)
 		}
-	}
-	for _, s := range overflowed {
-		s.lost = true
-		b.removeLocked(s)
 	}
 	b.mu.Unlock()
 	return ev
@@ -124,8 +120,12 @@ func (b *Bus) Subscribe(ctx context.Context, since uint64, buffer int, filter Fi
 	s := &Subscription{bus: b, filter: filter}
 
 	b.mu.Lock()
-	replay := b.replayLocked(since, filter)
 	gap := b.size > 0 && since < b.oldestSeqLocked()-1
+	// 历史有缺口时不回放，也无需扫描、过滤或复制整个环形缓冲区。
+	var replay []Event
+	if !gap {
+		replay = b.replayLocked(since, filter)
+	}
 	if len(replay) > buffer {
 		buffer = len(replay)
 	}
@@ -142,28 +142,36 @@ func (b *Bus) Subscribe(ctx context.Context, since uint64, buffer int, filter Fi
 		s.ch <- ev
 	}
 	b.subs[s] = struct{}{}
+	if ctx.Done() != nil {
+		// 标准取消上下文无需常驻看守 goroutine；手动取消或溢出也会解除关联。
+		// 在锁内登记，避免上下文取消与发布事件先关闭订阅而漏掉清理。
+		s.stop = context.AfterFunc(ctx, func() { b.remove(s) })
+	}
 	b.mu.Unlock()
-
-	go func() {
-		<-ctx.Done()
-		b.remove(s)
-	}()
 	return s
 }
 
 // replayLocked 返回缓冲区中 Seq 大于 since 且通过过滤的事件，按 Seq 升序。
 func (b *Bus) replayLocked(since uint64, filter Filter) []Event {
-	if b.size == 0 {
+	if b.size == 0 || since >= b.seq {
 		return nil
 	}
+	// Seq 连续递增，可直接定位待回放的尾段，复杂度取决于新事件数而非总容量。
+	count := b.size
+	if newer := b.seq - since; newer < uint64(count) {
+		count = int(newer)
+	}
+	start := (b.head - count + len(b.ring)) % len(b.ring)
+	if filter == nil {
+		out := make([]Event, count)
+		first := copy(out, b.ring[start:min(start+count, len(b.ring))])
+		copy(out[first:], b.ring[:count-first])
+		return out
+	}
 	var out []Event
-	start := (b.head - b.size + len(b.ring)) % len(b.ring)
-	for i := 0; i < b.size; i++ {
+	for i := 0; i < count; i++ {
 		ev := b.ring[(start+i)%len(b.ring)]
-		if ev.Seq <= since {
-			continue
-		}
-		if filter != nil && !filter(ev) {
+		if !filter(ev) {
 			continue
 		}
 		out = append(out, ev)
@@ -187,6 +195,10 @@ func (b *Bus) removeLocked(s *Subscription) {
 		return
 	}
 	s.closed = true
+	if s.stop != nil {
+		s.stop()
+		s.stop = nil
+	}
 	delete(b.subs, s)
 	close(s.ch)
 }

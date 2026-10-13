@@ -69,4 +69,17 @@ describe("持久化消息中的工具状态与成果定位", () => {
     await act(async () => buttons[1]!.click());
     expect(open).toHaveBeenNthCalledWith(2, "newer-result");
   });
+
+  it("保持消息不变时使用最新文件动作，取消预览能力后移除可点击入口", async () => {
+    const attachment = { path: "inbound/notes.md", name: "notes.md", size: 10 };
+    const messages = [message("file", "user", [{ type: "attachment", attachment }])];
+    const oldOpen = vi.fn(), currentOpen = vi.fn();
+    const show = (onOpenFile?: typeof oldOpen) => act(async () => root.render(<MessageList messages={messages} liveRuns={[]} loading={false} timeZone="UTC" onOpenFile={onOpenFile} />));
+    await show(oldOpen); await show(currentOpen);
+    await act(async () => container.querySelector<HTMLButtonElement>(".preview-attachment-button")!.click());
+    expect(oldOpen).not.toHaveBeenCalled(); expect(currentOpen).toHaveBeenCalledExactlyOnceWith(attachment);
+    await show();
+    expect(container.querySelector(".preview-attachment-button")).toBeNull();
+    expect(container.querySelector(".attachment-chip")?.textContent).toContain("notes.md");
+  });
 });

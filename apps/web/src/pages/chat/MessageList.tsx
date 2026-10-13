@@ -1,7 +1,7 @@
 // 消息流：持久化消息 + 实时运行（流式文本、折叠的思考内容、工具调用卡片、用量、状态）
 // + 从 Session.active_run_id 恢复的在途运行占位（实时视图里没有它时）。
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useMemo, useCallback, useState, memo } from "react";
+import { forwardRef, useEffect, useLayoutEffect, useImperativeHandle, useRef, useMemo, useCallback, useState, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Spinner } from "../../components/ui";
 import { formatMessageTime } from "../../lib/time";
@@ -27,8 +27,11 @@ export const MessageList = forwardRef<
     const { t } = useTranslation();
     const el = useRef<HTMLDivElement>(null);
     const stickToBottom = useRef(true);
-    const openRef = useRef(onOpenArtifact); openRef.current = onOpenArtifact;
-    const openArtifact = useCallback((...args: [string, number?]) => openRef.current?.(...args), []);
+    // 父级随流式增量更新动作闭包，历史消息无需因此重绘；点击时使用本次已提交的动作。
+    const actions = useRef({ onOpenArtifact, onOpenFile });
+    useLayoutEffect(() => { actions.current = { onOpenArtifact, onOpenFile }; }, [onOpenArtifact, onOpenFile]);
+    const openArtifact = useCallback((...args: [string, number?]) => actions.current.onOpenArtifact?.(...args), []);
+    const openFile = useCallback((attachment: Attachment) => actions.current.onOpenFile?.(attachment), []);
     useImperativeHandle(ref, () => el.current as HTMLDivElement);
 
     // 用户停留在底部时才自动跟随；向上翻看历史时不打扰。
@@ -54,7 +57,7 @@ export const MessageList = forwardRef<
         {loading ? <Spinner /> : null}
         {!loading && messages.length === 0 && visibleRuns.length === 0 && !recovered ? <div className="status-item">{t("chat.emptyMessages")}</div> : null}
         {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} timeZone={timeZone} results={results} onOpenArtifact={onOpenArtifact ? openArtifact : undefined} persistResults={persistResults} onOpenFile={onOpenFile} />
+          <MessageBubble key={m.id} message={m} timeZone={timeZone} results={results} onOpenArtifact={onOpenArtifact ? openArtifact : undefined} persistResults={persistResults} onOpenFile={onOpenFile ? openFile : undefined} />
         ))}
         {visibleRuns.map((run) => (
           <LiveRunBubble key={run.runId} run={run} />

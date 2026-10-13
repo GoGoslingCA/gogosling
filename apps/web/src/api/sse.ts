@@ -59,7 +59,8 @@ export interface SseMessage {
  * 增量 SSE 解析器。feed() 可以传入任意切分位置的文本片段；每当遇到空行就派发一条消息。
  */
 export class SseParser {
-  private buffer = "";
+  // 只暂存尚未结束的一行；不重新扫描之前的片段，也不反复复制增长中的长行。
+  private lineParts: string[] = [];
   private dataLines: string[] = [];
   private eventType = "";
   private lastEventId = "";
@@ -73,46 +74,44 @@ export class SseParser {
   /** 喂入一段文本（已解码的 UTF-8）。 */
   feed(chunk: string): void {
     if (!chunk) return;
+    let start = 0;
     if (this.pendingCR) {
       this.pendingCR = false;
-      if (chunk.charCodeAt(0) === 10) chunk = chunk.slice(1);
-      if (!chunk) return;
+      if (chunk.charCodeAt(0) === 10) start = 1;
     }
-    this.buffer += chunk;
     if (!this.sawBom) {
-      // 规范要求忽略流开头的 BOM。
-      if (this.buffer.charCodeAt(0) === 0xfeff) this.buffer = this.buffer.slice(1);
-      if (this.buffer.length > 0) this.sawBom = true;
+      // 规范只忽略流开头的一个 BOM，包括它恰好独占一个块的情况。
+      if (chunk.charCodeAt(start) === 0xfeff) start += 1;
+      this.sawBom = true;
     }
-    let start = 0;
-    for (;;) {
-      const nl = this.buffer.indexOf("\n", start);
-      const cr = this.buffer.indexOf("\r", start);
-      let end = -1;
-      let skip = 1;
-      if (cr !== -1 && (nl === -1 || cr < nl)) {
-        end = cr;
-        if (cr === this.buffer.length - 1) {
-          // \r 是缓冲最后一个字符：先按行结束处理，不等待下一块（避免延迟），
-          // 下一块若以 \n 开头则视为同一个 \r\n。
-          this.pendingCR = true;
-        } else if (this.buffer.charCodeAt(cr + 1) === 10) {
-          skip = 2;
-        }
-      } else if (nl !== -1) {
-        end = nl;
-      } else {
-        break;
+    // 一次搜索两种行尾，且只扫描新块。分别 indexOf 会让纯 LF/CR 块反复扫描剩余正文。
+    const endings = /[\r\n]/g;
+    endings.lastIndex = start;
+    let match: RegExpExecArray | null;
+    while ((match = endings.exec(chunk)) !== null) {
+      const end = match.index;
+      const tail = chunk.slice(start, end);
+      let line = tail;
+      if (this.lineParts.length) {
+        this.lineParts.push(tail);
+        line = this.lineParts.join("");
+        this.lineParts = [];
       }
-      this.processLine(this.buffer.slice(start, end));
-      start = end + skip;
+      start = end + 1;
+      if (match[0] === "\r") {
+        // 块末 CR 立即生效；下一块的 LF 仅补全 CRLF，不额外派发空行。
+        if (start === chunk.length) this.pendingCR = true;
+        else if (chunk.charCodeAt(start) === 10) start += 1;
+      }
+      endings.lastIndex = start;
+      this.processLine(line);
     }
-    this.buffer = this.buffer.slice(start);
+    if (start < chunk.length) this.lineParts.push(chunk.slice(start));
   }
 
   /** 流结束：丢弃未以空行结束的半条消息（规范行为）。 */
   end(): void {
-    this.buffer = "";
+    this.lineParts = [];
     this.pendingCR = false;
     this.resetEvent();
   }
@@ -384,7 +383,8 @@ export class EventStream {
           }
         });
         const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
+        // BOM 统一由 SSE 解析器处理，避免解码器与解析器各剥掉一个。
+        const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
         touch();
         for (;;) {
           const { done, value } = await reader.read();

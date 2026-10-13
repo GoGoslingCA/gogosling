@@ -80,6 +80,54 @@ describe("SseParser", () => {
       expect(messages, `cut at ${cut}`).toEqual(reference.messages);
     }
   });
+
+  it("混合行尾与 BOM 在逐字符、空块和任意两段切分下保持同样的事件", () => {
+    const full = '\ufeffid: 9\r\nevent: text.delta\rdata: 中文🙂\ndata: 第二行\r\n\r\nid: 10\ndata: 完成\r\r';
+    const expected = [
+      { event: "text.delta", data: "中文🙂\n第二行", lastEventId: "9" },
+      { event: "message", data: "完成", lastEventId: "10" },
+    ];
+    for (let cut = 0; cut <= full.length; cut++) {
+      const { messages, parser } = collect();
+      parser.feed(full.slice(0, cut)); parser.feed(""); parser.feed(full.slice(cut));
+      expect(messages, `cut at ${cut}`).toEqual(expected);
+    }
+    const { messages, parser } = collect();
+    for (let index = 0; index < full.length; index++) { parser.feed(full[index]!); parser.feed(""); }
+    expect(messages).toEqual(expected);
+  });
+
+  it("只跳过流开头的一个 BOM，后续 BOM 作为普通字段字符", () => {
+    const { messages, parser } = collect();
+    parser.feed("\ufeff"); parser.feed("\ufeffdata: ignored\n\ndata: kept\n\n");
+    expect(messages).toEqual([{ event: "message", data: "kept", lastEventId: "" }]);
+  });
+
+  it("长行分块只在行结束时派发，结束后不保留未完成事件", () => {
+    const { messages, parser } = collect();
+    const text = "中文🙂".repeat(8192);
+    parser.feed("data: ");
+    for (let index = 0; index < text.length; index += 11) parser.feed(text.slice(index, index + 11));
+    expect(messages).toHaveLength(0);
+    parser.feed("\n\n");
+    expect(messages[0]?.data).toBe(text);
+    parser.feed("data: unclosed"); parser.end(); parser.feed("data: next\n\n");
+    expect(messages.map(message => message.data)).toEqual([text, "next"]);
+  });
+
+  it("多种块长度保持空 id 重置、含 NUL 的 id 忽略、retry 与空数据的语义", () => {
+    const full = '\ufeffid: old\rdata: first\r\rid:\r\nretry: 25\ndata\n\nid: bad\u0000id\r\nretry: no\rdata: last\r\r';
+    const expected = [
+      { event: "message", data: "first", lastEventId: "old" },
+      { event: "message", data: "", lastEventId: "", retry: 25 },
+      { event: "message", data: "last", lastEventId: "" },
+    ];
+    for (let size = 1; size <= full.length; size++) {
+      const { messages, parser } = collect();
+      for (let index = 0; index < full.length; index += size) parser.feed(full.slice(index, index + size));
+      expect(messages, `chunk size ${size}`).toEqual(expected);
+    }
+  });
 });
 
 describe("decodeApiEvent", () => {
@@ -148,6 +196,24 @@ function flush(): Promise<void> {
 }
 
 describe("EventStream", () => {
+  it("UTF-8 逐字节切分保留中文和代理对，解码器与解析器只共同跳过一个 BOM", async () => {
+    const received: SseMessage[] = [];
+    const bytes = new TextEncoder().encode('\ufeff\ufeffdata: ignored\r\nid: 7\r\ndata: 中文🙂\r\n\r\n');
+    const stream = new EventStream({
+      url: "/api/v1/events", headers: () => ({}), onMessage: message => received.push(message),
+      fetchImpl: async (_url, { signal }) => ({ ok: true, status: 200, body: new ReadableStream({ start(controller) {
+        for (const byte of bytes) controller.enqueue(Uint8Array.of(byte));
+        signal.addEventListener("abort", () => controller.error(new DOMException("aborted", "AbortError")), { once: true });
+      } }) }),
+    });
+    try {
+      stream.start();
+      for (let index = 0; index < 20 && !received.length; index++) await flush();
+      expect(received).toEqual([{ event: "message", data: "中文🙂", lastEventId: "7" }]);
+      expect(stream.lastSeq).toBe(7);
+    } finally { stream.stop(); }
+  });
+
   it("断线后带着最后的 Seq 重连（since 查询参数 + Last-Event-ID 头）", async () => {
     const calls: Array<{ url: string; headers: Record<string, string> }> = [];
     const received: string[] = [];

@@ -57,6 +57,9 @@
   box-sizing: border-box;
 }
 
+/* 保持窄工具栏内的图标比例；文字承担收缩，不挤压图标描边。 */
+.app-icon { flex: none; }
+
 html,
 body,
 #root {
@@ -700,7 +703,8 @@ dialog.project-form-dialog { width: min(520px, calc(100vw - 32px)); }
   height: 14px;
   background: var(--text-2);
   vertical-align: text-bottom;
-  animation: blink 1s steps(2) infinite;
+  /* 首次出现时提示活动，随后保持可见，长任务不持续占用动画帧。 */
+  animation: blink 1s steps(2) 4;
 }
 
 @keyframes blink {

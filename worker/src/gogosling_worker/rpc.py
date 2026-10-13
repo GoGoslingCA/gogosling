@@ -125,7 +125,8 @@ class LineSplitter:
     """把字节流切成不含换行的行。
 
     超过上限的行会被整体丢弃并以 :class:`OverlongLine` 标记，绝不把半行当成一整行交给上层
-    （否则后半截会被当作下一条消息，破坏分帧）。缓冲区占用不会超过"上限 + 一个读取块"。
+    （否则后半截会被当作下一条消息，破坏分帧）。未完成行的缓冲不超过上限；
+    调用方传入的块和已完成行的返回列表不计入该缓冲上限。
     """
 
     def __init__(self, max_line: int = MAX_LINE_BYTES) -> None:
@@ -137,27 +138,31 @@ class LineSplitter:
     def feed(self, data: bytes) -> list[bytes | OverlongLine]:
         """喂入一块数据，返回其中完整的行（已去掉 ``\\n`` 与可选的 ``\\r``）。"""
         out: list[bytes | OverlongLine] = []
-        self._buf += data
-        while True:
-            newline = self._buf.find(b"\n")
-            if newline < 0:
-                if self._discarding:
-                    self._discarding += len(self._buf)
+        start = 0
+        # 只搜索新到达的字节，避免长行被细碎分块时反复扫描整个已有前缀。
+        while start < len(data):
+            newline = data.find(b"\n", start)
+            end = newline if newline >= 0 else len(data)
+            size = self._discarding + len(self._buf) + end - start
+            if self._discarding or size > self._max:
+                # 超限前先计数，不复制将被丢弃的内容；下一条完整消息仍能正常解析。
+                self._buf.clear()
+                self._discarding = size
+                if newline >= 0:
+                    out.append(OverlongLine(size))
+                    self._discarding = 0
+            elif newline < 0:
+                self._buf.extend(memoryview(data)[start:end])
+            else:
+                if self._buf:
+                    self._buf.extend(memoryview(data)[start:end])
+                    line = bytes(self._buf)
                     self._buf.clear()
-                elif len(self._buf) > self._max:
-                    self._discarding = len(self._buf)
-                    self._buf.clear()
-                return out
-            line = bytes(self._buf[:newline])
-            del self._buf[: newline + 1]
-            if self._discarding:
-                out.append(OverlongLine(self._discarding + len(line)))
-                self._discarding = 0
-                continue
-            if len(line) > self._max:
-                out.append(OverlongLine(len(line)))
-                continue
-            out.append(line.removesuffix(b"\r"))
+                else:
+                    line = data[start:end]
+                out.append(line.removesuffix(b"\r"))
+            start = end + 1
+        return out
 
     def flush(self) -> bytes | OverlongLine | None:
         """流结束时取出最后一个没有换行结尾的行；没有则返回 None。"""

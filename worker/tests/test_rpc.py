@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import random
 from typing import Any
 
 import pytest
@@ -52,6 +53,55 @@ def test_splitter_flush_reports_overlong_tail() -> None:
     assert splitter.feed(b"toolong") == []
     assert splitter.flush() == OverlongLine(7)
     assert splitter.flush() is None
+
+
+@pytest.mark.parametrize("chunk_size", [1, 2, 7, 64, 65536])
+def test_splitter_preserves_utf8_boundaries_limits_and_recovery(chunk_size: int) -> None:
+    text = "你好🙂".encode()
+    payload = text + b"\r\n\n" + b"x" * 100 + b"\r\nok\nlast"
+    splitter = LineSplitter(max_line=16)
+    actual: list[bytes | OverlongLine] = []
+    for start in range(0, len(payload), chunk_size):
+        actual.extend(splitter.feed(payload[start : start + chunk_size]))
+        assert splitter.feed(b"") == []
+        assert len(splitter._buf) <= 16
+    tail = splitter.flush()
+    if tail is not None:
+        actual.append(tail)
+    assert actual == [text, b"", OverlongLine(101), b"ok", b"last"]
+    assert splitter.flush() is None
+
+
+def test_splitter_keeps_carriage_return_in_the_protocol_byte_budget() -> None:
+    splitter = LineSplitter(max_line=4)
+    assert splitter.feed(b"1234\r") == []
+    assert splitter.feed(b"\nnext\n") == [OverlongLine(5), b"next"]
+
+
+def test_splitter_matches_complete_line_reference_for_random_chunk_boundaries() -> None:
+    rng = random.Random(413)
+    for _ in range(100):
+        payload = bytes(rng.choice([0, 10, 13, 65, 123, 255]) for _ in range(200))
+        max_line = rng.randrange(1, 32)
+        lines = payload.split(b"\n")
+        if lines[-1] == b"":
+            lines.pop()
+        expected = [
+            OverlongLine(len(line)) if len(line) > max_line else line.removesuffix(b"\r")
+            for line in lines
+        ]
+        splitter = LineSplitter(max_line=max_line)
+        actual: list[bytes | OverlongLine] = []
+        offset = 0
+        while offset < len(payload):
+            length = rng.randrange(1, 30)
+            actual.extend(splitter.feed(payload[offset : offset + length]))
+            assert len(splitter._buf) <= max_line
+            offset += length
+        tail = splitter.flush()
+        if tail is not None:
+            actual.append(tail)
+        assert actual == expected
 
 
 # ---- 正向请求 ----
