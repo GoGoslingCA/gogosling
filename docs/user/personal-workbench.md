@@ -4,7 +4,7 @@ For people completing documents, spreadsheets, or file changes on their own comp
 
 The guide uses assistant, task, material, project, result, version, copy, and file change. An agent in Settings is the same object as an assistant in the workbench.
 
-Sections 1–6 describe the local workbench flow recorded on 2026-10-12, before a signed installer release. Section 7 separates planned additions from current limits. Module-specific local-edition plans remain drafts; they do not remove existing capabilities by themselves.
+This guide describes the development workbench as of 2026-10-13, before a signed installer release. Section 7 separates planned additions from current limits. Optional capabilities appear only when the connected local service supports them.
 
 ---
 
@@ -51,7 +51,7 @@ Follow the sequence; use the wording actually present in your build if a label d
 
 ### Step two: Prepare an assistant
 
-1. In Settings → Agents, create an agent.
+1. In Settings → Agents, create an agent. Start from the bundled General assistant or Operations assistant template, or choose Custom. Editing an existing agent does not reapply a template.
 2. Enter a name and select the saved provider/model.
 3. Select an approval mode. Ask for everything requests approval for tool calls, including reads, unless an existing rule or grant applies. Ask for risky actions allows ordinary workspace reads and writes but asks for commands, network access, messaging, and deletion. Auto inside sandbox allows eligible operations within the permitted boundary; execution and network access still require approval without OS isolation. Protective rules remain in force in every mode.
 4. Save. If uncertain, choose Ask for everything; changing the mode affects all tasks using that assistant. Applying or undoing a file change from Results always needs separate approval for that preview.
@@ -79,7 +79,7 @@ Inspect the owning task, action, and target. Approve once permits this operation
 
 ## 3. Interface areas
 
-The sidebar provides New task, Find a task (loaded tasks only), Projects, Jobs, Recent tasks, and Settings. Recent tasks support continuation, pinning, renaming, and archiving. Settings groups appearance, model connections, agents, skills and extensions, messaging, file access, activity records, and resource controls. Draft local-edition plans describe proposed boundaries, not the removal of existing features.
+The sidebar places Projects below Recent tasks. Expand a project to open or create a task; click its name for materials, tasks, and saved results. Recent tasks support continuation, pinning, renaming, and archiving. Settings groups appearance, model connections, agents, skills and extensions, messaging, file access, activity records, and resource controls.
 
 A planned Mobile app entry would open the official download page in the system browser, without signing in, synchronizing, or sending desktop files. It is not available until an official URL is supplied.
 
@@ -88,6 +88,28 @@ The center shows the conversation and progress above the input. Results open on 
 ---
 
 ## 4. Core capabilities
+
+### Read and find local documents
+
+Workspace files have breadcrumbs and a name filter for the loaded directory. The text viewer supports a foldable Markdown outline and literal search within the displayed page. Long text remains paged; the outline and match list each show at most 200 entries and explain when that limit is reached.
+
+The `read_document` tool lets an agent extract text from DOCX, PPTX, XLSX, OpenDocument, CSV, Markdown, and text files in its permitted workspace. It returns bounded excerpts with source positions; continuing a read requires the same file version. It does not run macros, calculate formulas, start OCR, or use an online converter. PDF, image, media, HTML, archive, and legacy Office preview support does not imply text extraction by this tool.
+
+New assistants include the tool in their default set. Existing assistants with explicit tool choices retain those choices; enable **Read document** individually in Settings → Agents when needed. Older local services that do not advertise the capability hide the new choice.
+
+### Plan a recurring task
+
+Jobs offers Hourly, Daily, Weekdays, Weekly, and Custom schedules. Choose the time and, for weekly jobs, the day; retain the intended time zone. Existing expressions and aliases remain unchanged unless a schedule control is edited. Saving a schedule is different from Run now; approvals and missed-run rules continue to apply.
+
+### Use extensions when needed
+
+Skills and extensions can be filtered by name and type. MCP status has a manual refresh action; reading status does not start a connection. An idle MCP connection is released after two minutes by default, while active discovery and tool calls keep it alive. The next use reconnects and rechecks tool declarations. Changed declarations remain blocked until their confirmation has been saved successfully.
+
+### Inspect a failed task
+
+A failed task shows a compact notice above the composer. Technical details identify the local task, run, time, version, and available failure reason. A new run, a different task, success, or cancellation does not reuse an old failure notice. Empty model output is treated as failure without automatic replay.
+
+Source builds provide local failure details only. Diagnostic-enabled desktop packages can prepare a report for a verified failed run; there is no general upload entry in Settings. The report excludes chat/file content, raw provider errors, and user identifiers and requires explicit consent. Task-report delivery still requires the [server schema-2 rollout](../development/diagnostics-server-handoff.md#task-failure-reports-schema-2); a service rejection is shown clearly rather than replaced with a generic report.
 
 ### 4.1 Tasks
 
@@ -292,7 +314,7 @@ Tasks currently show the original request and later messages. A planned Current 
 
 ### Lists and search
 
-Task history already supports Load more, and search matches loaded task titles only. Project, material, and result lists currently show at most 200 items; pagination for those lists and full-text search remain future work. A partial search cannot establish that an item does not exist.
+Task history, projects, materials, and results support Load more. Project tabs load their own pages only when opened; their filters match loaded records, not an entire library. A partial search cannot establish that an item does not exist. Selected materials remain selected across pages. Starting a task validates up to 32 references; a bounded lookup that cannot confirm them stops with an explanation instead of silently dropping the selection. Full-library text search remains future work.
 
 ### Usage and charges
 
@@ -304,7 +326,7 @@ Linux and macOS have guarded write-back implementations, but packaged-app and fi
 
 ### Clicking an unknown outcome again
 
-Inspect the existing task before retrying an uncertain submission. A planned safeguard would prevent the same request from being sent again until its outcome has been checked. Changed text or materials would count as a new request.
+Inspect the existing task before retrying an uncertain submission. The start workflow blocks automatic resubmission after an unknown create/send result; starting over is an explicit action. Switching projects also checks unsaved input and keeps files, drafts, and retry state in their original project scope.
 
 ### Teams
 

@@ -8,10 +8,10 @@ import { readUiPreferences } from "../lib/uiPreferences";
 import { queryKeys } from "../state/queryKeys";
 import { SidebarProjects } from "./SidebarProjects";
 
-const { listProjects, listSessions, createProject, listAgents, version, toast } = vi.hoisted(() => ({
-  listProjects: vi.fn(), listSessions: vi.fn(), createProject: vi.fn(), listAgents: vi.fn(), version: vi.fn(), toast: vi.fn(),
+const { listProjects, getProject, listSessions, createProject, listAgents, version, toast } = vi.hoisted(() => ({
+  listProjects: vi.fn(), getProject: vi.fn(), listSessions: vi.fn(), createProject: vi.fn(), listAgents: vi.fn(), version: vi.fn(), toast: vi.fn(),
 }));
-vi.mock("../state/ConnectionContext", () => ({ useApi: () => ({ system: { version }, agents: { list: listAgents }, sessions: { list: listSessions }, workbench: { listProjects, createProject } }) }));
+vi.mock("../state/ConnectionContext", () => ({ useApi: () => ({ system: { version }, agents: { list: listAgents }, sessions: { list: listSessions }, workbench: { listProjects, getProject, createProject } }) }));
 vi.mock("../components/Toast", () => ({ useToast: () => ({ show: toast }) }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, values?: { name?: string; title?: string }) => values?.name ? `${key}: ${values.name}` : values?.title ? `${key}: ${values.title}` : key }) }));
 
@@ -63,6 +63,7 @@ beforeEach(() => {
   Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 });
   version.mockReset().mockResolvedValue({ version: "test", capabilities: { "workbench.projects": 1 } });
   listProjects.mockReset().mockResolvedValue([projectA, projectB]);
+  getProject.mockReset().mockResolvedValue(projectB);
   listSessions.mockReset().mockImplementation(async (query: { project_id?: string }) => query.project_id === PROJECT_A ? [session] : []);
   createProject.mockReset(); listAgents.mockReset().mockResolvedValue([]); toast.mockReset(); taskMenu = vi.fn();
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -78,6 +79,67 @@ afterEach(async () => {
 });
 
 describe("侧栏项目按需展开", () => {
+  const firstEight = Array.from({ length: 8 }, (_, index): Project => ({ ...projectA, id: `project-${index}`, name: `Project ${index}` }));
+
+  it("只读取八个项目，并单独补入列表之外的当前项目", async () => {
+    listProjects.mockResolvedValue(firstEight);
+    await render(PROJECT_B);
+    await ready(() => expect(projectLink(PROJECT_B)?.textContent).toContain(projectB.name));
+    expect(listProjects).toHaveBeenCalledExactlyOnceWith({ status: "active", limit: 8 }, expect.any(AbortSignal));
+    expect(getProject).toHaveBeenCalledExactlyOnceWith(PROJECT_B);
+    expect(host.querySelectorAll(".nav-project-row")).toHaveLength(9);
+    expect(button(`projects.toggleTasks: ${projectB.name}`).getAttribute("aria-expanded")).toBe("true");
+    expect(listSessions).toHaveBeenCalledExactlyOnceWith({ status: "active", project_id: PROJECT_B, limit: 6 }, expect.any(AbortSignal));
+  });
+
+  it("当前项目复用详情页的元数据缓存，不重新请求或拉取完整项目列表", async () => {
+    listProjects.mockResolvedValue(firstEight);
+    client.setQueryData(queryKeys.project(PROJECT_B), projectB);
+    await render(PROJECT_B);
+    await ready(() => expect(projectLink(PROJECT_B)).not.toBeNull());
+    expect(getProject).not.toHaveBeenCalled();
+    expect(listProjects).toHaveBeenCalledTimes(1);
+  });
+
+  it("当前项目与已在途的详情页请求合并，不能重复读取", async () => {
+    listProjects.mockResolvedValue(firstEight);
+    let complete!: (value: Project) => void;
+    getProject.mockImplementation(() => new Promise<Project>((resolve) => { complete = resolve; }));
+    const pending = client.fetchQuery({ queryKey: queryKeys.project(PROJECT_B), queryFn: () => getProject(PROJECT_B) as Promise<Project> });
+    await render(PROJECT_B);
+    expect(getProject).toHaveBeenCalledTimes(1);
+    await act(async () => { complete(projectB); await pending; });
+    await ready(() => expect(projectLink(PROJECT_B)).not.toBeNull());
+    expect(getProject).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["archived", "missing"] as const)("当前项目%s时不把它插入活动项目区", async (state) => {
+    listProjects.mockResolvedValue(firstEight);
+    if (state === "archived") getProject.mockResolvedValue({ ...projectB, status: "archived" });
+    else getProject.mockRejectedValue(new Error("unavailable"));
+    await render(PROJECT_B);
+    await ready(() => expect(getProject).toHaveBeenCalledOnce());
+    expect(projectLink(PROJECT_B)).toBeNull();
+    expect(host.querySelectorAll(".nav-project-row")).toHaveLength(8);
+    expect(listSessions).not.toHaveBeenCalled();
+  });
+
+  it("当前项目已在八条短列表中时不请求详情", async () => {
+    await render(PROJECT_A);
+    await ready(() => expect(projectLink(PROJECT_A)).not.toBeNull());
+    expect(getProject).not.toHaveBeenCalled();
+  });
+
+  it.each(["折叠", "缩窄"] as const)("%s后当前项目缓存失效也不会发起额外详情请求", async (action) => {
+    listProjects.mockResolvedValue(firstEight);
+    await render(PROJECT_B);
+    await ready(() => expect(projectLink(PROJECT_B)).not.toBeNull());
+    await act(async () => { if (action === "折叠") button("projects.title").click(); else setWidth(640); });
+    await act(async () => { await client.invalidateQueries({ queryKey: queryKeys.project(PROJECT_B), exact: true }); });
+    expect(getProject).toHaveBeenCalledTimes(1);
+    expect(projectLink(PROJECT_B)).toBeNull();
+  });
+
   it.each(["折叠", "缩窄"] as const)("%s时取消尚未完成的项目列表请求，隐藏后不继续刷新", async (action) => {
     let pendingSignal: AbortSignal | undefined;
     listProjects.mockImplementation((_query, signal: AbortSignal) => {
@@ -93,7 +155,7 @@ describe("侧栏项目按需展开", () => {
     expect(listSessions).not.toHaveBeenCalled();
   });
 
-  it("隐藏侧栏不取消项目总览仍在订阅的共享请求", async () => {
+  it("隐藏侧栏不取消仍有其他侧栏订阅者的共享请求", async () => {
     let pendingSignal: AbortSignal | undefined;
     let complete: ((projects: Project[]) => void) | undefined;
     listProjects.mockImplementation((_query, signal: AbortSignal) => {
@@ -104,10 +166,10 @@ describe("侧栏项目按需展开", () => {
       });
     });
     await render();
-    // 使用与项目总览相同的缓存键，代表仍可见页面的独立订阅。
+    // 只有同一个短列表共享请求；项目总览使用独立的分页键。
     const observer = new QueryObserver<Project[]>(client, {
-      queryKey: [...queryKeys.projects, "list", false],
-      queryFn: ({ signal }) => listProjects({ status: "active", limit: 200 }, signal) as Promise<Project[]>,
+      queryKey: [...queryKeys.projects, "sidebar"],
+      queryFn: ({ signal }) => listProjects({ status: "active", limit: 8 }, signal) as Promise<Project[]>,
     });
     const notified = vi.fn();
     const unsubscribe = observer.subscribe(notified);
@@ -125,7 +187,8 @@ describe("侧栏项目按需展开", () => {
   it("先显示项目名称，展开时只查询所选项目的有限任务", async () => {
     await render();
     await ready(() => expect(projectLink(PROJECT_B)?.textContent).toContain(projectB.name));
-    expect(listProjects).toHaveBeenCalledWith({ status: "active", limit: 200 }, expect.any(AbortSignal));
+    expect(listProjects).toHaveBeenCalledWith({ status: "active", limit: 8 }, expect.any(AbortSignal));
+    expect(getProject).not.toHaveBeenCalled();
     expect(listSessions).not.toHaveBeenCalled();
     await toggle(projectA);
     expect(listSessions).toHaveBeenCalledExactlyOnceWith({ status: "active", project_id: PROJECT_A, limit: 6 }, expect.any(AbortSignal));
@@ -188,10 +251,11 @@ describe("侧栏项目按需展开", () => {
   it("窄窗口只保留项目页入口，不读取项目与任务列表", async () => {
     setWidth(640);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ expandedProjectId: PROJECT_A }));
-    await render(); await settle();
+    await render(PROJECT_B); await settle();
     expect(host.querySelector("a[href='/projects']")).not.toBeNull();
     expect(projectLink(PROJECT_A)).toBeNull();
     expect(listProjects).not.toHaveBeenCalled();
+    expect(getProject).not.toHaveBeenCalled();
     expect(listSessions).not.toHaveBeenCalled();
   });
 

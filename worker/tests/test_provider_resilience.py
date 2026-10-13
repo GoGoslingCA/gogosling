@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from email.utils import format_datetime
 from typing import Any
@@ -20,6 +21,7 @@ from gogosling_worker.providers.base import (
     UsageChunk,
 )
 from gogosling_worker.providers.retry import retry_delay
+from gogosling_worker.providers.sse import SSEParser
 from tests.harness import WAIT
 
 KINDS = ["openai_compatible", "anthropic"]
@@ -201,4 +203,91 @@ async def test_interrupted_stream_is_failed_and_never_replayed(kind: str, with_e
     assert [c for c in seen if isinstance(c, TextDelta)] == [TextDelta("part")]
     assert not any(isinstance(c, Done) for c in seen)
     assert not any(isinstance(c, UsageChunk) for c in seen)
+    assert len(requests) == 1
+
+
+class _ObservedStream(httpx.AsyncByteStream):
+    def __init__(self, chunks: list[bytes], *, pause: bool = False) -> None:
+        self.chunks = chunks
+        self.pause = pause
+        self.waiting = asyncio.Event()
+        self.closed = False
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        for chunk in self.chunks:
+            yield chunk
+        if self.pause:
+            self.waiting.set()
+            await asyncio.Event().wait()
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+def _text_frame(kind: str) -> bytes:
+    if kind == "anthropic":
+        delta = {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "part"}}
+    else:
+        delta = {"choices": [{"delta": {"content": "part"}}]}
+    return ("data: " + json.dumps(delta) + "\n\n").encode()
+
+
+@pytest.mark.parametrize("kind", KINDS)
+@pytest.mark.parametrize("oversized", ["line", "event", "eof"])
+async def test_oversized_sse_closes_response_without_retry_or_success(
+    kind: str, oversized: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        f"gogosling_worker.providers.{kind}.SSEParser",
+        lambda: SSEParser(max_line_bytes=256, max_event_bytes=512),
+    )
+    if oversized == "line":
+        bad_chunks = [b"data: " + b"x" * 257 + b"\n\n"]
+    else:
+        bad_chunks = [b"data: " + b"x" * 100 + b"\n"] * 5
+        bad_chunks.append(b"data: " + b"x" * 20 + (b"" if oversized == "eof" else b"\n"))
+    stream = _ObservedStream([_text_frame(kind), *bad_chunks])
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, stream=stream, headers={"content-type": "text/event-stream"})
+
+    seen: list[Chunk] = []
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = build_provider(_credentials(kind), client=client)
+        with pytest.raises(ProviderError, match="SSE (line|event) exceeds"):
+            async for chunk in provider.stream_chat([USER], [], ChatOptions()):
+                seen.append(chunk)
+        assert stream.closed
+    assert [c for c in seen if isinstance(c, TextDelta)] == [TextDelta("part")]
+    assert not any(isinstance(c, Done) for c in seen)
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("kind", KINDS)
+async def test_cancel_during_incomplete_sse_event_closes_response(kind: str) -> None:
+    stream = _ObservedStream([_text_frame(kind), b"data: {\n"], pause=True)
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, stream=stream, headers={"content-type": "text/event-stream"})
+
+    seen: list[Chunk] = []
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        provider = build_provider(_credentials(kind), client=client)
+
+        async def collect() -> None:
+            async for chunk in provider.stream_chat([USER], [], ChatOptions()):
+                seen.append(chunk)
+
+        task = asyncio.create_task(collect())
+        await asyncio.wait_for(stream.waiting.wait(), WAIT)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, WAIT)
+        assert stream.closed
+    assert [c for c in seen if isinstance(c, TextDelta)] == [TextDelta("part")]
+    assert not any(isinstance(c, Done) for c in seen)
     assert len(requests) == 1

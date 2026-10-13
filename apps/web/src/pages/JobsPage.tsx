@@ -11,6 +11,7 @@ import { useToast } from "../components/Toast";
 import { describeError } from "../lib/errorMessage";
 import { formatDateTime, resolveTimeZone } from "../lib/time";
 import type { Agent, Job, JobInput, JobKind, MissedPolicy } from "../api/types";
+import { readSchedule, writeSchedule, type ScheduleFields, type ScheduleMode } from "./jobSchedule";
 
 const SCHEDULE_PRESETS = ["@hourly", "@daily", "0 9 * * 1-5", "*/30 * * * *", "0 20 * * 0"];
 
@@ -187,6 +188,12 @@ function JobForm({ job, agents, defaultAgentId, onClose, onSaved }: { job: Job |
     enabled: job?.enabled ?? true,
   }));
   const [error, setError] = useState<unknown>(null);
+  const [scheduleFields, setScheduleFields] = useState(() => readSchedule(job?.schedule ?? "@daily"));
+  const updateSchedule = (patch: Partial<ScheduleFields>) => {
+    const next = { ...scheduleFields, ...patch };
+    setScheduleFields(next);
+    if (next.mode !== "custom") setForm((previous) => ({ ...previous, schedule: writeSchedule(next) ?? "" }));
+  };
   const saveInFlight = useRef(false);
   const selectedAgent = agents.find((agent) => agent.id === form.agent_id);
   const timezone = form.timezone.trim();
@@ -241,14 +248,22 @@ function JobForm({ job, agents, defaultAgentId, onClose, onSaved }: { job: Job |
               ))}
             </select>
           </Field>
-          <Field label={t("jobs.schedule")} hint={t("jobs.scheduleHint")}>
-            <input className="input" list="schedule-presets" value={form.schedule} onChange={(e) => setForm({ ...form, schedule: e.target.value })} required spellCheck={false} />
-            <datalist id="schedule-presets">
-              {SCHEDULE_PRESETS.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
+          <Field label={t("scheduleBuilder.frequency")}>
+            <select className="select" aria-label={t("scheduleBuilder.frequency")} value={scheduleFields.mode} onChange={(event) => updateSchedule({ mode: event.target.value as ScheduleMode })}>
+              {(["hourly", "daily", "weekdays", "weekly", "custom"] as const).map((mode) => <option key={mode} value={mode}>{t(`scheduleBuilder.${mode}`)}</option>)}
+            </select>
           </Field>
+          {scheduleFields.mode === "custom" ? <Field label={t("jobs.schedule")} hint={t("jobs.scheduleHint")}>
+            <input className="input" aria-label={t("jobs.schedule")} list="schedule-presets" value={form.schedule} onChange={(e) => setForm({ ...form, schedule: e.target.value })} required spellCheck={false} />
+            <datalist id="schedule-presets">{SCHEDULE_PRESETS.map((s) => <option key={s} value={s} />)}</datalist>
+          </Field> : scheduleFields.mode === "hourly" ? <Field label={t("scheduleBuilder.minute")}>
+            <input className="input" type="number" min={0} max={59} required aria-label={t("scheduleBuilder.minute")} value={scheduleFields.minute} onChange={(event) => updateSchedule({ minute: event.target.value })} />
+          </Field> : <Field label={t("scheduleBuilder.time")}>
+            <input className="input" type="time" required aria-label={t("scheduleBuilder.time")} value={scheduleFields.time} onChange={(event) => updateSchedule({ time: event.target.value })} />
+          </Field>}
+          {scheduleFields.mode === "weekly" ? <Field label={t("scheduleBuilder.weekday")}>
+            <select className="select" aria-label={t("scheduleBuilder.weekday")} value={scheduleFields.weekday} onChange={(event) => updateSchedule({ weekday: event.target.value })}>{[1, 2, 3, 4, 5, 6, 0].map((day) => <option key={day} value={day}>{t(`scheduleBuilder.day${day}`)}</option>)}</select>
+          </Field> : null}
           <Field label={t("jobs.timezone")} hint={t("jobs.timezoneHint", { tz: settings.data?.timezone || t("settings.systemTimezone") })}>
             <input className="input" value={form.timezone} aria-label={t("jobs.timezone")} aria-invalid={timezoneInvalid} onChange={(e) => setForm({ ...form, timezone: e.target.value })} placeholder="Asia/Shanghai" spellCheck={false} />
             {timezoneInvalid ? <span className="hint" role="alert">{t("settings.timezoneInvalid")}</span> : null}

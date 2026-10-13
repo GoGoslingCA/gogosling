@@ -76,6 +76,22 @@ func NewExecutor(d Deps) (*Executor, error) {
 	}, nil
 }
 
+// HasBuiltinTool 只查询宿主登记的内置工具及静态依赖，不发现扩展、连接服务或执行工具。
+// 该能力不代表某个智能体获准使用工具；执行时仍按智能体工具列表及权限规则检查。
+func (e *Executor) HasBuiltinTool(name string) bool {
+	if e == nil || e.registry == nil || name == UserFileChangeTool {
+		return false
+	}
+	tool, ok := e.registry.Get(name)
+	if !ok {
+		return false
+	}
+	if availability, ok := tool.(interface{ staticAvailable() bool }); ok {
+		return availability.staticAvailable()
+	}
+	return true
+}
+
 // ToolsFor 返回该智能体当前可用的工具声明：智能体启用的内置工具 + 扩展工具。
 //
 // 这是工具清单的唯一出处：交给工作进程的清单与 GET /agents/{id}/tools 都用它，因此两者一致。

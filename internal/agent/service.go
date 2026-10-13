@@ -35,7 +35,7 @@ const (
 // DefaultTools 返回新建智能体的默认内置工具集（返回副本）。
 // 名称与 tools 包的内置工具一一对应；本包只负责记录选择，不负责执行。
 func DefaultTools() []string {
-	return []string{"read_file", "write_file", "edit_file", "delete_file", "list_dir", "search_files", "run_command", "fetch_url"}
+	return []string{"read_file", "read_document", "write_file", "edit_file", "delete_file", "list_dir", "search_files", "run_command", "fetch_url"}
 }
 
 // ProviderChecker 用于校验模型引用指向的供应商存在；provider.Service 直接满足该接口。

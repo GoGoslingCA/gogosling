@@ -4,7 +4,7 @@ import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
-import type { Agent, Project, ProjectInput, ProjectMaterial, ProjectPatch, Session, SessionProjectInput, VersionInfo } from "../api/types";
+import type { Agent, PageQuery, Project, ProjectInput, ProjectMaterial, ProjectPatch, Session, SessionProjectInput, VersionInfo } from "../api/types";
 import { queryKeys } from "../state/queryKeys";
 import { ProjectsPage } from "./ProjectsPage";
 import { SessionProjectControl } from "./chat/SessionProjectControl";
@@ -40,11 +40,11 @@ function fixture() {
       get: vi.fn(async (_id: string) => ({ ...storedSession })), create: vi.fn(), update: vi.fn(), remove: vi.fn(), send: vi.fn(),
     },
     workbench: {
-      listProjects: vi.fn(async (query?: { status?: string; agent_id?: string }) => [...projects.values()].filter((project) => (!query?.status || project.status === query.status) && (!query?.agent_id || project.agent_id === query.agent_id))),
+      listProjects: vi.fn(async (query?: PageQuery & { status?: string; agent_id?: string }) => [...projects.values()].filter((project) => (!query?.status || project.status === query.status) && (!query?.agent_id || project.agent_id === query.agent_id)).slice(query?.offset ?? 0, (query?.offset ?? 0) + (query?.limit ?? 200))),
       getProject: vi.fn(async (id: string) => ({ ...projects.get(id)! })),
       createProject: vi.fn(async (input: ProjectInput): Promise<Project> => { const created: Project = { ...input, id: "project-new", status: "active", version: 1, created_at: date, updated_at: date }; projects.set(created.id, created); return { ...created }; }),
       updateProject: vi.fn(async (id: string, patch: ProjectPatch): Promise<Project> => { const current = projects.get(id)!; if (current.version !== patch.expected_version) throw new ApiError("conflict", "版本已变化", { status: 409 }); const saved = { ...current, ...patch, version: current.version + 1 }; projects.set(id, saved); return { ...saved }; }),
-      listMaterials: vi.fn(async (id: string) => materials.filter((item) => item.project_id === id)),
+      listMaterials: vi.fn(async (id: string, query?: PageQuery, _signal?: AbortSignal) => materials.filter((item) => item.project_id === id).slice(query?.offset ?? 0, (query?.offset ?? 0) + (query?.limit ?? 200))),
       uploadMaterial: vi.fn(async (projectId: string, file: File): Promise<ProjectMaterial> => { const item: ProjectMaterial = { ...material("material-uploaded", file.name), project_id: projectId, agent_id: projects.get(projectId)!.agent_id, size: file.size, attachment: { name: file.name, path: `inbound/${file.name}`, size: file.size } }; materials = [...materials, item]; return item; }),
       removeMaterial: vi.fn(async (projectId: string, id: string) => { materials = materials.filter((item) => item.id !== id || item.project_id !== projectId); }),
       listArtifacts: vi.fn(async () => []),
@@ -137,7 +137,7 @@ describe("ProjectsPage 项目资料数据流程", () => {
     expect(api.workbench.updateProject).toHaveBeenCalledWith(initialProject.id, { expected_version: 1, status: "archived" });
     expect(api.sessions.update).not.toHaveBeenCalled(); expect(api.sessions.remove).not.toHaveBeenCalled(); expect(storedSession.status).toBe("active");
     expect(button("projects.startTask").disabled).toBe(true);
-    await act(async () => button("projects.tasks").click()); expect(host.querySelector(`a[href='/chat/${originalSession.id}']`)).not.toBeNull();
+    await act(async () => button("projects.tasks").click()); await ready(() => expect(host.querySelector(`a[href='/chat/${originalSession.id}']`)).not.toBeNull());
   });
 
   it("旧daemon缺少capabilities时不探测工作台接口，保留返回旧工作台入口", async () => {
@@ -177,6 +177,53 @@ describe("ProjectsPage 项目资料数据流程", () => {
     await act(async () => host.querySelector<HTMLAnchorElement>('a[aria-label="测试任务标签"]')!.click());
     expect(button("projects.tasks").getAttribute("aria-selected")).toBe("true");
     expect(currentRoute()).toBe("/projects/project-a?view=tasks");
+  });
+
+  it("打开项目只请求当前标签，切换复用已加载的资料", async () => {
+    await mount(); await ready(() => expect(materialCheckboxes()).toHaveLength(2));
+    expect(api.workbench.listProjects).not.toHaveBeenCalled();
+    expect(api.sessions.list).not.toHaveBeenCalled();
+    expect(api.workbench.listArtifacts).not.toHaveBeenCalled();
+    await act(async () => button("projects.tasks").click());
+    await ready(() => expect(api.sessions.list).toHaveBeenCalledTimes(1));
+    expect(api.workbench.listArtifacts).not.toHaveBeenCalled();
+    await act(async () => button("projects.materials").click());
+    expect(materialCheckboxes()).toHaveLength(2);
+    expect(api.workbench.listMaterials).toHaveBeenCalledTimes(1);
+  });
+
+  it("切换标签和离开项目会取消正在读取的资料", async () => {
+    let requestSignal: AbortSignal | undefined;
+    api.workbench.listMaterials.mockImplementation((_id, _query, signal) => new Promise<ProjectMaterial[]>((_resolve, reject) => {
+      requestSignal = signal;
+      signal?.addEventListener("abort", () => reject(new DOMException("cancelled", "AbortError")), { once: true });
+    }));
+    await mount(); await ready(() => expect(requestSignal).toBeDefined());
+    await act(async () => button("projects.tasks").click());
+    expect(requestSignal!.aborted).toBe(true);
+    await act(async () => button("projects.materials").click());
+    await ready(() => expect(api.workbench.listMaterials).toHaveBeenCalledTimes(2));
+    expect(requestSignal!.aborted).toBe(false);
+    await act(async () => button("projects.startTask").click());
+    expect(requestSignal!.aborted).toBe(true);
+    expect(api.sessions.send).not.toHaveBeenCalled();
+  });
+
+  it("可加载第201份资料，跨页和筛选保留显式选择", async () => {
+    materials = Array.from({ length: 205 }, (_, index) => material(`material-${index + 1}`, `Document ${index + 1}.md`));
+    await mount(); await ready(() => expect(materialCheckboxes()).toHaveLength(50));
+    await act(async () => materialCheckboxes()[0]!.click());
+    for (const count of [100, 150, 200, 205]) {
+      await act(async () => button("projectList.loadMore").click());
+      await ready(() => expect(materialCheckboxes()).toHaveLength(count));
+    }
+    expect(api.workbench.listMaterials).toHaveBeenLastCalledWith(initialProject.id, { limit: 50, offset: 200 }, expect.any(AbortSignal));
+    await setInput(host.querySelector<HTMLInputElement>('[aria-label="projectList.search"]')!, "Document 201.md");
+    expect(materialCheckboxes()).toHaveLength(1);
+    await act(async () => materialCheckboxes()[0]!.click());
+    await act(async () => button("projects.startTask").click());
+    expect(new URL(currentRoute(), "http://local.test").searchParams.get("materials")).toBe("material-1,material-201");
+    expect(api.sessions.send).not.toHaveBeenCalled();
   });
 });
 

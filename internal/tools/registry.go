@@ -160,12 +160,15 @@ type BuiltinOptions struct {
 	Runner sandbox.Runner
 	// Skills 读取技能正文；为 nil 时不注册 load_skill。
 	Skills SkillLoader
+	// Documents 通过受控解析服务读取文档；nil 时不注册 read_document。
+	Documents DocumentReader
 	// Logger 可为 nil。
 	Logger *slog.Logger
 }
 
 // NewBuiltinRegistry 创建并登记全部内置工具：
 // read_file、write_file、edit_file、delete_file、list_dir、search_files、run_command（需要 Runner）、fetch_url、
+// read_document（需要 Documents）、
 // load_skill（需要 Skills）、read_skill_resource（需要可选 SkillResourceLoader）；
 // 两个技能工具不受 agent.Tools 过滤，是否可用由 Conditional 决定。
 func NewBuiltinRegistry(o BuiltinOptions) (*Registry, error) {
@@ -175,6 +178,9 @@ func NewBuiltinRegistry(o BuiltinOptions) (*Registry, error) {
 	}
 	r := NewRegistry()
 	list := []Tool{NewReadFile(), NewWriteFile(), NewEditFile(o.Locale), NewDeleteFile(o.Locale), NewListDir(), NewSearchFiles()}
+	if o.Documents != nil {
+		list = append(list, NewReadDocument(o.Documents, o.Locale))
+	}
 	if o.Runner != nil {
 		list = append(list, NewRunCommand(o.Runner))
 	} else {

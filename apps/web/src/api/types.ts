@@ -51,6 +51,8 @@ export interface VersionInfo {
 
 /** 能力键缺失表示守护进程不支持；不根据版本号猜测。 */
 export interface WorkbenchCapabilities {
+  /** 版本接口的可选能力扩展；旧守护进程缺席时不新增此工具选项。 */
+  "tools.read_document"?: number;
   "workbench.preview"?: number;
   "workbench.preview_layout"?: number;
   "runtime.resources"?: number;

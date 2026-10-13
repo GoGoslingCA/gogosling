@@ -40,6 +40,37 @@ type Workspace interface {
 	Stat(ctx context.Context, rel string) (Entry, error)
 }
 
+// DocumentWindow 限制返回的正文字符范围；Version 在翻页时防止混合不同文件版本。
+type DocumentWindow struct {
+	StartChar int
+	MaxChars  int
+	Version   string
+}
+
+// DocumentSegment 是可追溯到源文档位置的纯文本片段；位置只使用段、页、工作表和行编号。
+type DocumentSegment struct {
+	Location  string `json:"location"`
+	StartChar int    `json:"start_char"`
+	Text      string `json:"text"`
+}
+
+// DocumentText 是一次有界阅读结果；NextStartChar 非零表示可继续读取。
+type DocumentText struct {
+	Format        string            `json:"format"`
+	Version       string            `json:"version"`
+	TotalChars    int               `json:"total_chars"`
+	Segments      []DocumentSegment `json:"segments"`
+	NextStartChar int               `json:"next_start_char,omitempty"`
+	Truncated     bool              `json:"truncated"`
+	Warnings      []string          `json:"warnings,omitempty"`
+}
+
+// DocumentReader 由组合根适配只读解析服务，必须使用本次已获准的 Workspace，而非重新解析智能体目录。
+// 实现不执行宏、公式、脚本、OCR 或网络请求，并保留解析并发、文件大小和取消限制。
+type DocumentReader interface {
+	ReadDocument(ctx context.Context, workspace Workspace, path string, window DocumentWindow) (DocumentText, error)
+}
+
 // CheckRequest 是一次权限判定的输入（与 permission.Request 字段对齐）。
 type CheckRequest struct {
 	Principal   model.Principal

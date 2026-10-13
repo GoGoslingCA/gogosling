@@ -395,7 +395,8 @@
     "run_command": "执行命令",
     "fetch_url": "获取网页",
     "load_skill": "加载技能",
-    "read_skill_resource": "读取技能资源"
+    "read_skill_resource": "读取技能资源",
+    "read_document": "读取文档"
   },
   "work": {
     "smallIdea": "从一个小想法开始。",
@@ -963,5 +964,67 @@
     "sessionId": "本地任务 ID",
     "time": "发生时间",
     "version": "应用版本"
+  },
+  "agentTemplates": {
+    "label": "起点",
+    "custom": "自定义助手",
+    "customHint": "自行设置提示词与工具。",
+    "general-assistant": "通用助手",
+    "general-assistantHint": "整理资料、撰写内容和查阅文件，不执行命令。",
+    "ops-engineer": "运维助手",
+    "ops-engineerHint": "检查日志与配置，诊断命令仍需按现有规则审批。",
+    "promptHint": "留空使用模板提示词；填写后使用你自己的提示词。"
+  },
+  "scheduleBuilder": {
+    "frequency": "重复周期",
+    "hourly": "每小时",
+    "daily": "每天",
+    "weekdays": "工作日",
+    "weekly": "每周",
+    "custom": "自定义表达式",
+    "time": "执行时间",
+    "minute": "每小时第几分钟",
+    "weekday": "星期",
+    "day0": "星期日",
+    "day1": "星期一",
+    "day2": "星期二",
+    "day3": "星期三",
+    "day4": "星期四",
+    "day5": "星期五",
+    "day6": "星期六"
+  },
+  "projectList": {
+    "search": "筛选已加载内容",
+    "loaded": "已加载 {{n}} 项",
+    "loadedOnly": "筛选仅包含已加载内容",
+    "noMatch": "已加载内容中没有匹配项。",
+    "loadMore": "加载更多",
+    "scan_limit": "已检查 5,000 份资料，仍无法确认全部引用。请到项目中核对，或移除未确认引用后继续。",
+    "too_many": "每个任务最多引用 {{n}} 份项目资料，请减少选择后继续。",
+    "clearSelection": "清空所选资料",
+    "removeUnresolved": "移除未确认引用 {{n}}",
+    "candidatesHint": "此处显示前 200 份资料及已选引用。更多资料请到项目中选择。"
+  },
+  "readingNavigation": {
+    "location": "当前位置",
+    "root": "工作目录",
+    "filter": "筛选当前目录文件名",
+    "noFiles": "当前目录没有匹配的文件。",
+    "emptyFolder": "这个目录还是空的。",
+    "outline": "目录",
+    "outlineEmpty": "当前页没有标题。",
+    "outlineLimited": "仅显示前 {{count}} 个标题。",
+    "find": "在当前页查找",
+    "previousMatch": "上一个匹配",
+    "nextMatch": "下一个匹配",
+    "matches": "{{current}} / {{count}}",
+    "matchesLimited": "{{current}} / 前 {{count}} 处",
+    "scope": "仅查找当前显示页，不区分大小写；Enter 下一处，Shift + Enter 上一处。"
+  },
+  "extensionControls": {
+    "search": "搜索技能与扩展",
+    "noMatches": "没有匹配的扩展。",
+    "refresh": "刷新状态",
+    "onDemand": "使用时连接"
   }
 }

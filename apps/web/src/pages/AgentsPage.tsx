@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useApi } from "../state/ConnectionContext";
 import { queryKeys } from "../state/queryKeys";
+import { useWorkbenchCapabilities } from "../state/useWorkbenchCapabilities";
 import { Badge, Dialog, Empty, ErrorBanner, Field, Spinner } from "../components/ui";
 import { useToast } from "../components/Toast";
 import { describeError } from "../lib/errorMessage";
@@ -16,12 +17,13 @@ import { agentTools, type Agent, type AgentInput, type AutonomyLevel, type Exten
 
 const AUTONOMY_LEVELS: AutonomyLevel[] = ["ask_all", "ask_risky", "auto_in_sandbox"];
 
-// 与 internal/agent.DefaultTools 对齐。工具接口只返回当前启用的声明，不能用它枚举未选的内置工具。
+// 基础工具目录兼容旧守护进程；新增工具只在声明能力后提供，已有选择仍可保留或移除。
 const BUILTIN_TOOL_NAMES = ["read_file", "write_file", "edit_file", "delete_file", "list_dir", "search_files", "run_command", "fetch_url"];
 
 /** 目录仅纳入内置工具；未知的已选名称保留，扩展声明由扩展绑定提供。 */
-export function builtinToolNames(specs: ToolSpec[], selected: string[]): string[] {
+export function builtinToolNames(specs: ToolSpec[], selected: string[], readDocument = false): string[] {
   const names = new Set(BUILTIN_TOOL_NAMES);
+  if (readDocument) names.add("read_document");
   for (const spec of specs) if (spec.source === "builtin") names.add(spec.name);
   for (const name of selected) {
     if (!specs.some((spec) => spec.name === name && spec.source !== "builtin")) names.add(name);
@@ -125,6 +127,7 @@ export function AgentsPage() {
 }
 
 export interface AgentFormState {
+  template?: string;
   name: string;
   description: string;
   system_prompt: string;
@@ -153,6 +156,12 @@ export function buildAgentInput(form: AgentFormState, mode: "create" | "edit"): 
   };
   if (form.tools !== null) input.tools = form.tools;
   else if (mode === "edit") input.tools = null;
+  // 模板只用于创建；空提示和默认审批档位交给守护进程，显式自定义仍保留。
+  if (mode === "create" && form.template) {
+    input.template = form.template;
+    if (!form.system_prompt.trim()) delete input.system_prompt;
+    if (form.autonomy === "ask_risky") delete input.autonomy;
+  }
   return input;
 }
 
@@ -161,6 +170,7 @@ function AgentForm({ agent, providers, onClose, onSaved }: { agent: Agent | null
   const api = useApi();
   const enabledProviders = useMemo(() => providers.filter((p) => p.enabled), [providers]);
   const [form, setForm] = useState<AgentFormState>(() => ({
+    template: "",
     name: agent?.name ?? "",
     description: agent?.description ?? "",
     system_prompt: agent?.system_prompt ?? "",
@@ -194,7 +204,8 @@ function AgentForm({ agent, providers, onClose, onSaved }: { agent: Agent | null
     if (provider && !form.model && provider.default_model) setForm((f) => ({ ...f, model: provider.default_model ?? "" }));
   }, [provider, form.model]);
 
-  const toolNames = useMemo(() => builtinToolNames(tools.data ?? [], form.tools ?? []), [tools.data, form.tools]);
+  const caps = useWorkbenchCapabilities();
+  const toolNames = useMemo(() => builtinToolNames(tools.data ?? [], form.tools ?? [], caps.readDocument), [tools.data, form.tools, caps.readDocument]);
   const extensionIds = selectableExtensionIds(extensions.data ?? [], form.extensions);
   const valid = Boolean(form.name.trim() && provider?.enabled && form.model.trim());
 
@@ -242,13 +253,20 @@ function AgentForm({ agent, providers, onClose, onSaved }: { agent: Agent | null
         <ErrorBanner error={error} />
         {enabledProviders.length === 0 ? <div className="banner warn">{t("agents.noProviders")}</div> : null}
         {form.provider_id && !provider?.enabled ? <div className="banner warn">{t("agents.providerUnavailable")}</div> : null}
+        {!agent ? <Field label={t("agentTemplates.label")} hint={t(form.template ? `agentTemplates.${form.template}Hint` : "agentTemplates.customHint")}>
+          <select className="select" aria-label={t("agentTemplates.label")} value={form.template} onChange={(event) => { const template = event.target.value; setForm((previous) => ({ ...previous, template })); }}>
+            <option value="">{t("agentTemplates.custom")}</option>
+            <option value="general-assistant">{t("agentTemplates.general-assistant")}</option>
+            <option value="ops-engineer">{t("agentTemplates.ops-engineer")}</option>
+          </select>
+        </Field> : null}
         <Field label={t("agents.name")}>
           <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
         </Field>
         <Field label={t("agents.description")}>
           <input className="input" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </Field>
-        <Field label={t("agents.systemPrompt")} hint={t("agents.systemPromptHint")}>
+        <Field label={t("agents.systemPrompt")} hint={t(!agent && form.template ? "agentTemplates.promptHint" : "agents.systemPromptHint")}>
           <textarea className="textarea" rows={5} value={form.system_prompt} onChange={(e) => setForm({ ...form, system_prompt: e.target.value })} />
         </Field>
         <div className="grid-2">

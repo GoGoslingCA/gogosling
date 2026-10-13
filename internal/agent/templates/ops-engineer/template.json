@@ -2,6 +2,6 @@
   "id": "ops-engineer",
   "name": "运维工程师",
   "description": "排查本机与服务的运行问题：查看日志、检查配置、执行诊断命令并给出修复建议。执行命令需要审批。",
-  "tools": ["read_file", "write_file", "edit_file", "delete_file", "list_dir", "search_files", "run_command", "fetch_url"],
+  "tools": ["read_file", "read_document", "write_file", "edit_file", "delete_file", "list_dir", "search_files", "run_command", "fetch_url"],
   "autonomy": "ask_risky"
 }

@@ -1,0 +1,23 @@
+.reading-breadcrumbs { display:flex; align-items:center; gap:3px; min-width:0; overflow:auto; flex:1; }
+.reading-breadcrumbs button { white-space:nowrap; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+.reading-file-filter, .reading-find { display:flex; align-items:center; gap:8px; min-width:0; }
+.reading-file-filter { padding:10px 16px; }
+.reading-file-filter input, .reading-find input { min-width:0; flex:1; font:inherit; color:var(--text); background:var(--surface-2); border:0; border-radius:8px; padding:8px 10px; }
+.reading-file-filter input:focus-visible, .reading-find input:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
+.reading-empty { padding:18px 20px; color:var(--text-2); }
+.reading-navigation { padding:8px 14px; display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; font-size:13px; }
+.reading-navigation summary { display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-2); list-style:none; }
+.reading-navigation summary::-webkit-details-marker { display:none; }
+.reading-outline { width:100%; }
+.reading-outline[open] > summary svg { transform:rotate(90deg); }
+.reading-outline nav { display:flex; flex-direction:column; max-height:220px; overflow:auto; gap:2px; padding-top:8px; }
+.reading-outline a { color:var(--text-2); text-decoration:none; padding:5px 8px; border-radius:6px; overflow-wrap:anywhere; }
+.reading-outline a:hover, .reading-outline a:focus-visible { background:var(--surface-2); color:var(--text); }
+.reading-find-panel { width:100%; }
+.reading-find { margin-top:8px; flex-wrap:wrap; }
+.reading-find input { flex-basis:140px; }
+.reading-find-status { color:var(--text-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.reading-find-hint { margin:6px 0 0; font-size:12px; color:var(--text-2); }
+.reading-text-body :is(h1,h2,h3,h4,h5,h6) { scroll-margin-top:16px; }
+.reading-text-body :is(h1,h2,h3,h4,h5,h6):focus { outline:none; }
+@media (prefers-reduced-motion: reduce) { .reading-outline svg { transition:none; } }

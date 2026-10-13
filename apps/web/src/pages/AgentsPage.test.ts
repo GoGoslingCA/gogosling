@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     agents: { list: vi.fn(), update: vi.fn(), create: vi.fn(), remove: vi.fn(), tools: vi.fn() },
     providers: { list: vi.fn() },
     extensions: { list: vi.fn() },
+    system: { version: vi.fn() },
   },
 }));
 vi.mock("../state/ConnectionContext", () => ({ useApi: () => mocks.api }));
@@ -53,6 +54,15 @@ describe("buildAgentInput：tools 的三态语义", () => {
   it("扩展绑定显式发送，空列表可以解绑全部扩展", () => {
     expect(buildAgentInput({ ...base, extensions: ["skill", "mcp"] }, "create").extensions).toEqual(["skill", "mcp"]);
     expect(buildAgentInput(base, "edit").extensions).toEqual([]);
+  });
+  it("模板创建使用后端默认提示和工具，不给编辑请求重新套用模板", () => {
+    const input = buildAgentInput({ ...base, template: "general-assistant" }, "create");
+    expect(input.template).toBe("general-assistant");
+    expect(input).not.toHaveProperty("system_prompt");
+    expect(input).not.toHaveProperty("autonomy");
+    expect(input).not.toHaveProperty("tools");
+    expect(buildAgentInput({ ...base, template: "ops-engineer", system_prompt: "自己的提示", tools: [], autonomy: "ask_all" }, "create")).toMatchObject({ system_prompt: "自己的提示", tools: [], autonomy: "ask_all" });
+    expect(buildAgentInput({ ...base, template: "ops-engineer" }, "edit")).not.toHaveProperty("template");
   });
 });
 
@@ -99,6 +109,7 @@ describe("智能体配置：内置工具与扩展分开绑定", () => {
     mocks.api.agents.tools.mockResolvedValue(specs);
     mocks.api.agents.update.mockResolvedValue(agent);
     mocks.api.agents.create.mockResolvedValue(agent);
+    mocks.api.system.version.mockResolvedValue({ capabilities: { "tools.read_document": 1 } });
   });
   afterEach(async () => {
     await act(async () => root.unmount());
@@ -115,6 +126,24 @@ describe("智能体配置：内置工具与扩展分开绑定", () => {
   function checkbox(text: string): HTMLInputElement {
     return [...container.querySelectorAll("dialog label.check")].find((element) => element.textContent?.includes(text))!.querySelector("input")!;
   }
+
+  it("旧助手可只启用文档读取，其他工具权限不随之增加", async () => {
+    await render();
+    await act(async () => button("common.edit").click());
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+    expect(checkbox("read_document").checked).toBe(false);
+    await act(async () => checkbox("read_document").click());
+    await act(async () => container.querySelector("#agent-form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(mocks.api.agents.update).toHaveBeenCalledWith("a1", expect.objectContaining({ tools: ["read_file", "read_document"] }));
+  });
+
+  it("旧守护进程未声明文档读取时不提供新增选项", async () => {
+    mocks.api.system.version.mockResolvedValue({ capabilities: {} });
+    await render(); await act(async () => button("common.edit").click());
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+    expect(container.querySelector("dialog")!.textContent).not.toContain("read_document");
+    expect(checkbox("read_file").checked).toBe(true);
+  });
 
   it("编辑时显示已停用与已卸载绑定，用户可以增加技能并移除失效绑定后保存", async () => {
     await render();
@@ -154,6 +183,26 @@ describe("智能体配置：内置工具与扩展分开绑定", () => {
     });
     expect(mocks.api.agents.update).toHaveBeenCalledTimes(1);
     await act(async () => finish(agent));
+  });
+
+  it("模板选择只在新建显示，选择后保留已填写的名称并提交模板ID", async () => {
+    await render();
+    await act(async () => button("common.edit").click());
+    expect(container.querySelector('[aria-label="agentTemplates.label"]')).toBeNull();
+    await act(async () => button("common.cancel").click());
+    await act(async () => button("agents.create").click());
+    const name = container.querySelector<HTMLInputElement>("#agent-form input")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(name, "Local helper");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+      const select = container.querySelector<HTMLSelectElement>('[aria-label="agentTemplates.label"]')!;
+      select.value = "general-assistant";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(name.value).toBe("Local helper");
+    await act(async () => container.querySelector("#agent-form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(mocks.api.agents.create).toHaveBeenCalledWith(expect.objectContaining({ name: "Local helper", template: "general-assistant" }));
+    expect(mocks.api.agents.create.mock.calls[0]![0]).not.toHaveProperty("system_prompt");
   });
 });
 

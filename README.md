@@ -24,6 +24,7 @@
 
 - **Read beside the conversation.** Open a document or code file in the results pane while asking for changes.
 - **Pick the context.** Group files and tasks into projects. Choose which materials a task should reference.
+- **Read document text through tools.** An enabled agent can extract bounded passages from DOCX, slides, spreadsheets, and text files in its permitted workspace, with source positions and file-version checks.
 - **Keep a draft you can return to.** Edit text, save versions, copy, and export. Resume a task from the sidebar.
 - **Check a file edit before applying it.** Inspect the diff, apply through the permission checks, and undo supported text-file changes. External edits trigger conflict checks.
 
@@ -58,7 +59,7 @@ npm run dev -w @gogosling/web -- --strictPort
 
 1. Open **http://127.0.0.1:5173**. Leave the connection address empty and enter the `token` from your local `~/.gogosling-dev/daemon.json`. Keep that file private; the browser holds the token only in memory.
 2. In **Settings → Model connections**, add and test a provider.
-3. In **Settings → Agents**, create an agent and select its model. Start a task or create a project from the sidebar.
+3. In **Settings → Agents**, create an agent from a bundled template or choose Custom, then select its model. Start a task or create a project from the sidebar.
 
 [Setup and troubleshooting →](docs/development/quickstart.md)
 
@@ -87,7 +88,7 @@ The package includes the daemon, Python runtime, worker, and UI. Users do not ne
 
 **The model is your choice.** Connect an OpenAI-compatible endpoint, Anthropic Messages, or a compatible local model server. Remote models receive the context you send and may charge for requests. Local storage does not mean every model request stays on the device.
 
-**Concurrency has a limit.** By default, two tasks run at once and up to 32 wait in the queue. Tasks sharing a workspace run in order. File viewers load when opened and release resources when closed. We have not published comparative memory or energy benchmarks; [help us measure them](ROADMAP.md#help-measure-the-difference).
+**Concurrency has a limit.** By default, two tasks run at once and up to 32 wait in the queue. Tasks sharing a workspace run in order. File viewers load when opened; idle MCP connections are released. We have not published comparative memory or energy benchmarks; [help us measure them](ROADMAP.md#help-measure-the-difference).
 
 ## Know the current limits
 

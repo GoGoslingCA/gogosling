@@ -23,7 +23,7 @@ export function workbenchApi(client: ApiClient) {
     getProject: (id: string): Promise<Project> => client.get(project(id)),
     createProject: (input: ProjectInput): Promise<Project> => client.post("/api/v1/projects", input),
     updateProject: (id: string, input: ProjectPatch): Promise<Project> => client.patch(project(id), input),
-    listMaterials: async (projectId: string, query: PageQuery = {}): Promise<ProjectMaterial[]> => (await client.get<ListResponse<ProjectMaterial>>(`${project(projectId)}/materials`, { query: { ...query } })).items ?? [],
+    listMaterials: async (projectId: string, query: PageQuery = {}, signal?: AbortSignal): Promise<ProjectMaterial[]> => (await client.get<ListResponse<ProjectMaterial>>(`${project(projectId)}/materials`, { query: { ...query }, signal })).items ?? [],
     uploadMaterial: (projectId: string, file: File): Promise<ProjectMaterial> => { const form = new FormData(); form.append("file", file, file.name); return client.post(`${project(projectId)}/materials`, form); },
     removeMaterial: (projectId: string, materialId: string): Promise<void> => client.delete(`${project(projectId)}/materials/${encodeURIComponent(materialId)}`),
     setSessionProject: (sessionId: string, input: SessionProjectInput): Promise<Session> => client.request("PUT", `/api/v1/sessions/${encodeURIComponent(sessionId)}/project`, { body: input }),
@@ -32,9 +32,9 @@ export function workbenchApi(client: ApiClient) {
     createDraft: (input: DraftInput): Promise<Draft> => client.post("/api/v1/drafts", input),
     updateDraft: (id: string, input: DraftUpdateInput): Promise<Draft> => client.request("PUT", draft(id), { body: input }),
     deleteDraft: (id: string, expectedVersion: number): Promise<void> => client.delete(draft(id), { query: { expected_version: expectedVersion } }),
-    listArtifacts: async (scope: ({ session_id: string; project_id?: never } | { project_id: string; session_id?: never }) & PageQuery): Promise<Artifact[]> => {
+    listArtifacts: async (scope: ({ session_id: string; project_id?: never } | { project_id: string; session_id?: never }) & PageQuery, signal?: AbortSignal): Promise<Artifact[]> => {
       const path = scope.session_id ? `/api/v1/sessions/${encodeURIComponent(scope.session_id)}/artifacts` : `${project(scope.project_id!)}/artifacts`;
-      return (await client.get<ListResponse<Artifact>>(path, { query: { limit: scope.limit, offset: scope.offset } })).items ?? [];
+      return (await client.get<ListResponse<Artifact>>(path, { query: { limit: scope.limit, offset: scope.offset }, signal })).items ?? [];
     },
     getArtifact: (id: string): Promise<Artifact> => client.get(artifact(id)),
     createArtifact: (sessionId: string, input: ArtifactInput, idempotencyKey?: string): Promise<Artifact> => client.post(`/api/v1/sessions/${encodeURIComponent(sessionId)}/artifacts`, input, idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),

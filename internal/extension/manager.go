@@ -76,10 +76,12 @@ type Manager struct {
 	now     func() time.Time
 
 	pluginTimeout   time.Duration
+	mcpIdleTimeout  time.Duration
 	maxPluginOutput int
 	lookupEnv       func(string) (string, bool)
 
 	mu     sync.Mutex
+	closed bool
 	conns  map[string]*mcpConn
 	routes map[string]map[string]toolRoute // agentID → 暴露名 → 路由
 }
@@ -106,6 +108,16 @@ func WithPluginTimeout(d time.Duration) Option {
 	return func(m *Manager) {
 		if d > 0 {
 			m.pluginTimeout = d
+		}
+	}
+}
+
+// WithMCPIdleTimeout 设置 MCP 连接在最后一次调用或发现结束后的闲置保留期；默认两分钟。
+// 非正值沿用默认值；活动调用不受闲置期限影响。
+func WithMCPIdleTimeout(d time.Duration) Option {
+	return func(m *Manager) {
+		if d > 0 {
+			m.mcpIdleTimeout = d
 		}
 	}
 }
@@ -141,6 +153,7 @@ func New(repo model.ExtensionRepo, dataDir string, logger *slog.Logger, dial MCP
 		dial:            dial,
 		now:             func() time.Time { return time.Now().UTC() },
 		pluginTimeout:   DefaultPluginTimeout,
+		mcpIdleTimeout:  2 * time.Minute,
 		maxPluginOutput: DefaultMaxPluginOutput,
 		lookupEnv:       os.LookupEnv,
 		conns:           map[string]*mcpConn{},
@@ -441,6 +454,7 @@ func (m *Manager) Enable(ctx context.Context, id string) (*model.Extension, erro
 		if err != nil {
 			return nil, err
 		}
+		defer c.release()
 		c.mu.Lock()
 		changed := c.changed
 		c.mu.Unlock()
@@ -510,19 +524,18 @@ func (m *Manager) AcceptTools(ctx context.Context, id string) (*model.Extension,
 	if err != nil {
 		return nil, err
 	}
+	persisted := false
 	switch ext.Kind {
 	case model.ExtensionMCPServer:
-		c := m.slot(ext.ID)
+		c, err := m.connectMCP(ctx, ext)
+		if err != nil {
+			return nil, err
+		}
+		defer c.release()
 		c.mu.Lock()
-		if !c.alive() {
-			c.closeLocked()
-			client, err := m.dial(ctx, ext)
-			if err != nil {
-				c.lastErr = err.Error()
-				c.mu.Unlock()
-				return nil, err
-			}
-			c.client = client
+		if c.retired || !c.alive() {
+			c.mu.Unlock()
+			return nil, mcpUnavailable()
 		}
 		specs, digest, _, err := c.client.ListToolsPinned(ctx, "")
 		if err != nil {
@@ -530,9 +543,17 @@ func (m *Manager) AcceptTools(ctx context.Context, id string) (*model.Extension,
 			c.mu.Unlock()
 			return nil, err
 		}
-		c.specs, c.digest, c.changed, c.lastErr = specs, digest, false, ""
-		c.mu.Unlock()
+		// 重新发现的声明先保持锁定，只有固定摘要成功落库后才允许执行。
+		c.specs, c.digest, c.changed = specs, digest, digest != ext.Digest
 		ext.Digest = digest
+		ext.UpdatedAt = m.now()
+		if err := m.repo.UpdateExtension(ctx, ext); err != nil {
+			c.mu.Unlock()
+			return nil, err
+		}
+		c.changed, c.lastErr = false, ""
+		c.mu.Unlock()
+		persisted = true
 	case model.ExtensionPlugin, model.ExtensionSkill:
 		fsys := os.DirFS(ext.InstallDir)
 		digest, _, err := digestFS(fsys)
@@ -549,9 +570,11 @@ func (m *Manager) AcceptTools(ctx context.Context, id string) (*model.Extension,
 	default:
 		return nil, model.Errorf(model.CodeInvalid, "未知的扩展类型 %q", ext.Kind)
 	}
-	ext.UpdatedAt = m.now()
-	if err := m.repo.UpdateExtension(ctx, ext); err != nil {
-		return nil, err
+	if !persisted {
+		ext.UpdatedAt = m.now()
+		if err := m.repo.UpdateExtension(ctx, ext); err != nil {
+			return nil, err
+		}
 	}
 	m.invalidateRoutes()
 	m.log.Info("扩展内容已确认", "extension_id", ext.ID, "kind", ext.Kind, "name", ext.Name, "digest", ext.Digest)
@@ -579,11 +602,13 @@ func (m *Manager) verifyDir(ext *model.Extension) error {
 // Close 关闭全部 MCP 连接；守护进程退出时调用。
 func (m *Manager) Close() error {
 	m.mu.Lock()
+	m.closed = true
 	conns := m.conns
 	m.conns = map[string]*mcpConn{}
 	m.mu.Unlock()
 	for _, c := range conns {
 		c.mu.Lock()
+		c.retired = true
 		c.closeLocked()
 		c.mu.Unlock()
 	}
@@ -686,6 +711,7 @@ func (m *Manager) ToolsFor(ctx context.Context, agent *model.Agent) ([]model.Too
 			changed := c.changed
 			list := append([]model.ToolSpec(nil), c.specs...)
 			c.mu.Unlock()
+			c.release()
 			if changed {
 				continue
 			}
@@ -748,9 +774,13 @@ func (m *Manager) CallTool(ctx context.Context, agent *model.Agent, call model.T
 		if cerr != nil {
 			return model.ToolResult{}, cerr
 		}
+		defer c.release()
 		c.mu.Lock()
 		client, changed := c.client, c.changed
 		c.mu.Unlock()
+		if client == nil {
+			return model.ToolResult{}, mcpUnavailable()
+		}
 		if changed {
 			return model.ToolResult{}, model.NewError(model.CodeConflict, "MCP 工具声明已变化，等待用户确认")
 		}

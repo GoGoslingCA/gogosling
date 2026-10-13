@@ -41,4 +41,18 @@ describe("工作台 API 的协议与读取边界", () => {
     expect(calls[1]![1].headers).toMatchObject({ "Idempotency-Key": "request-1" });
     expect(JSON.parse(calls[1]![1].body as string).source_message_id).toBe("m1");
   });
+
+  it("分页资料和成果读取保留偏移并传递取消信号", async () => {
+    const signals: AbortSignal[] = [];
+    const fetchImpl = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => { signals.push(options!.signal as AbortSignal); return new Response('{"items":[]}'); });
+    const api = workbenchApi(new ApiClient({ baseUrl: "http://127.0.0.1", token: "", fetchImpl }));
+    const cancel = new AbortController();
+    await api.listMaterials("project/1", { offset: 200, limit: 50 }, cancel.signal);
+    await api.listArtifacts({ project_id: "project/1", offset: 50, limit: 50 }, cancel.signal);
+    expect(String(fetchImpl.mock.calls[0]![0])).toContain("projects/project%2F1/materials?offset=200&limit=50");
+    expect(String(fetchImpl.mock.calls[1]![0])).toContain("projects/project%2F1/artifacts?limit=50&offset=50");
+    expect(signals).toEqual([cancel.signal, cancel.signal]);
+    cancel.abort();
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
 });

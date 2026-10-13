@@ -38,7 +38,7 @@ var ErrorCodes = []string{
 }
 
 // BuiltinTools 是内置工具名（含 Implicit 工具 load_skill）；语言包必须为每个工具提供 tools.<name>。
-var BuiltinTools = []string{"read_file", "write_file", "edit_file", "delete_file", "list_dir", "search_files", "run_command", "fetch_url", "load_skill", "read_skill_resource"}
+var BuiltinTools = []string{"read_file", "read_document", "write_file", "edit_file", "delete_file", "list_dir", "search_files", "run_command", "fetch_url", "load_skill", "read_skill_resource"}
 
 // runErrorPrefix 是运行错误文案的键前缀。
 const runErrorPrefix = "run.error."

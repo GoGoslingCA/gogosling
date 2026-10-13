@@ -395,7 +395,8 @@
     "run_command": "Run command",
     "fetch_url": "Fetch page",
     "load_skill": "Load skill",
-    "read_skill_resource": "Read skill resource"
+    "read_skill_resource": "Read skill resource",
+    "read_document": "Read document"
   },
   "work": {
     "smallIdea": "Start with a small idea.",
@@ -963,5 +964,67 @@
     "sessionId": "Local task ID",
     "time": "Occurred at",
     "version": "App version"
+  },
+  "agentTemplates": {
+    "label": "Starting point",
+    "custom": "Custom assistant",
+    "customHint": "Set your own instructions and tools.",
+    "general-assistant": "General assistant",
+    "general-assistantHint": "Organize material, draft text, and read files without running commands.",
+    "ops-engineer": "Operations assistant",
+    "ops-engineerHint": "Inspect logs and configuration. Diagnostic commands still follow your approval rules.",
+    "promptHint": "Leave blank to use the template instructions, or enter your own to replace them."
+  },
+  "scheduleBuilder": {
+    "frequency": "Repeat",
+    "hourly": "Hourly",
+    "daily": "Daily",
+    "weekdays": "Weekdays",
+    "weekly": "Weekly",
+    "custom": "Custom expression",
+    "time": "Time of day",
+    "minute": "Minute of each hour",
+    "weekday": "Day of week",
+    "day0": "Sunday",
+    "day1": "Monday",
+    "day2": "Tuesday",
+    "day3": "Wednesday",
+    "day4": "Thursday",
+    "day5": "Friday",
+    "day6": "Saturday"
+  },
+  "projectList": {
+    "search": "Filter loaded items",
+    "loaded": "{{n}} items loaded",
+    "loadedOnly": "Filtering covers loaded items only",
+    "noMatch": "No matching items in the loaded results.",
+    "loadMore": "Load more",
+    "scan_limit": "The first 5,000 materials were checked, but some references could not be confirmed. Review them in the project or remove the unresolved references to continue.",
+    "too_many": "A task can reference up to {{n}} project materials. Reduce the selection to continue.",
+    "clearSelection": "Clear selected materials",
+    "removeUnresolved": "Remove unresolved reference {{n}}",
+    "candidatesHint": "Showing the first 200 materials and your selected references. Open the project to choose from the full list."
+  },
+  "readingNavigation": {
+    "location": "Current location",
+    "root": "Workspace",
+    "filter": "Filter names in this folder",
+    "noFiles": "No matching files in this folder.",
+    "emptyFolder": "This folder is empty.",
+    "outline": "Contents",
+    "outlineEmpty": "No headings on this page.",
+    "outlineLimited": "Showing the first {{count}} headings.",
+    "find": "Find on this page",
+    "previousMatch": "Previous match",
+    "nextMatch": "Next match",
+    "matches": "{{current}} / {{count}}",
+    "matchesLimited": "{{current}} / first {{count}}",
+    "scope": "Searches this displayed page only, ignoring case. Enter: next; Shift + Enter: previous."
+  },
+  "extensionControls": {
+    "search": "Find skills and extensions",
+    "noMatches": "No matching extensions.",
+    "refresh": "Refresh status",
+    "onDemand": "Connects on use"
   }
 }

@@ -69,6 +69,7 @@ export function EventStreamProvider({ children }: { children: ReactNode }) {
       if (isWorkerStatusEvent(ev)) {
         setWorker(ev.payload);
         invalidate(queryKeys.version);
+        invalidate(queryKeys.resources);
         return;
       }
       if (isSessionLifecycleEvent(ev)) {
@@ -109,6 +110,8 @@ export function EventStreamProvider({ children }: { children: ReactNode }) {
       }
       if (isRunStreamEvent(ev)) {
         liveRuns.receive(ev);
+        // 只在执行状态改变时刷新槽位；文本增量不触发额外状态请求。
+        if (["message.created", "run.started", "run.completed", "run.failed", "run.cancelled", "approval.requested", "approval.resolved"].includes(ev.payload.type)) invalidate(queryKeys.resources);
         const sessionId = ev.payload.session_id;
         switch (ev.payload.type) {
           case "message.created":

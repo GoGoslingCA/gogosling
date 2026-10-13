@@ -19,11 +19,13 @@ export function ExtensionsPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [kind, setKind] = useState<ExtensionKind | "">("");
+  const [search, setSearch] = useState("");
   const [path, setPath] = useState("");
   const [mcpOpen, setMcpOpen] = useState(false);
   const installInFlight = useRef(false);
 
-  const extensions = useQuery({ queryKey: queryKeys.extensions(kind || undefined), queryFn: () => api.extensions.list(kind || undefined) });
+  const extensions = useQuery({ queryKey: queryKeys.extensions(kind || undefined), queryFn: ({ signal }) => api.extensions.list(kind || undefined, signal) });
+  const visible = extensions.data?.filter(item => item.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.extensionsRoot });
     // 扩展变化会影响智能体可用工具目录。
@@ -95,9 +97,11 @@ export function ExtensionsPage() {
         </Field>
       </form>
       <ErrorBanner error={extensions.error} />
+      <input className="input" type="search" value={search} onChange={event => setSearch(event.target.value)} aria-label={t("extensionControls.search")} placeholder={t("extensionControls.search")} />
       {extensions.isPending ? <Spinner /> : null}
       {extensions.data && extensions.data.length === 0 ? <Empty>{t("extensions.empty")}</Empty> : null}
-      {extensions.data?.map((x) => (
+      {extensions.data?.length && visible?.length === 0 ? <Empty>{t("extensionControls.noMatches")}</Empty> : null}
+      {visible?.map((x) => (
         <div className="card" key={x.id}>
           <div className="card-title">
             <span>{x.name}</span>
@@ -150,9 +154,10 @@ function ExtensionStatusLine({ extension }: { extension: Extension }) {
   const toast = useToast();
   const status = useQuery({
     queryKey: queryKeys.extensionStatus(extension.id),
-    queryFn: () => api.extensions.status(extension.id),
-    // 连接在后台建立；未连上时稍后再看一次。
-    refetchInterval: (q) => (q.state.data && !q.state.data.connected ? 10_000 : false),
+    queryFn: ({ signal }) => api.extensions.status(extension.id, signal),
+    // 状态读取不会建立连接；只随事件或用户刷新读取，避免空闲连接无意义轮询。
+    retry: false,
+    refetchOnWindowFocus: false,
   });
   const accept = useMutation({
     mutationFn: () => api.extensions.acceptTools(extension.id),
@@ -165,12 +170,13 @@ function ExtensionStatusLine({ extension }: { extension: Extension }) {
     onError: (err) => toast.show(describeError(err, t), "error"),
   });
 
-  if (status.isPending) return null;
-  if (status.error) return <ErrorBanner error={status.error} />;
   const st = status.data;
   return (
     <div className="meta">
-      <Badge tone={st.connected ? "ok" : "warn"}>{st.connected ? t("extensions.connected") : t("extensions.disconnected")}</Badge>
+      <ErrorBanner error={status.error} />
+      {status.isPending ? <Spinner /> : null}
+      {st ? <>
+      <Badge tone={st.connected ? "ok" : st.last_error ? "warn" : undefined}>{st.connected ? t("extensions.connected") : st.last_error ? t("extensions.disconnected") : t("extensionControls.onDemand")}</Badge>
       {typeof st.tool_count === "number" ? ` ${t("extensions.toolCount", { n: st.tool_count })}` : null}
       {st.last_error ? (
         <>
@@ -186,6 +192,8 @@ function ExtensionStatusLine({ extension }: { extension: Extension }) {
           </button>
         </div>
       ) : null}
+      </> : null}
+      <button type="button" className="btn ghost sm" disabled={status.isFetching} onClick={() => void status.refetch()}>{t("extensionControls.refresh")}</button>
     </div>
   );
 }

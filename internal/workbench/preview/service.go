@@ -60,28 +60,48 @@ func (s *Service) Open(ctx context.Context, agentID, rel, version string) (File,
 	if err != nil {
 		return nil, nil, err
 	}
-	info, err := f.Stat()
+	info, err := inspectFile(f, version)
 	if err != nil {
 		f.Close()
-		return nil, nil, Error("unavailable")
-	}
-	if !info.Mode().IsRegular() {
-		f.Close()
-		return nil, nil, Error("unsupported")
-	}
-	if info.Size() > MaxFile {
-		f.Close()
-		return nil, nil, Error("too_large")
-	}
-	if version != "" && version != Version(info) {
-		f.Close()
-		return nil, nil, Error("changed")
+		return nil, nil, err
 	}
 	return f, info, nil
 }
 
+func inspectFile(f File, version string) (fs.FileInfo, error) {
+	info, err := f.Stat()
+	if err != nil {
+		return nil, Error("unavailable")
+	}
+	if !info.Mode().IsRegular() {
+		return nil, Error("unsupported")
+	}
+	if info.Size() > MaxFile {
+		return nil, Error("too_large")
+	}
+	if version != "" && version != Version(info) {
+		return nil, Error("changed")
+	}
+	return info, nil
+}
+
 // Preview 在有界时限中识别、解析并检查文件是否变化。
 func (s *Service) Preview(ctx context.Context, agentID, rel string) (out Document, err error) {
+	return s.preview(ctx, func(ctx context.Context) (File, fs.FileInfo, error) {
+		return s.Open(ctx, agentID, rel, "")
+	}, true)
+}
+
+// PreviewFile 解析调用方已经验证并打开的文件，共享界面预览的预算与并发槽。
+// 调用方保留文件句柄所有权，必须在返回后关闭；此方法不重新解析智能体工作区。
+func (s *Service) PreviewFile(ctx context.Context, f File) (Document, error) {
+	return s.preview(ctx, func(context.Context) (File, fs.FileInfo, error) {
+		info, err := inspectFile(f, "")
+		return f, info, err
+	}, false)
+}
+
+func (s *Service) preview(ctx context.Context, open func(context.Context) (File, fs.FileInfo, error), ownFile bool) (out Document, err error) {
 	select {
 	case s.gate <- struct{}{}:
 		defer func() { <-s.gate }()
@@ -110,11 +130,13 @@ func (s *Service) Preview(ctx context.Context, agentID, rel string) (out Documen
 		}
 		s.log.Debug("content_preview", "request_id", ctx.Value(requestIDKey{}), "stage", stage, "format", formatID, "code", code, "duration_ms", time.Since(started).Milliseconds(), "size_bytes", out.Size)
 	}()
-	f, info, err := s.Open(ctx, agentID, rel, "")
+	f, info, err := open(ctx)
 	if err != nil {
 		return out, err
 	}
-	defer f.Close()
+	if ownFile {
+		defer f.Close()
+	}
 	stage = "detect"
 	format := s.detect(info.Name())
 	formatID = format.ID

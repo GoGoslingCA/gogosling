@@ -15,6 +15,7 @@ import { describeError } from "../../lib/errorMessage";
 import { lastSeq, mergeMessages } from "../../lib/messages";
 import { fallbackRunId, resolveActiveRun } from "../../lib/activeRun";
 import { MESSAGE_FETCH_CAP } from "../../api/modules/sessions";
+import { MATERIAL_SELECTION_LIMIT, readProjectMaterialSelection } from "../../api/modules/projectMaterialSelection";
 import type { Attachment, Draft, Message, Session, SessionStatus } from "../../api/types";
 import { SessionList } from "./SessionList";
 import { MessageList } from "./MessageList";
@@ -64,9 +65,17 @@ function ChatWorkspace() {
   const projectId = search.get("project") ?? "";
   const [materialSelection, setMaterialSelection] = useState<Record<string, string[]>>({});
   const project = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => api.workbench.getProject(projectId), enabled: caps.projects && !!projectId && !sessionId });
-  const projectMaterials = useQuery({ queryKey: queryKeys.materials(projectId), queryFn: () => api.workbench.listMaterials(projectId, { limit: 200 }), enabled: caps.materials && !!projectId && !sessionId });
-  const selectedMaterials = materialSelection[projectId] ?? (search.get("materials") ?? "").split(",").filter(Boolean);
-  const missingMaterials = projectMaterials.data ? selectedMaterials.filter((id) => !projectMaterials.data.some((material) => material.id === id)) : [];
+  const selectedMaterials = [...new Set(materialSelection[projectId] ?? (search.get("materials") ?? "").split(",").filter(Boolean))];
+  const projectMaterials = useQuery({
+    queryKey: [...queryKeys.materials(projectId), "selection", ...selectedMaterials.slice().sort()],
+    queryFn: ({ signal }) => readProjectMaterialSelection(api.workbench, projectId, selectedMaterials, signal),
+    enabled: caps.materials && !!projectId && !sessionId,
+    staleTime: 30_000, gcTime: 60_000,
+    placeholderData: (previous) => previous ? { ...previous, missingIds: [], unresolvedIds: [], issue: undefined } : undefined,
+  });
+  const missingMaterials = projectMaterials.data?.missingIds ?? [];
+  const materialIssue = projectMaterials.data?.issue;
+  const removeSelectedMaterial = (id: string) => setMaterialSelection((previous) => ({ ...previous, [projectId]: selectedMaterials.filter((selected) => selected !== id) }));
   const sessionStatus: SessionStatus = search.get("status") === "archived" ? "archived" : "active";
   const [sessionSearch, setSessionSearch] = useState("");
   const timeZone = useTimeZone();
@@ -354,11 +363,17 @@ function ChatWorkspace() {
       {!sessionId && projectId && caps.projects ? <div className="project-context">
         <ErrorBanner error={project.error ?? projectMaterials.error} />
         <strong>{t("projects.current")}: {project.data?.name ?? t("common.loading")}</strong> <Link to={`/projects/${projectId}`}>{t("projects.manage")}</Link>
-        <p>{t("projects.materialSelectionHint")}</p>
         {project.data?.status === "archived" ? <p role="alert">{t("projects.archivedStart")}</p> : null}
+        {materialIssue ? <p role="alert">{t(`projectList.${materialIssue}`, { n: MATERIAL_SELECTION_LIMIT })}</p> : null}
+        {materialIssue === "too_many" ? <button className="btn ghost sm" disabled={startStage !== null} onClick={() => setMaterialSelection((previous) => ({ ...previous, [projectId]: [] }))}>{t("projectList.clearSelection")}</button> : null}
         {missingMaterials.length ? <p role="alert">{t("projects.invalidSelection")}</p> : null}
-        {missingMaterials.map((id, index) => <button key={id} className="btn sm" disabled={startStage !== null} onClick={() => setMaterialSelection((previous) => ({ ...previous, [projectId]: selectedMaterials.filter((selected) => selected !== id) }))}>{t("projects.removeUnavailable", { n: index + 1 })}</button>)}
-        {projectMaterials.data?.map((material) => <label key={material.id}><input type="checkbox" checked={selectedMaterials.includes(material.id)} disabled={startStage !== null} onChange={(event) => setMaterialSelection((previous) => ({ ...previous, [projectId]: event.target.checked ? [...selectedMaterials, material.id] : selectedMaterials.filter((id) => id !== material.id) }))} />{material.name}</label>)}
+        {missingMaterials.map((id, index) => <button key={id} className="btn sm" disabled={startStage !== null} onClick={() => removeSelectedMaterial(id)}>{t("projects.removeUnavailable", { n: index + 1 })}</button>)}
+        {projectMaterials.data?.unresolvedIds.map((id, index) => <button key={id} className="btn ghost sm" disabled={startStage !== null} onClick={() => removeSelectedMaterial(id)}>{t("projectList.removeUnresolved", { n: index + 1 })}</button>)}
+        {caps.materials ? <details className="compact-explainer"><summary><Icon name="document" size={14} />{t("compact.selectMaterials")}<span>{t("projects.selected", { n: selectedMaterials.length })}</span><Icon name="chevron" size={12} /></summary><p>{t("projects.materialSelectionHint")}</p>
+          {projectMaterials.isFetching ? <p className="muted" role="status">{t("common.loading")}</p> : null}
+          {projectMaterials.data?.items.map((material) => <label key={material.id}><input type="checkbox" checked={selectedMaterials.includes(material.id)} disabled={startStage !== null || (!selectedMaterials.includes(material.id) && selectedMaterials.length >= MATERIAL_SELECTION_LIMIT)} onChange={(event) => setMaterialSelection((previous) => ({ ...previous, [projectId]: event.target.checked ? [...selectedMaterials, material.id] : selectedMaterials.filter((id) => id !== material.id) }))} />{material.name}</label>)}
+          <p className="muted">{t("projectList.candidatesHint")} <Link to={`/projects/${projectId}`}>{t("projects.manage")}</Link></p>
+        </details> : null}
       </div> : null}
       {sessionId ? <>
         <div className="workspace-tabs" role="tablist" aria-label={t("work.workspaceViews")} onKeyDown={(event) => {
@@ -386,7 +401,7 @@ function ChatWorkspace() {
           {messageMore[sessionId] ? <button type="button" className="btn sm" disabled={messages.isFetching} onClick={() => void messages.refetch()}>{messages.isFetching ? t("common.loading") : t("chat.loadMoreMessages")}</button> : null}
           {archived ? <div className="banner warn">{t("chat.archivedHint")}</div> : null}
         </div>
-      </> : <StartPage enhancementEnabled={caps.enhancePrompt} projectMaterials={caps.materials && projectId && project.data?.status !== "archived" ? projectMaterials.data : undefined} projectMaterialIds={caps.materials && projectId ? selectedMaterials : undefined} onProjectMaterialIdsChange={(ids) => setMaterialSelection((previous) => ({ ...previous, [projectId]: ids }))} projectId={caps.projects ? project.data?.id : undefined} agents={projectId && caps.projects ? (agents.data ?? []).filter((agent) => agent.id === project.data?.agent_id) : agents.data ?? []} sessions={recentSessions.data ?? []} loading={recentSessions.isPending || agents.isPending} error={agents.error ?? recentSessions.error} busy={startStage !== null} startBlocked={startOutcomeUnknown || (!!projectId && (!caps.projects || project.isPending || projectMaterials.isPending || !!project.error || !!projectMaterials.error || project.data?.status === "archived" || !!missingMaterials.length))} startStage={startStage} startLocked={!!taskStarter.current?.createdSession} onDraftDirtyChange={setHomeDirty} timeZone={timeZone}
+      </> : <StartPage enhancementEnabled={caps.enhancePrompt} projectMaterials={caps.materials && projectId && project.data?.status !== "archived" ? projectMaterials.data?.items : undefined} projectMaterialIds={caps.materials && projectId ? selectedMaterials : undefined} onProjectMaterialIdsChange={(ids) => setMaterialSelection((previous) => ({ ...previous, [projectId]: ids }))} projectId={caps.projects ? project.data?.id : undefined} agents={projectId && caps.projects ? (agents.data ?? []).filter((agent) => agent.id === project.data?.agent_id) : agents.data ?? []} sessions={recentSessions.data ?? []} loading={recentSessions.isPending || agents.isPending} error={agents.error ?? recentSessions.error} busy={startStage !== null} startBlocked={startOutcomeUnknown || (!!projectId && (!caps.projects || project.isPending || !!project.error || project.data?.status === "archived" || (caps.materials && (projectMaterials.isPending || projectMaterials.isFetching || !!projectMaterials.error || !!materialIssue || !!missingMaterials.length))))} startStage={startStage} startLocked={!!taskStarter.current?.createdSession} onDraftDirtyChange={setHomeDirty} timeZone={timeZone}
         onStart={startTask} onSelect={selectSession} onHistory={showHistory} />}
       {!sessionId && startError ? <div className="start-feedback" role="alert"><p>{startError}</p>{taskStarter.current?.createdSession ? <button className="btn" onClick={() => {
         const created = taskStarter.current?.createdSession;

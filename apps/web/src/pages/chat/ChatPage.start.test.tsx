@@ -4,10 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../../api/client";
-import type { Agent, Attachment, Draft, DraftInput, DraftUpdateInput, Message, Project, ProjectMaterial, Run, SendMessageInput, Session, SessionCreateInput, VersionInfo } from "../../api/types";
+import type { Agent, Attachment, Draft, DraftInput, DraftUpdateInput, Message, PageQuery, Project, ProjectMaterial, Run, SendMessageInput, Session, SessionCreateInput, VersionInfo } from "../../api/types";
 import { queryKeys } from "../../state/queryKeys";
 import type { LiveRun } from "../../state/liveRuns";
 import { ChatPage } from "./ChatPage";
+import { DraftContext, DraftRegistry } from "../../state/DraftProvider";
 
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock("../../state/ConnectionContext", () => ({ useApi: () => api }));
@@ -56,7 +57,7 @@ function fixture() {
     workbench: {
       getProject: vi.fn(async (id: string) => id === projectB.id ? projectB : projectA),
       listProjects: vi.fn(async () => [projectA, projectB]),
-      listMaterials: vi.fn(async (): Promise<ProjectMaterial[]> => []),
+      listMaterials: vi.fn(async (_projectId: string, _query?: PageQuery, _signal?: AbortSignal): Promise<ProjectMaterial[]> => []),
       uploadMaterial: vi.fn(async (projectId: string, file: File): Promise<ProjectMaterial> => ({ id: `material-${projectId}-${file.name}`, project_id: projectId, agent_id: agent.id, name: file.name, size: file.size, sha256: "test-digest", attachment: { name: file.name, path: `inbound/${file.name}`, size: file.size }, created_at: session.created_at })),
       createDraft: vi.fn(async (input: DraftInput): Promise<Draft> => ({ ...input, id: `draft-${input.session_id}`, owner_id: "test-owner", version: 1, created_at: session.created_at, updated_at: session.updated_at })),
       updateDraft: vi.fn(async (id: string, input: DraftUpdateInput): Promise<Draft> => ({ ...input, id, owner_id: "test-owner", version: input.expected_version + 1, created_at: session.created_at, updated_at: session.updated_at })),
@@ -93,9 +94,9 @@ async function ready(assertion: () => void) {
     assertion();
   }, { timeout: 2000, interval: 10 });
 }
-async function mount(path = "/chat") {
+async function mount(path = "/chat", drafts: DraftRegistry | null = null) {
   router = createMemoryRouter([{ path: "/chat/:sessionId?", element: <ChatPage /> }, { path: "/settings", element: <p>settings-page</p> }], { initialEntries: [path] });
-  await act(async () => root.render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>));
+  await act(async () => root.render(<QueryClientProvider client={client}><DraftContext.Provider value={drafts}><RouterProvider router={router} /></DraftContext.Provider></QueryClientProvider>));
   await ready(() => expect(container.querySelector<HTMLSelectElement>("#start-agent")?.value).toBe(agent.id));
 }
 function homeInput() { return container.querySelector<HTMLTextAreaElement>(".start-composer textarea")!; }
@@ -233,6 +234,65 @@ describe("首页一步开始任务的真实页面编排", () => {
 });
 
 describe("项目开始页的作用域隔离", () => {
+  function projectMaterial(index: number): ProjectMaterial { return { id: `m${index}`, project_id: projectA.id, agent_id: agent.id, name: `Document ${index}.md`, size: 1, sha256: "digest", attachment: { name: `Document ${index}.md`, path: `inbound/${index}.md`, size: 1 }, created_at: session.created_at }; }
+
+  it.each(["route", "draft"] as const)("从%s恢复第201份资料后可以实际发送，候选清单默认折叠", async (source) => {
+    enableProjects();
+    api.workbench.listMaterials.mockImplementation(async (_projectId, query) => Array.from({ length: Math.min(200, 400 - (query?.offset ?? 0)) }, (_, index) => projectMaterial(index + (query?.offset ?? 0) + 1)));
+    const draft: Draft = { id: "start-draft", kind: "composer", agent_id: agent.id, project_id: projectA.id, text: "Review selected material", material_ids: ["m201"], owner_id: "owner", version: 1, created_at: session.created_at, updated_at: session.updated_at };
+    const registry = source === "draft" ? new DraftRegistry() : null;
+    registry?.configure({ ...api.workbench, listDrafts: async (query) => query?.project_id === projectA.id ? [draft] : [], getDraft: async () => draft }, true, false);
+    try {
+      await mount(`/chat?project=${projectA.id}${source === "route" ? "&materials=m201" : ""}`, registry);
+      if (source === "route") await typeGoal("Review selected material");
+      await ready(() => {
+        expect(container.querySelector('.project-context input[type="checkbox"]:checked')?.parentElement?.textContent).toBe("Document 201.md");
+        expect(container.querySelector<HTMLButtonElement>('.start-composer button[type="submit"]')!.disabled).toBe(false);
+      });
+      expect(container.querySelector<HTMLDetailsElement>(".project-context details")!.open).toBe(false);
+      expect(container.querySelectorAll('.project-context input[type="checkbox"]')).toHaveLength(201);
+      expect(container.querySelector(".project-context")!.textContent).not.toContain("Document 202.md");
+      await submit(); await ready(() => expect(api.sessions.send).toHaveBeenCalledOnce());
+      expect(api.sessions.send).toHaveBeenCalledWith(session.id, expect.objectContaining({ material_ids: ["m201"] }));
+    } finally { registry?.dispose(); }
+  });
+
+  it("真正缺失的资料保留为可移除引用，移除前禁止提交", async () => {
+    enableProjects();
+    await mount(`/chat?project=${projectA.id}&materials=missing`);
+    await typeGoal("Review material");
+    await ready(() => expect(container.querySelector(".project-context")?.textContent).toContain("projects.invalidSelection"));
+    expect(container.querySelector<HTMLButtonElement>('.start-composer button[type="submit"]')!.disabled).toBe(true);
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>(".project-context button")].find((item) => item.textContent === "projects.removeUnavailable")!.click());
+    await ready(() => expect(container.querySelector<HTMLButtonElement>('.start-composer button[type="submit"]')!.disabled).toBe(false));
+    await submit(); await ready(() => expect(api.sessions.send).toHaveBeenCalledOnce());
+    expect(api.sessions.send.mock.calls[0]![1]).not.toHaveProperty("material_ids");
+  });
+
+  it("项目切换取消未完成的资料扫描，旧响应不污染新项目", async () => {
+    enableProjects(); vi.mocked(window.confirm).mockReturnValue(true);
+    let signalA: AbortSignal | undefined;
+    api.workbench.listMaterials.mockImplementation((id, _query, signal) => id === projectA.id ? new Promise<ProjectMaterial[]>((_resolve, reject) => {
+      signalA = signal; signal?.addEventListener("abort", () => reject(new DOMException("cancelled", "AbortError")), { once: true });
+    }) : Promise.resolve([]));
+    await mount(`/chat?project=${projectA.id}&materials=m201`);
+    await ready(() => expect(signalA).toBeDefined());
+    await switchProject(projectB.id); await projectReady(projectB.id);
+    expect(signalA!.aborted).toBe(true);
+    expect(container.querySelector(".project-context")?.textContent).not.toContain("projects.invalidSelection");
+    await typeGoal("Project B task");
+    await ready(() => expect(container.querySelector<HTMLButtonElement>('.start-composer button[type="submit"]')!.disabled).toBe(false));
+    expect(api.sessions.send).not.toHaveBeenCalled();
+  });
+
+  it("旧内核只有项目能力时不等待不存在的资料接口", async () => {
+    api.system.version.mockResolvedValue({ version: "old", capabilities: { "workbench.projects": 1 } });
+    await mount(`/chat?project=${projectA.id}`); await typeGoal("Start without materials");
+    expect(api.workbench.listMaterials).not.toHaveBeenCalled();
+    expect(container.querySelector<HTMLButtonElement>('.start-composer button[type="submit"]')!.disabled).toBe(false);
+    await submit(); await ready(() => expect(api.sessions.send).toHaveBeenCalledOnce());
+  });
+
   it("取消同路径项目切换时保留原项目的正文和文件，不上传或新建任务", async () => {
     enableProjects();
     await mount(`/chat?project=${projectA.id}`);

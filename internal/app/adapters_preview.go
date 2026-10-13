@@ -24,12 +24,17 @@ func (p previewFiles) Open(ctx context.Context, agentID, rel string) (preview.Fi
 	if err != nil {
 		return nil, err
 	}
-	realRoot, rootErr := filepath.EvalSymlinks(ws.Root())
-	realData, dataErr := filepath.EvalSymlinks(p.dataDir)
-	if rootErr != nil || dataErr != nil || pathUnder(realRoot, realData) {
+	if !previewRootAllowed(ws.Root(), p.dataDir) {
 		return nil, model.NewError(model.CodeForbidden, "preview_access")
 	}
 	return ws.OpenRead(ctx, rel)
+}
+
+// previewRootAllowed 保留界面与工具读取的一致边界，禁止以过宽工作区覆盖内核目录。
+func previewRootAllowed(root, dataDir string) bool {
+	realRoot, rootErr := filepath.EvalSymlinks(root)
+	realData, dataErr := filepath.EvalSymlinks(dataDir)
+	return rootErr == nil && dataErr == nil && !pathUnder(realRoot, realData)
 }
 func pathUnder(root, target string) bool {
 	rel, err := filepath.Rel(root, target)

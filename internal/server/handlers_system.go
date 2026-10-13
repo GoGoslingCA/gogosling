@@ -55,6 +55,10 @@ func (s *Server) handleVersion(w http.ResponseWriter, _ *http.Request) error {
 		capabilities = map[string]any{}
 	}
 	capabilities["prompt.enhance"] = 1
+	// 可选静态探测不调用 ToolsFor，查询版本不会启动 MCP 子进程或触发工具发现。
+	if host, ok := any(s.deps.Tools).(interface{ HasBuiltinTool(string) bool }); ok && host.HasBuiltinTool("read_document") {
+		capabilities["tools.read_document"] = 1
+	}
 	if s.deps.Preview != nil {
 		capabilities["workbench.preview"] = 1
 	}

@@ -8,7 +8,7 @@ import { ErrorBanner, Spinner } from "../components/ui";
 
 export function ResourceSettings(){
   const {t}=useTranslation();const api=useApi();const client=useQueryClient();const lock=useRef(false);
-  const state=useQuery({queryKey:queryKeys.resources,queryFn:()=>api.system.resources(),refetchInterval:5000,refetchIntervalInBackground:false});
+  const state=useQuery({queryKey:queryKeys.resources,queryFn:({signal})=>api.system.resources(signal),refetchInterval:query=>query.state.data&&!query.state.data.running&&!query.state.data.queued&&!query.state.data.awaiting_approval?30000:5000,refetchIntervalInBackground:false});
   const update=useMutation({mutationFn:(limit:number)=>api.system.setResources(limit),onSuccess:value=>client.setQueryData(queryKeys.resources,value),onSettled:()=>{lock.current=false;}});
   const data=state.data;
   return <>

@@ -9,6 +9,7 @@ export function useWorkbenchCapabilities() {
   const version = useQuery({ queryKey: queryKeys.version, queryFn: () => api.system.version(), staleTime: 60_000, retry: false });
   const capabilities = version.error ? undefined : version.data?.capabilities;
   return {
+    readDocument: capabilities?.["tools.read_document"] === 1,
     preview: capabilities?.["workbench.preview"] === 1,
     previewLayout: capabilities?.["workbench.preview_layout"] === 1,
     enhancePrompt: capabilities?.["prompt.enhance"] === 1,

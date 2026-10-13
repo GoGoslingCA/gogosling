@@ -391,7 +391,8 @@ func (a *App) start(ctx context.Context, rt *runtimeState) error {
 	// 7. 工具执行器：它同时是会话的 ToolSource 与本地 API 的工具清单来源（同一个 ToolsFor，
 	// "没有技能时隐藏 load_skill" 由 tools 经 SkillLoader.HasSkills 判定）。
 	// 运行上下文解析需要 session，而 session 需要执行器提供工具声明：先建解析器，稍后绑定。
-	registry, err := tools.NewBuiltinRegistry(tools.BuiltinOptions{Runner: runner, Skills: skillLoaderAdapter{s: ext}, Logger: log.With("module", "tools"), Locale: cfg.Locale})
+	previews := preview.New(previewFiles{workbenchFiles{agents: agents, workspaces: workspaces}, dataDir}, log.With("module", "preview"))
+	registry, err := tools.NewBuiltinRegistry(tools.BuiltinOptions{Runner: runner, Skills: skillLoaderAdapter{s: ext}, Documents: documentReader{previews: previews, dataDir: dataDir, locale: cfg.Locale}, Logger: log.With("module", "tools"), Locale: cfg.Locale})
 	if err != nil {
 		return fmt.Errorf("登记内置工具: %w", err)
 	}
@@ -508,7 +509,7 @@ func (a *App) start(ctx context.Context, rt *runtimeState) error {
 	srv, err := server.New(server.Deps{
 		Workbench:        bench,
 		PreviewConverter: newPreviewConverter(a.opts.getenv("GOGOSLING_OFFICE_BIN")),
-		Preview:          preview.New(previewFiles{workbenchFiles{agents: agents, workspaces: workspaces}, dataDir}, log.With("module", "preview")),
+		Preview:          previews,
 		Changes:          changes,
 		Auth:             auth,
 		Bus:              bus,

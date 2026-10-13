@@ -2,7 +2,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Agent } from "../api/types";
+import type { Agent, Job } from "../api/types";
 import { queryKeys } from "../state/queryKeys";
 import { JobsPage, buildJobInput, initialJobAgentId, validJobForm, type JobFormState } from "./JobsPage";
 
@@ -108,5 +108,36 @@ describe("定时任务创建交互", () => {
     expect(button("common.save").disabled).toBe(false);
     await act(async () => container.querySelector("#job-form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
     expect(mocks.api.jobs.create).toHaveBeenCalledWith(expect.objectContaining({ agent_id: enabled.id, kind: "push_text" }));
+  });
+
+  it("修改基本周期生成现有表达式，清空执行时间后禁止保存", async () => {
+    await renderNew();
+    await change("jobs.name", "Weekday reminder");
+    await change("jobs.input", "Summarize the selected notes");
+    await act(async () => {
+      const select = container.querySelector<HTMLSelectElement>('[aria-label="scheduleBuilder.frequency"]')!;
+      select.value = "weekdays"; select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await change("scheduleBuilder.time", "");
+    expect(button("common.save").disabled).toBe(true);
+    await change("scheduleBuilder.time", "09:30");
+    await change("jobs.timezone", "America/Toronto");
+    await act(async () => container.querySelector("#job-form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(mocks.api.jobs.create).toHaveBeenCalledWith(expect.objectContaining({ schedule: "30 9 * * 1-5", timezone: "America/Toronto" }));
+    expect(mocks.api.jobs.runNow).not.toHaveBeenCalled();
+  });
+
+  it.each(["*/17 3-7 * * 1,3", "@midnight"])("编辑只改名称保留原始表达式 %s 及其时区", async (schedule) => {
+    const job: Job = { id: "job-existing", agent_id: enabled.id, name: "Existing", schedule, timezone: "America/Toronto", kind: "run_agent", input: "Review logs", session_key: "existing-key", missed_policy: "run_once", enabled: true, created_at: "", updated_at: "" };
+    client.setQueryData(queryKeys.jobs(), [job]);
+    mocks.api.jobs.list.mockResolvedValue([job]);
+    mocks.api.jobs.update.mockResolvedValue(job);
+    await act(async () => root.render(createElement(QueryClientProvider, { client }, createElement(JobsPage))));
+    await act(async () => button("common.edit").click());
+    expect(container.querySelector<HTMLSelectElement>('[aria-label="scheduleBuilder.frequency"]')!.value).toBe(schedule === "@midnight" ? "daily" : "custom");
+    await change("jobs.name", "Renamed");
+    await act(async () => container.querySelector("#job-form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+    expect(mocks.api.jobs.update).toHaveBeenCalledWith(job.id, expect.objectContaining({ name: "Renamed", schedule, timezone: "America/Toronto", session_key: "existing-key", missed_policy: "run_once" }));
+    expect(mocks.api.jobs.runNow).not.toHaveBeenCalled();
   });
 });

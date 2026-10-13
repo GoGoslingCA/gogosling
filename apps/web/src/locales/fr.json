@@ -395,7 +395,8 @@
     "run_command": "Exécuter une commande",
     "fetch_url": "Récupérer une page",
     "load_skill": "Charger une compétence",
-    "read_skill_resource": "Lire une ressource de compétence"
+    "read_skill_resource": "Lire une ressource de compétence",
+    "read_document": "Lire un document"
   },
   "work": {
     "smallIdea": "Commencez par une petite idée.",
@@ -963,5 +964,67 @@
     "sessionId": "ID de tâche local",
     "time": "Date et heure",
     "version": "Version de l’application"
+  },
+  "agentTemplates": {
+    "label": "Point de départ",
+    "custom": "Assistant personnalisé",
+    "customHint": "Définissez vos propres instructions et outils.",
+    "general-assistant": "Assistant généraliste",
+    "general-assistantHint": "Organiser des documents, rédiger et lire des fichiers, sans exécuter de commandes.",
+    "ops-engineer": "Assistant d’exploitation",
+    "ops-engineerHint": "Examiner les journaux et la configuration. Les commandes de diagnostic restent soumises à vos règles d’approbation.",
+    "promptHint": "Laissez ce champ vide pour utiliser les instructions du modèle, ou saisissez les vôtres pour les remplacer."
+  },
+  "scheduleBuilder": {
+    "frequency": "Répétition",
+    "hourly": "Toutes les heures",
+    "daily": "Tous les jours",
+    "weekdays": "Du lundi au vendredi",
+    "weekly": "Toutes les semaines",
+    "custom": "Expression personnalisée",
+    "time": "Heure d’exécution",
+    "minute": "Minute de chaque heure",
+    "weekday": "Jour de la semaine",
+    "day0": "Dimanche",
+    "day1": "Lundi",
+    "day2": "Mardi",
+    "day3": "Mercredi",
+    "day4": "Jeudi",
+    "day5": "Vendredi",
+    "day6": "Samedi"
+  },
+  "projectList": {
+    "search": "Filtrer les éléments chargés",
+    "loaded": "{{n}} éléments chargés",
+    "loadedOnly": "Le filtre porte uniquement sur les éléments chargés",
+    "noMatch": "Aucun élément chargé ne correspond au filtre.",
+    "loadMore": "Charger la suite",
+    "scan_limit": "Les 5 000 premiers documents ont été vérifiés, mais certaines références restent introuvables dans cette sélection. Vérifiez-les dans le projet ou retirez les références non confirmées pour continuer.",
+    "too_many": "Une tâche peut utiliser jusqu’à {{n}} documents du projet. Réduisez la sélection pour continuer.",
+    "clearSelection": "Effacer la sélection",
+    "removeUnresolved": "Retirer la référence non confirmée {{n}}",
+    "candidatesHint": "Les 200 premiers documents et vos références sélectionnées sont affichés. Ouvrez le projet pour consulter la liste complète."
+  },
+  "readingNavigation": {
+    "location": "Emplacement actuel",
+    "root": "Dossier de travail",
+    "filter": "Filtrer les noms dans ce dossier",
+    "noFiles": "Aucun fichier correspondant dans ce dossier.",
+    "emptyFolder": "Ce dossier est vide.",
+    "outline": "Sommaire",
+    "outlineEmpty": "Aucun titre dans cette page.",
+    "outlineLimited": "Les {{count}} premiers titres sont affichés.",
+    "find": "Rechercher dans cette page",
+    "previousMatch": "Résultat précédent",
+    "nextMatch": "Résultat suivant",
+    "matches": "{{current}} / {{count}}",
+    "matchesLimited": "{{current}} / {{count}} premiers",
+    "scope": "Recherche dans la page affichée uniquement, sans distinction de casse. Entrée : suivant ; Maj + Entrée : précédent."
+  },
+  "extensionControls": {
+    "search": "Rechercher des compétences et extensions",
+    "noMatches": "Aucune extension correspondante.",
+    "refresh": "Actualiser l’état",
+    "onDemand": "Connexion à la demande"
   }
 }

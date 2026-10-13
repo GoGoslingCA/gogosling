@@ -55,24 +55,31 @@ export function SidebarProjects({ activeProjectId, onTaskMenu }: { activeProject
   </>;
 }
 
-// 隐藏时移除查询订阅；仅最后一个使用者退出时取消读取，不中断项目页的共享请求。
+// 隐藏时移除查询订阅；侧栏短列表与总览分页独立，当前项目元数据复用项目详情缓存。
 function ProjectList({ listId, activeProjectId, expandedProjectId, onToggle, onCreate, onTaskMenu }: { listId: string; activeProjectId?: string; expandedProjectId: string | null; onToggle: (id: string) => void; onCreate: () => void; onTaskMenu: TaskMenu }) {
   const { t } = useTranslation();
   const api = useApi();
   const projects = useQuery({
-    queryKey: [...queryKeys.projects, "list", false],
-    queryFn: ({ signal }) => api.workbench.listProjects({ status: "active", limit: 200 }, signal),
+    queryKey: [...queryKeys.projects, "sidebar"],
+    queryFn: ({ signal }) => api.workbench.listProjects({ status: "active", limit: 8 }, signal),
     staleTime: 30_000,
   });
   const active = (projects.data ?? []).filter(project => project.status === "active");
   const visible = active.slice(0, 8);
-  const selected = active.find(project => project.id === activeProjectId);
+  const current = useQuery({
+    queryKey: queryKeys.project(activeProjectId ?? ""),
+    queryFn: () => api.workbench.getProject(activeProjectId!),
+    enabled: projects.isSuccess && !!activeProjectId && !visible.some(project => project.id === activeProjectId),
+    staleTime: 30_000,
+    retry: false,
+  });
+  const selected = current.data?.status === "active" ? current.data : undefined;
   if (selected && !visible.some(project => project.id === selected.id)) visible.push(selected);
   return <div className="nav-project-list" id={listId}>
     {projects.isPending ? <p className="nav-task-empty" role="status">{t("common.loading")}</p> : null}
     {projects.error ? <><ErrorBanner error={projects.error} /><button className="btn ghost sm" onClick={() => void projects.refetch()}>{t("projects.retryLoading")}</button></> : null}
     {visible.map(project => <ProjectRow key={project.id} project={project} expanded={expandedProjectId === project.id} current={activeProjectId === project.id} onToggle={() => onToggle(project.id)} onTaskMenu={onTaskMenu} />)}
-    {!projects.isPending && !projects.error && !active.length ? <button className="nav-project-empty" onClick={onCreate}><Icon name="plus" size={14} />{t("projects.create")}</button> : null}
+    {!projects.isPending && !projects.error && !current.isFetching && !visible.length ? <button className="nav-project-empty" onClick={onCreate}><Icon name="plus" size={14} />{t("projects.create")}</button> : null}
   </div>;
 }
 
