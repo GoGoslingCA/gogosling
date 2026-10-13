@@ -2,7 +2,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Agent, Draft, DraftInput, DraftUpdateInput } from "../../api/types";
+import type { Agent, Draft, DraftInput, DraftUpdateInput, Session } from "../../api/types";
 import { StartPage } from "./StartPage";
 import { DraftContext, DraftRegistry } from "../../state/DraftProvider";
 
@@ -83,6 +83,39 @@ describe("开始页任务创建", () => {
     expect(textarea().value).toBe("work.prompt_write");
     expect(document.activeElement).toBe(textarea());
     expect(props.onStart).not.toHaveBeenCalled();
+  });
+
+  it("最近任务保留加载顺序并显示三条，点击继续原任务且全部任务入口可用", async () => {
+    const session = (id: string, created: number, lastMessage?: number): Session => ({
+      id, agent_id: agent.id, title: `任务 ${id}`, origin: "desktop", key: `internal:${id}`, status: "active",
+      created_at: `2026-10-12T0${created}:00:00Z`, updated_at: "2026-10-12T09:00:00Z",
+      ...(lastMessage ? { last_message_at: `2026-10-12T0${lastMessage}:00:00Z` } : {}),
+    });
+    props.sessions = [session("second", 2, 5), session("new", 3, 6), session("third", 4), session("old", 1)];
+    await render();
+    const rows = [...container.querySelectorAll<HTMLButtonElement>(".start-recent-item")];
+    expect(rows.map(row => row.querySelector(".start-recent-title")?.textContent)).toEqual(["任务 second", "任务 new", "任务 third"]);
+    expect(rows.every(row => row.querySelector("time")?.getAttribute("datetime"))).toBe(true);
+    expect(container.querySelector(".start-recent-list")?.textContent).not.toContain(agent.name);
+    expect(container.querySelector(".start-recent-list")?.textContent).not.toContain("internal:");
+    await act(async () => rows[1]!.click());
+    expect(props.onSelect).toHaveBeenCalledWith("new");
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "work.allTasks")!.click());
+    expect(props.onHistory).toHaveBeenCalledOnce();
+    expect(props.onStart).not.toHaveBeenCalled();
+  });
+
+  it("开始执行期间禁用最近任务与历史入口，防止切换丢失提交状态", async () => {
+    props.sessions = [{ id: "recent", agent_id: agent.id, title: "未完成任务", origin: "desktop", key: "local", status: "active", created_at: agent.created_at, updated_at: agent.updated_at }];
+    props.busy = true;
+    await render();
+    const recent = container.querySelector<HTMLButtonElement>(".start-recent-item")!;
+    const history = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "work.allTasks")!;
+    expect(recent.disabled).toBe(true);
+    expect(history.disabled).toBe(true);
+    await act(async () => { recent.click(); history.click(); });
+    expect(props.onSelect).not.toHaveBeenCalled();
+    expect(props.onHistory).not.toHaveBeenCalled();
   });
 
   it("输入法合成和 Shift+Enter 不创建任务，普通 Enter 提交", async () => {

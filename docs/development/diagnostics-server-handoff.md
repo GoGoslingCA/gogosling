@@ -1,8 +1,8 @@
-# Desktop diagnostics: server integration proposal
+# Desktop diagnostics: server integration contract
 
 Gogosling.ca is a Canadian company developing the gogosling local-first workbench. Desktop diagnostics are optional: users review a small report and choose whether to send it to Gogosling.ca.
 
-**Status:** this document proposes a desktop upload authorization extension. The existing [error-log OpenAPI](https://api.gogosling.ca/v1/error-logs/openapi.json) describes product-credential uploads; it does not yet advertise the ticket endpoint below. Do not describe the new flow as deployed until its contract and public acceptance tests pass.
+**Status:** deployed in the service's [OpenAPI 1.1.0](https://api.gogosling.ca/v1/error-logs/openapi.json). On 2026-10-13, the packaged desktop client was verified against the public service for consent, successful upload, and active cancellation. Its bundled diagnostic module also passed real HTTPS retry and deduplication checks; see the [validation record](../reports/2026-10-13-desktop-diagnostics-validation.md). This is anonymous, limited upload authorization, not proof of official-client or user identity.
 
 ## Boundaries
 
@@ -21,7 +21,7 @@ A publicly distributed app cannot keep a shared secret. Use an anonymous, short-
 
 The ticket grants only one upload for `gogosling-desktop`. It cannot list events, query an event, select another product, administer credentials, or access another service. If abuse cannot be contained by the bounded anonymous intake, disable ticket issuance while retaining existing authenticated backend uploads.
 
-## Proposed ticket endpoint
+## Ticket endpoint
 
 `POST https://api.gogosling.ca/v1/desktop-diagnostics/tickets`
 
@@ -53,7 +53,7 @@ Return `201 Created` with `Cache-Control: no-store`:
 }
 ```
 
-Generate the token from at least 32 cryptographically random bytes. The default lifetime is 60 seconds; the contract permits at most 120 seconds. Store only its cryptographic hash plus its scope, digest, byte count, event ID, and expiry in bounded, expiring server state. Do not create a credential file for each request or retain expired tickets. A server restart may invalidate outstanding tickets; fail closed and let the user retry with a new ticket.
+Generate the token from at least 32 cryptographically random bytes. The default lifetime is 60 seconds; the contract permits at most 120 seconds. Store only its cryptographic hash plus its scope, digest, byte count, event ID, and expiry in bounded, expiring server state. Do not create a credential file for each request or retain expired tickets. The deployed service preserves valid unused tickets across a restart only until their original expiry. Unknown, expired, or consumed tickets fail closed; the client requests a fresh ticket only on an explicit retry.
 
 Return concise error codes without reflecting request values or internal exception text. Use `400` for malformed requests, `413` for excessive size, `415` for an unsupported content type or encoding, `422` for schema errors, `429` for throttling, and `503` for temporary unavailability. Send `Retry-After` with `429` and `503`. A missing or disabled ticket feature must fail closed; it must not fall back to anonymous uploads without a ticket.
 
@@ -144,9 +144,9 @@ Before enabling the feature in a distributed release:
 1. Publish the extended external OpenAPI, including the exact desktop schema, ticket route, status codes, limits, and scope behavior. Confirm compatibility with current backend uploads and separately authorized queries.
 2. Use synthetic, non-sensitive reports to verify issuance, digest and byte binding, expiry, wrong product, read denial, malformed input, unknown fields, and oversized or compressed bodies. Never use production user content for acceptance tests.
 3. Test concurrent reuse of one ticket, invalid-body attempts followed by a valid attempt, fresh-ticket duplicate uploads, lost acknowledgements, and cancellation after a possible commit. Only one event may be stored for a report UUID.
-4. Test service restart before and after commit. Outstanding volatile tickets must fail closed, committed events must survive, and fresh-ticket retries must deduplicate.
+4. Test service restart before and after commit. Persisted unused tickets must retain their original expiry; consumed, unknown, or expired tickets must fail closed. Committed events must survive, and fresh-ticket retries must deduplicate.
 5. Verify throttling, `Retry-After`, bounded limiter/ticket memory, slow-body timeouts, storage pressure, and graceful refusal during overload. Check that other products and existing website, mobile, and model routes remain functional.
 6. Check access, application, and error logs for leaked bearer tickets, request bodies, response bodies, personal data, or secrets. Query results must remain redacted and query authorization must remain separate.
 7. Verify the source build has no diagnostics-upload entry point or diagnostics network activity; an enabled packaged build supports preview, send, cancel, and manual retry. Confirm no upload occurs before Send.
 
-Until these checks pass, client-side unit tests establish only the proposed protocol behavior. They do not establish that ticket authorization is deployed or that a live report reached the server.
+Repeat these acceptance checks when changing either side of the integration. Offline unit tests alone do not establish successful deployment or receipt of a live report; the linked validation record distinguishes native UI checks, real transport checks, and controlled fault injection.

@@ -1,11 +1,11 @@
 // 已连接状态下的应用骨架：顶部状态栏、左侧导航、内容区、全局审批弹层。
 // 未连接时重定向到 /connect。
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useConnection } from "../state/ConnectionContext";
-import { EventStreamProvider } from "../state/EventStreamProvider";
+import { EventStreamProvider, useStreamStatus } from "../state/EventStreamProvider";
 import { useSettingsQuery } from "../state/useSettings";
 import { applyLocale } from "../i18n";
 import { DraftProvider } from "../state/DraftProvider";
@@ -28,9 +28,27 @@ export function AppShell() {
 function Shell() {
   const { t } = useTranslation();
   const settings = useSettingsQuery();
+  const stream = useStreamStatus();
+  const [connectionOpen, setConnectionOpen] = useState(false);
+  const connectionDetails = useRef<HTMLDetailsElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const settingsLayout = location.pathname === "/settings";
+  const streamLabel = stream.status === "open" ? t("status.streamOpen") : stream.status === "connecting" ? t("status.streamConnecting") : stream.status === "reconnecting" ? t("status.streamReconnecting", { n: stream.attempt }) : stream.status === "unauthorized" ? t("status.streamUnauthorized") : t("status.streamClosed");
+  const streamTone = stream.status === "open" ? "ok" : stream.status === "connecting" || stream.status === "reconnecting" ? "warn" : "bad";
+  useEffect(() => { setConnectionOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!connectionOpen) return;
+    const outside = (event: Event) => { if (event.target instanceof Node && !connectionDetails.current?.contains(event.target)) setConnectionOpen(false); };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault(); setConnectionOpen(false);
+      connectionDetails.current?.querySelector("summary")?.focus();
+    };
+    const blur = () => setConnectionOpen(false);
+    window.addEventListener("pointerdown", outside); window.addEventListener("focusin", outside); window.addEventListener("keydown", escape); window.addEventListener("blur", blur);
+    return () => { window.removeEventListener("pointerdown", outside); window.removeEventListener("focusin", outside); window.removeEventListener("keydown", escape); window.removeEventListener("blur", blur); };
+  }, [connectionOpen]);
   const openSearch = () => {
     const params = new URLSearchParams(location.pathname.startsWith("/chat") ? location.search : "");
     params.set("history", "1");
@@ -63,9 +81,8 @@ function Shell() {
   return (
     <div className={`app${settingsLayout ? " settings-layout" : ""}`}>
       <header className="app-header">
-        <NavLink className="brand" to="/chat"><img src={`${import.meta.env.BASE_URL}brand/gosli.png`} alt="" /><span>gogosling<span className="brand-dot">.</span></span></NavLink>
-        <span className="header-tagline">{t("work.brandLine")}</span>
-        <details className="connection-details"><summary><span className="status-dot" />{t("work.connectionStatus")}</summary><div className="connection-popover"><StatusBar /></div></details>
+        <NavLink className="brand" to="/chat"><span>gogosling<span className="brand-dot">.</span></span></NavLink>
+        <details ref={connectionDetails} className="connection-details" open={connectionOpen} onToggle={event => setConnectionOpen(event.currentTarget.open)}><summary aria-label={t("work.connectionStatus")} aria-description={streamLabel} title={`${t("work.connectionStatus")}: ${streamLabel}`}><span className={`status-dot ${streamTone}`} /><span className="sr-only">{t("work.connectionStatus")}</span></summary>{connectionOpen ? <div className="connection-popover"><StatusBar /></div> : null}</details>
       </header>
       {!settingsLayout ? <NavigationSidebar openSearch={openSearch} modifier={modifier} /> : null}
       <main className="app-main"><Suspense fallback={<Spinner />}><Outlet /></Suspense></main>

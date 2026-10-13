@@ -1,53 +1,57 @@
 .task-input { min-width: 0; }
-/* 输入区只保留一层细灰边；内部文本域不叠加全局表单的蓝色焦点框。 */
-.task-input:is(.composer, .start-composer):focus-within { border-color: var(--focus-ring); box-shadow: none; }
-.task-input .textarea { font-size: 15px; line-height: 1.75; font-weight: 400; caret-color: var(--text); }
+/* 输入区只保留一层轮廓；任务条件通过间距与主操作区分。 */
+.task-input:is(.composer, .start-composer) { border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; background: var(--surface); box-shadow: none; }
+.task-input:is(.composer, .start-composer):focus-within { border-color: var(--border); box-shadow: none; }
+.task-input .textarea { min-height: 82px; padding: 2px 0 12px; resize: vertical; font-size: 15px; line-height: 1.75; font-weight: 400; caret-color: var(--text); }
 .task-input textarea:is(:focus, :focus-visible) { outline: none; box-shadow: none; }
-.task-input button:focus-visible, .task-input select:focus-visible { outline-color: var(--focus-ring); }
+.task-input button:focus-visible, .task-input select:focus-visible, .task-input .compact-context summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .task-input .composer-caption, .task-input .composer-hint { font-size: 12px; line-height: 1.5; }
 .task-input .composer-materials { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; margin-bottom: 8px; }
 .task-input .composer-material-count { flex-basis: 100%; margin-bottom: 3px; }
 .task-input .attachment-chip { max-width: 100%; margin: 0; }
 .task-input .attachment-name { min-width: 0; }
-.task-input-actions .spacer { flex: 1; }
-.task-input-footer { margin-top: 10px; }
+
+/* 发送与模型固定在右侧；新增或换行的辅助控件不会挤走主操作。 */
+.task-input-actions { display: flex; align-items: center; flex-wrap: nowrap; gap: 12px; min-height: 32px; }
+.task-input-tools { display: flex; align-items: center; flex-wrap: wrap; flex: 1 1 auto; gap: 4px; min-width: 0; }
+.task-input-primary { display: flex; align-items: center; flex: 0 1 auto; gap: 8px; margin-left: auto; min-width: 0; max-width: calc(100% - 76px); }
+.task-input-model { flex: 0 1 auto; min-width: 0; max-width: 180px; }
+.task-input .task-context { display: contents; }
+.task-input-context { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; margin-top: 8px; color: var(--text-2); }
+.task-input-context > select { min-width: 0; max-width: min(180px, 100%); padding: 5px 4px; border: 0; background: transparent; color: var(--text-2); font-size: 12px; }
+.task-input-secondary { margin-left: auto; min-width: 0; }
+.task-input-secondary > .btn { padding: 5px 6px; min-height: 28px; font-size: 12px; }
+.task-input-secondary > .btn.ghost { color: var(--text-2); }
+.task-input .compact-context > details > summary { min-height: 28px; max-width: 100%; padding: 5px 4px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font-size: 12px; white-space: nowrap; }
+.task-input .compact-context > details > summary:hover, .task-input .compact-context > details[open] > summary { background: var(--surface-2); color: var(--text); }
+.task-input .context-model-menu { min-width: 0; }
+.task-input .context-model-menu > summary { justify-content: flex-end; min-width: 0; }
+.task-input .context-model-menu .context-model { min-width: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-input .context-model-menu .context-popover, .task-input .context-more-menu .context-popover { left: auto; right: 0; }
+.task-input .context-workspace-menu { flex: 0 1 auto; min-width: 30px; }
+.task-input .context-workspace-menu > summary { min-width: 0; }
+.task-input .context-workspace-menu .context-directory { min-width: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.task-input .context-more-menu > summary { min-width: 28px; justify-content: center; }
+.task-input .context-popover { bottom: 36px; }
+.task-input .composer-icon, .task-input .prompt-enhance-button { min-height: 32px; min-width: 32px; padding: 6px; border: 0; border-radius: 8px; }
+.task-input .composer-send { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; min-height: 32px; padding: 0; border-radius: 50%; }
+.task-input .composer-send:disabled { background: var(--surface-3, var(--border)); border-color: transparent; color: var(--surface); opacity: .7; }
+.task-input-footer { margin-top: 6px; font-size: 11px; }
+.task-input-footer:empty { display: none; }
 .task-input.start-composer .composer-caption { margin-bottom: 8px; }
 .task-input.start-composer .composer-hint { margin-top: 10px; }
-.task-input-actions > select { max-width: min(180px, 100%); }
-@media (max-width: 600px) {
-  .task-input-actions { flex-wrap: wrap; }
-  .task-input-actions > select { min-width: 100px; }
-  .task-input .attachment-name { max-width: min(180px, 45vw); }
+@media (max-width: 700px) {
+  .task-input-actions { gap: 6px; }
+  .task-input-primary { gap: 4px; }
+  .task-input .context-model-menu .context-model { max-width: 98px; }
+  .task-input-context { gap: 2px 4px; }
+  .task-input-context > select { max-width: 130px; }
+  .task-input .context-directory { max-width: 100px; }
+  .task-input .attachment-name { max-width: 180px; }
 }
-
-/* 参考发送框：任务条件与操作在同一底栏，正文保留主要空间。 */
-.task-input:is(.composer,.start-composer){border-radius:20px;padding:14px 16px;box-shadow:none;border-color:var(--border)}
-.task-input:is(.composer,.start-composer):focus-within{border-color:var(--border)}
-.task-input .textarea{min-height:82px;padding:2px 0 12px;resize:vertical}
-.task-input-actions{flex-wrap:wrap;gap:4px;min-height:32px}
-.task-input .task-context{display:contents}
-.task-input .compact-context>details>summary{border:0;padding:6px;min-height:32px;border-radius:8px;background:transparent;white-space:nowrap}
-.task-input .compact-context>details>summary:hover,.task-input .compact-context>details[open]>summary{background:var(--surface-2);color:var(--text)}
-.task-input .context-model-menu{margin-left:auto}
-.task-input .context-model-menu .context-popover{left:auto;right:0}
-.task-input .context-model{max-width:220px}
-.task-input .context-directory{max-width:160px}
-.task-input .composer-icon,.task-input .prompt-enhance-button{min-height:32px;min-width:32px;padding:6px;border:0;border-radius:8px}
-.task-input .composer-send{width:32px;height:32px;min-height:32px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
-.task-input .composer-send:disabled{background:var(--surface-3,var(--border));border-color:transparent;color:var(--surface);opacity:.7}
-.task-input-footer{margin-top:5px;font-size:11px}
-.task-input-footer:empty{display:none}
-.task-input .context-popover{bottom:39px}
-@media(max-width:700px){.task-input .context-model{max-width:105px}.task-input .context-model-menu .context-popover{left:15px;right:15px;bottom:200px}}
-.task-input .context-model-menu{flex:0 1 150px;min-width:54px;max-width:150px}
-.task-input .context-model-menu>summary{justify-content:flex-end;min-width:0}
-.task-input .context-model-menu .context-model{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.task-input .context-workspace-menu{flex:0 1 auto;min-width:30px}
-.task-input .context-workspace-menu>summary{min-width:0}
-.task-input .context-workspace-menu .context-directory{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.task-input .context-more-menu>summary{min-width:28px;justify-content:center}
-.task-input .context-more-menu .context-popover{left:auto;right:0}
-@media(min-width:701px){.task-input.composer .task-input-actions{flex-wrap:nowrap}.task-input.composer .context-model-menu{flex-basis:120px}.task-input.composer .context-directory{max-width:70px}}
+@media (max-width: 700px) {
+  .task-input .context-popover, .task-input .context-model-menu .context-popover, .task-input .context-more-menu .context-popover { left: 15px; right: 15px; bottom: 180px; }
+}
 
 /* 加号菜单只在打开时挂载，使用同一输入区弹层开关。 */
 .composer-add-menu { position: relative; flex: 0 0 auto; }

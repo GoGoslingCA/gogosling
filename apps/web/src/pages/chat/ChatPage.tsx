@@ -322,7 +322,7 @@ export function ChatPage() {
       {sessions.hasNextPage ? <button type="button" className="btn sm" disabled={sessions.isFetching} onClick={() => void sessions.fetchNextPage()}>{sessions.isFetchingNextPage ? t("common.loading") : t("chat.loadMoreSessions")}</button> : null}
     </aside>
     <section className="chat-main">
-      <div className="chat-head">
+      {sessionId || projectId ? <div className="chat-head">
         <div className="workspace-title"><span className="eyebrow">{t("work.workspace")}</span><h1>{sessionId ? session?.title || t("chat.untitled") : t("work.startPage")}</h1></div>
         <button type="button" className="btn ghost sm" onClick={showHistory} title={t("work.searchShortcut")}><Icon name="clock" /><span className="optional-label">{t("work.history")}</span></button>
         {sessionId ? <>
@@ -334,7 +334,7 @@ export function ChatPage() {
             <button type="button" className="btn ghost sm danger" disabled={!session || actionBusy || artifactDirty || activeRunId !== null || send.isPending} title={artifactDirty ? t("work.saveBeforeDelete") : undefined} onClick={() => { if (window.confirm(t("chat.confirmDelete"))) deleteSession.mutate(sessionId); }}>{t("common.delete")}</button>
           </div></details>
         </> : null}
-      </div>
+      </div> : null}
       {!sessionId && projectId && !caps.loading && !caps.projects ? <div className="project-context" role="alert"><p>{t("projects.unavailable")}</p><Link to="/chat">{t("work.newTask")}</Link></div> : null}
       {!sessionId && projectId && caps.projects ? <div className="project-context">
         <ErrorBanner error={project.error ?? projectMaterials.error} />
@@ -379,7 +379,7 @@ export function ChatPage() {
       }}>{t("phase2.openCreatedTask")}</button> : <button className="btn" onClick={showHistory}>{t("work.history")}</button>}{startOutcomeUnknown ? <button className="btn ghost" onClick={() => { if (window.confirm(t("phase2.confirmStartOver"))) { taskStarter.current = null; checkpointDraft.current = null; setStartOutcomeUnknown(false); setStartError(null); } }}>{t("phase2.startOver")}</button> : null}</div> : null}
       <div className="workspace-composer" hidden={!sessionId}>
         {session ? <SessionProjectControl session={session} running={!!activeRunId || send.isPending} /> : null}
-        <Composer contextActions={agentOfSession ? <TaskContextBar key={sessionId} usage={active?.usage ?? latestRun.data?.usage ?? null} agent={agentOfSession} messages={messages.data ?? []} disabled={!!archived} onAddMaterial={(attachment) => setPendingContext({ sessionId: sessionId ?? "", attachment })} /> : null} enhancementEnabled={caps.enhancePrompt} agentId={agentOfSession?.id} projectId={session?.project_id} onDraftDirtyChange={setComposerDirty} draftRequest={retryDraft?.sessionId === sessionId ? retryDraft : undefined} onDraftRequestConsumed={() => setRetryDraft(null)} draftKey={sessionId ?? ""} pendingAttachment={pendingContext?.sessionId === sessionId ? pendingContext.attachment : null} onAttachmentConsumed={() => setPendingContext(null)} disabled={!session || archived || actionBusy} busy={send.isPending} cancelBusy={cancel.isPending} activeRunId={activeRunId}
+        <Composer contextActions={agentOfSession ? <TaskContextBar part="context" key={sessionId} usage={active?.usage ?? latestRun.data?.usage ?? null} agent={agentOfSession} messages={messages.data ?? []} disabled={!!archived} onAddMaterial={(attachment) => setPendingContext({ sessionId: sessionId ?? "", attachment })} /> : null} modelAction={agentOfSession ? <TaskContextBar part="model" key={sessionId} usage={active?.usage ?? latestRun.data?.usage ?? null} agent={agentOfSession} messages={messages.data ?? []} disabled={!!archived} onAddMaterial={(attachment) => setPendingContext({ sessionId: sessionId ?? "", attachment })} /> : null} enhancementEnabled={caps.enhancePrompt} agentId={agentOfSession?.id} projectId={session?.project_id} onDraftDirtyChange={setComposerDirty} draftRequest={retryDraft?.sessionId === sessionId ? retryDraft : undefined} onDraftRequestConsumed={() => setRetryDraft(null)} draftKey={sessionId ?? ""} pendingAttachment={pendingContext?.sessionId === sessionId ? pendingContext.attachment : null} onAttachmentConsumed={() => setPendingContext(null)} disabled={!session || archived || actionBusy} busy={send.isPending} cancelBusy={cancel.isPending} activeRunId={activeRunId}
           onSend={(text, attachments, materialIds) => send.mutateAsync({ id: sessionId ?? "", text, attachments, materialIds })} onCancel={() => { if (activeRunId && !cancel.isPending) cancel.mutate(activeRunId); }} upload={upload} />
       </div>
     </section>

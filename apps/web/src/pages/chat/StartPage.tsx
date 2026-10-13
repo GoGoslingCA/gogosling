@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../components/Icon";
-import { ErrorBanner } from "../../components/ui";
+import { ErrorBanner, Spinner } from "../../components/ui";
 import type { Agent, Attachment, ProjectMaterial, Session } from "../../api/types";
-import { SessionList } from "./SessionList";
+import { formatRelative } from "../../lib/time";
 import { TaskInput } from "./TaskInput";
 import { TaskContextBar } from "./TaskContextBar";
 import { usePersistentDraft } from "../../state/usePersistentDraft";
@@ -13,6 +13,7 @@ import type { DraftSaveToken } from "../../state/draftController";
 import { DraftSaveStatus } from "../../components/DraftSaveStatus";
 import { ApiError } from "../../api/client";
 import "../../components/compact-workbench.css";
+import "./start-page.css";
 
 /** 开始页恢复的已上传引用与其已确认草稿版本，不包含本地文件二进制。 */
 export interface StartReferences { attachments: Attachment[]; material_ids: string[]; draft?: DraftSaveToken }
@@ -49,6 +50,13 @@ export function StartPage({ enhancementEnabled = false, agents, sessions, loadin
   const materialIds = projectMaterialIds ?? references.material_ids;
   const hasContent = Boolean(text.trim() || files.length || references.attachments.length || materialIds.length);
   const available = agents.filter((agent) => agent.enabled);
+  const recent = sessions.slice(0, 3);
+  const timeLabels = {
+    justNow: t("time.justNow"),
+    minutes: (n: number) => t("time.minutesAgo", { n }),
+    hours: (n: number) => t("time.hoursAgo", { n }),
+    days: (n: number) => t("time.daysAgo", { n }),
+  };
   const agentId = startLocked && chosenAgent ? chosenAgent : available.some((agent) => agent.id === chosenAgent) ? chosenAgent : available[0]?.id ?? "";
   const persistent = usePersistentDraft(agentId ? { kind: "composer", agent_id: agentId, project_id: projectId } : null,
     { text, attachments: references.attachments, material_ids: materialIds },
@@ -91,14 +99,9 @@ export function StartPage({ enhancementEnabled = false, agents, sessions, loadin
       setInProgress(false);
     }
   };
-  return <div className="start-page">
+  return <div className={`start-page start-page-calm${projectId ? " project-start" : ""}`}>
     <div className="welcome">
-      <div className="compact-welcome-heading"><img className="welcome-gosli" src={`${import.meta.env.BASE_URL}brand/gosli.png`} alt="" /><div><h1>{t("work.welcome")}</h1><p>{t("work.welcomeHint")}</p></div></div>
-      <div className="quick-starts">
-        {(["research", "write", "code"] as const).map((kind) => <button type="button" key={kind} disabled={inFlight} onClick={() => { setText(t(`work.prompt_${kind}`)); input.current?.focus(); }}>
-          <Icon name={kind === "research" ? "folder" : kind === "write" ? "edit" : "code"} /><span>{t(`work.entry_${kind}`)}</span>
-        </button>)}
-      </div>
+      <div className="start-welcome-heading"><img className="welcome-gosli" src={`${import.meta.env.BASE_URL}brand/gosli.png`} alt="" /><h1>{t("work.welcome")}</h1></div>
       <TaskInput
         className="start-composer"
         inputKey={`start:${agentId}:${projectId ?? "personal"}`}
@@ -141,18 +144,28 @@ export function StartPage({ enhancementEnabled = false, agents, sessions, loadin
           </select>
         </>}
         footer={<DraftSaveStatus draft={persistent} localFiles={files.length > 0} />}
-        contextActions={available.find((agent) => agent.id === agentId) ? <TaskContextBar key={agentId} agent={available.find((agent) => agent.id === agentId)!} messages={[]} disabled={inFlight} onAddMaterial={() => undefined} /> : null}
+        contextActions={available.find((agent) => agent.id === agentId) ? <TaskContextBar part="context" key={agentId} agent={available.find((agent) => agent.id === agentId)!} messages={[]} disabled={inFlight} onAddMaterial={() => undefined} /> : null}
+        modelAction={available.find((agent) => agent.id === agentId) ? <TaskContextBar part="model" key={agentId} agent={available.find((agent) => agent.id === agentId)!} messages={[]} disabled={inFlight} onAddMaterial={() => undefined} /> : null}
         secondaryAction={!hasContent && !startLocked ? <button type="button" className="btn ghost sm" disabled={!agentId || inFlight || startBlocked || !persistent.hydrated} onClick={() => void submit(true)}>{t("phase2.emptyTask")}</button> : null}
-        status={inFlight ? t(startStage ? `phase2.stage_${startStage}` : "phase2.starting") : startLocked ? t("phase2.retrySameTask") : t("compose.keyboardHint")}
+        status={inFlight ? t(startStage ? `phase2.stage_${startStage}` : "phase2.starting") : startLocked ? t("phase2.retrySameTask") : undefined}
       />
       <ErrorBanner error={startError ?? submissionError} />
+      <div className="quick-starts">
+        {(["research", "write", "code"] as const).map((kind) => <button type="button" key={kind} disabled={inFlight} onClick={() => { setText(t(`work.prompt_${kind}`)); input.current?.focus(); }}>
+          <Icon name={kind === "research" ? "folder" : kind === "write" ? "edit" : "code"} size={15} /><span>{t(`work.entry_${kind}`)}</span>
+        </button>)}
+      </div>
       {!loading && !available.length ? <div className="setup-note">{t("work.setupHint")} <Link to="/providers">{t("nav.providers")}</Link><span> · </span><Link to="/agents">{t("work.configureAssistant")}</Link></div> : null}
       <ErrorBanner error={error} />
     </div>
     <section className="recent-tasks">
-      <div className="section-heading"><h2><Icon name="clock" />{t("work.continueTasks")}</h2><button type="button" className="btn ghost sm" disabled={inFlight} onClick={onHistory}>{t("work.allTasks")}<Icon name="arrow" size={14} /></button></div>
-      {sessions.length || loading ? <SessionList sessions={sessions.slice(0, 4)} loading={loading} error={null} activeId={null} onSelect={(id) => { if (!inFlight) onSelect(id); }} agentName={(id) => agents.find((agent) => agent.id === id)?.name ?? id} timeZone={timeZone} /> : <div className="recent-empty"><Icon name="chat" size={24} /><span>{t("work.noRecent")}</span></div>}
+      <div className="section-heading"><h2>{t("work.continueTasks")}</h2><button type="button" className="btn ghost sm" disabled={inFlight} onClick={onHistory}>{t("work.allTasks")}<Icon name="arrow" size={14} /></button></div>
+      {loading ? <Spinner /> : null}
+      {recent.length ? <div className="start-recent-list">{recent.map((session) => <button type="button" className="start-recent-item" key={session.id} disabled={inFlight} onClick={() => { if (!inFlight) onSelect(session.id); }}>
+        <Icon name="chat" size={15} />
+        <span className="start-recent-title">{session.title || t("chat.untitled")}</span>
+        <time dateTime={session.last_message_at ?? session.created_at}>{formatRelative(session.last_message_at ?? session.created_at, timeLabels, { timeZone })}</time>
+      </button>)}</div> : !loading ? <div className="recent-empty"><span>{t("work.noRecent")}</span></div> : null}
     </section>
-    <div className="start-footer"><span>{t("work.shortcutHint")}</span></div>
   </div>;
 }

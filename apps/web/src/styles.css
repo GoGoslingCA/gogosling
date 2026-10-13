@@ -101,13 +101,14 @@ pre {
 }
 
 .app-header {
-  grid-column: 1 / -1;
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 0 14px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  border: 0;
 }
 
 .app-header .brand {
@@ -117,12 +118,14 @@ pre {
 }
 
 .app-nav {
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 10px 8px;
   background: var(--surface);
-  border-right: 1px solid var(--border);
+  border: 0;
   overflow-y: auto;
 }
 
@@ -144,6 +147,8 @@ pre {
 }
 
 .app-main {
+  grid-column: 2;
+  grid-row: 1 / -1;
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -570,7 +575,7 @@ dialog.dialog::backdrop {
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
+  border: 0;
   background: var(--surface);
 }
 
@@ -709,7 +714,7 @@ dialog.dialog::backdrop {
   .app-nav {
     flex-direction: row;
     border-right: none;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 0;
     overflow-x: auto;
   }
 
@@ -751,15 +756,17 @@ kbd { font: 11px var(--font); color: var(--text-2); border: 1px solid var(--bord
 .page { padding: 32px; }
 .page-head h1 { font-size: 24px; font-weight: 600; }
 .card { padding: 20px; margin-bottom: 16px; }
-.app-header { padding: 0 22px; gap: 24px; }
-.app-header .brand { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 21px; font-weight: 680; letter-spacing: -.8px; margin-right: 0; }
+.app-header { padding: 0 20px; gap: 12px; min-width: 0; }
+.app-header .brand { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 19px; font-weight: 650; letter-spacing: -.6px; margin-right: 0; }
 .brand img { width: 34px; height: 34px; border-radius: 10px; }
 .brand-dot { color: var(--accent); }
-.header-tagline { font-size: 12px; color: var(--text-2); padding-left: 18px; border-left: 1px solid var(--border); }
 .connection-details { margin-left: auto; position: relative; font-size: 12px; }
-.connection-details>summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 3px; color: var(--text-2); }
+.connection-details>summary { cursor: pointer; list-style: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: var(--text-2); }
+.connection-details>summary::-webkit-details-marker { display: none; }
+.connection-details>summary:hover, .connection-details[open]>summary { background: var(--surface-3); }
+.connection-details>summary:focus-visible { outline-color: var(--focus-ring); outline-offset: 2px; }
 .connection-details>summary .status-dot { width: 6px; height: 6px; }
-.connection-popover { position: absolute; z-index: 35; top: 32px; right: 0; min-width: 245px; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; }
+.connection-popover { position: absolute; z-index: 70; top: 34px; left: -172px; width: min(270px, calc(100vw - 32px)); padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; }
 .app-nav { padding: 22px 12px 14px; gap: 6px; background: var(--surface-2); }
 .app-nav a, .nav-search { display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 13px; border-radius: 8px; min-height: 40px; }
 .app-nav a.active { background: var(--surface-3); color: var(--text); box-shadow: none; }
@@ -826,7 +833,7 @@ kbd { font: 11px var(--font); color: var(--text-2); border: 1px solid var(--bord
 .workspace-tabs { display: none; }
 .conversation-view { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
 .conversation-view>.banner { margin: 12px; }
-.task-progress { padding: 13px 26px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.task-progress { padding: 13px 26px; border: 0; background: var(--surface-2); }
 .progress-summary { display: flex; align-items: center; gap: 9px; font-size: 12px; line-height: 1.6; }
 .progress-symbol { color: var(--accent); display: flex; align-items: center; }
 .progress-symbol.complete { color: var(--ok); }
@@ -875,8 +882,9 @@ kbd { font: 11px var(--font); color: var(--text-2); border: 1px solid var(--bord
 @media (max-width: 760px) {
   :root { --header-h: 52px; }
   .app { grid-template-columns: 1fr; grid-template-rows: var(--header-h) 51px minmax(0,1fr); }
-  .app-header { padding: 0 14px; }
-  .header-tagline { display: none; }
+  .app-header { grid-column: 1; grid-row: 1; padding: 0 14px; }
+  .app-main { grid-column: 1; grid-row: 3; }
+  .connection-popover { left: auto; right: 0; }
   .app-header .brand { font-size: 19px; }
   .app-nav { padding: 7px 10px; gap: 5px; overflow-x: auto; }
   .app-nav>a, .nav-search { padding: 7px 10px; min-height: 36px; white-space: nowrap; font-size: 12px; }
@@ -968,9 +976,9 @@ kbd { font: 11px var(--font); color: var(--text-2); border: 1px solid var(--bord
 
 /* 工作区与项目页共用的任务归属、成果入口。 */
 .nav-missing-pin { font-size: 11px; color: var(--text-2); padding: 6px; }
-.project-context { margin: 12px 24px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); font-size: 12px; }
+.project-context { margin: 12px 24px; padding: 12px; border: 0; border-radius: 10px; background: var(--surface-2); font-size: 12px; }
 .project-context label { display: inline-flex; align-items: center; gap: 5px; margin: 8px 12px 0 0; }
-.saved-results-bar { padding: 8px 22px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; overflow: auto; font-size: 11px; }
+.saved-results-bar { padding: 8px 22px; border: 0; display: flex; gap: 8px; align-items: center; overflow: auto; font-size: 11px; }
 .saved-results-bar button { white-space: nowrap; }
 .session-project-control { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 11px; padding: 8px 3px 0; }
 .session-project-control select { max-width: 240px; min-height: 30px; padding: 3px 7px; font-size: 11px; }

@@ -44,6 +44,8 @@ export interface TaskInputProps {
   textareaRef?: Ref<HTMLTextAreaElement>;
   actions?: ReactNode;
   contextActions?: ReactNode;
+  /** 模型入口与发送保持同组；省略时兼容原有 contextActions。 */
+  modelAction?: ReactNode;
   projectMaterials?: readonly LocalMenuMaterial[];
   onToggleProjectMaterial?: (id: string) => void;
   secondaryAction?: ReactNode;
@@ -54,7 +56,7 @@ export interface TaskInputProps {
 }
 
 /** Enter 提交、Shift+Enter 换行，输入法合成期间不提交；文件仅交回调用方。 */
-export function TaskInput({ value, onChange, onSubmit, materials, onRemoveMaterial, onFiles, disabled, filesDisabled, removeDisabled = disabled, submitDisabled, submitOnEnter = true, submitLabel, attachLabel, label, placeholder, className = "", inputKey, textareaRef, actions, contextActions, projectMaterials, onToggleProjectMaterial, secondaryAction, status, footer, enhanceAgentId, enhanceDisabled = false }: TaskInputProps) {
+export function TaskInput({ value, onChange, onSubmit, materials, onRemoveMaterial, onFiles, disabled, filesDisabled, removeDisabled = disabled, submitDisabled, submitOnEnter = true, submitLabel, attachLabel, label, placeholder, className = "", inputKey, textareaRef, actions, contextActions, modelAction, projectMaterials, onToggleProjectMaterial, secondaryAction, status, footer, enhanceAgentId, enhanceDisabled = false }: TaskInputProps) {
   const { t } = useTranslation();
   const form = useRef<HTMLFormElement>(null);
   const popovers = useTaskPopoverController(form, inputKey);
@@ -134,16 +136,22 @@ export function TaskInput({ value, onChange, onSubmit, materials, onRemoveMateri
         submit();
       }}
     />
-    <div className="row composer-actions task-input-actions">
-      <input ref={fileInput} type="file" multiple aria-label={t("chat.attach")} disabled={filesDisabled} hidden onChange={(event) => addFiles(event.target.files)} />
-      <LocalAddMenu controller={popovers} disabled={disabled || filesDisabled} label={attachLabel ?? t("chat.attach")} hasTaskContext={!!contextActions} onChooseFiles={() => fileInput.current?.click()} projectMaterials={projectMaterials} onToggleMaterial={onToggleProjectMaterial}/>
-      {enhanceAgentId ? enhancementStartedAt !== null ? <Suspense fallback={<button type="button" className="btn ghost sm" disabled>{t("common.loading")}</button>}><PromptEnhancementControls agentId={enhanceAgentId} scope={inputKey} value={value} revision={revision.current.number} initialRevision={enhancementStartedAt} disabled={disabled || enhanceDisabled} onChange={onChange} onFocus={focusInput} onDismiss={() => setEnhancementStartedAt(null)}/></Suspense> : <button type="button" className="btn ghost sm prompt-enhance-button" disabled={disabled || enhanceDisabled || !value.trim()} title={t("enhance.action")} aria-label={t("enhance.action")} onClick={() => setEnhancementStartedAt(revision.current.number)}><Icon name="spark" size={17}/><span className="sr-only">{t("enhance.action")}</span></button> : null}
+    <div className="composer-actions task-input-actions">
+      <div className="task-input-tools">
+        <input ref={fileInput} type="file" multiple aria-label={t("chat.attach")} disabled={filesDisabled} hidden onChange={(event) => addFiles(event.target.files)} />
+        <LocalAddMenu controller={popovers} disabled={disabled || filesDisabled} label={attachLabel ?? t("chat.attach")} hasTaskContext={!!contextActions} onChooseFiles={() => fileInput.current?.click()} projectMaterials={projectMaterials} onToggleMaterial={onToggleProjectMaterial}/>
+        {enhanceAgentId ? enhancementStartedAt !== null ? <Suspense fallback={<button type="button" className="btn ghost sm" disabled>{t("common.loading")}</button>}><PromptEnhancementControls agentId={enhanceAgentId} scope={inputKey} value={value} revision={revision.current.number} initialRevision={enhancementStartedAt} disabled={disabled || enhanceDisabled} onChange={onChange} onFocus={focusInput} onDismiss={() => setEnhancementStartedAt(null)}/></Suspense> : <button type="button" className="btn ghost sm prompt-enhance-button" disabled={disabled || enhanceDisabled || !value.trim()} title={t("enhance.action")} aria-label={t("enhance.action")} onClick={() => setEnhancementStartedAt(revision.current.number)}><Icon name="spark" size={17}/><span className="sr-only">{t("enhance.action")}</span></button> : null}
+      </div>
+      <div className="task-input-primary">
+        {modelAction ? <div className="task-input-model">{modelAction}</div> : null}
+        <button type="submit" className="btn primary sm composer-send" aria-label={submitLabel} title={submitLabel} disabled={submitDisabled || disabled}><Icon name="arrow" size={18} style={{transform:"rotate(-90deg)"}}/><span className="sr-only">{submitLabel}</span></button>
+      </div>
+    </div>
+    {actions || contextActions || secondaryAction ? <div className="task-input-context">
       {actions}
       {contextActions}
-      {!contextActions ? <span className="spacer"/> : null}
-      {secondaryAction}
-      <button type="submit" className="btn primary sm composer-send" aria-label={submitLabel} title={submitLabel} disabled={submitDisabled || disabled}><Icon name="arrow" size={18} style={{transform:"rotate(-90deg)"}}/><span className="sr-only">{submitLabel}</span></button>
-    </div>
+      {secondaryAction ? <div className="task-input-secondary">{secondaryAction}</div> : null}
+    </div> : null}
     <div className={!status || status === t("compose.keyboardHint") ? "sr-only" : "composer-hint"} role="status">{status ?? t("compose.keyboardHint")}</div>
     {footer ? <div className="task-input-footer">{footer}</div> : null}
 

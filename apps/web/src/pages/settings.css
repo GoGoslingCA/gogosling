@@ -1,5 +1,7 @@
 /* 参考设置页的双栏结构；颜色复用全局变量，保证工作区与设置一致。 */
 .app.settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--header-h) minmax(0, 1fr); }
+.app.settings-layout>.app-header { grid-column: 1; grid-row: 1; background: var(--surface-2); }
+.app.settings-layout .connection-popover { left: auto; right: 0; }
 .app.settings-layout>.app-main { grid-column: 1; grid-row: 2; overflow: hidden; }
 .settings-page { --settings-bg: var(--surface-2); --settings-card: var(--surface); --settings-line: var(--border); --settings-foreground: var(--text); --settings-muted: var(--text-2); --settings-selected: var(--surface-3); display: grid; grid-template-columns: 208px minmax(0,1fr); height: 100%; min-height: 0; overflow: hidden; background: var(--settings-bg); color: var(--settings-foreground); font-size: 14px; }
 .settings-sidebar { min-width: 0; padding: 18px 14px 24px; overflow-y: auto; }
@@ -22,7 +24,7 @@
 .settings-content { max-width: 900px; margin: 0 auto; outline-offset: -2px; }
 .settings-section-title, .settings-group-title { margin: 0 8px 10px; color: var(--settings-muted); font-size: 13px; font-weight: 400; }
 .settings-group-title { margin-top: 24px; }
-.settings-card { background: var(--settings-card); border: 1px solid color-mix(in srgb, var(--settings-line) 45%, transparent); border-radius: 13px; overflow: hidden; }
+.settings-card { background: var(--settings-card); border: 0; border-radius: 13px; overflow: hidden; }
 .settings-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 25px; min-height: 74px; padding: 17px 18px; }
 .settings-row-copy { min-width: 0; }
 .settings-row-title { font-size: 14px; font-weight: 500; color: var(--settings-foreground); }

@@ -25,6 +25,7 @@ export function Composer({
   draftKey,
   enhancementEnabled = false,
   contextActions,
+  modelAction,
   agentId,
   projectId,
   initialText,
@@ -44,6 +45,7 @@ export function Composer({
   draftKey: string;
   enhancementEnabled?: boolean;
   contextActions?: ReactNode;
+  modelAction?: ReactNode;
   agentId?: string;
   projectId?: string;
   initialText?: string;
@@ -180,6 +182,7 @@ export function Composer({
   return <TaskInput
     className="composer"
     contextActions={contextActions}
+    modelAction={modelAction}
     enhanceAgentId={enhancementEnabled ? agentId : undefined}
     enhanceDisabled={busy || draft.sending || draft.uploading > 0 || !!persistent.conflict || !persistent.hydrated}
     inputKey={draftKey}

@@ -228,3 +228,49 @@ describe("本地加号菜单", () => {
     expect(props.onSubmit).not.toHaveBeenCalled();
   });
 });
+
+describe("分层输入操作", () => {
+  it("分离模型与任务条件后共享弹层开关，Esc和加号仍回到正确入口", async () => {
+    props.contextActions = <TaskContextBar part="context" agent={agent} messages={[]} disabled={false} onAddMaterial={vi.fn()}/>;
+    props.modelAction = <TaskContextBar part="model" agent={agent} messages={[]} disabled={false} onAddMaterial={vi.fn()}/>;
+    props.actions = <select aria-label="assistant"><option>Local assistant</option></select>;
+    const createEmpty = vi.fn();
+    props.secondaryAction = <button type="button" onClick={createEmpty}>empty task</button>;
+    await render();
+    const primary = host.querySelector(".task-input-primary")!;
+    expect(primary.contains(contextTrigger("model"))).toBe(true);
+    expect(primary.contains(host.querySelector(".composer-send"))).toBe(true);
+    expect(primary.contains(host.querySelector("select"))).toBe(false);
+    expect(host.querySelectorAll('[data-context-id="model"]')).toHaveLength(1);
+    expect(host.querySelectorAll('[data-context-id="workspace"]')).toHaveLength(1);
+    await click(contextTrigger("workspace"));
+    await click(contextTrigger("model"));
+    expect(contextOpen()).toEqual(["model"]);
+    await key(contextTrigger("model"), "Escape");
+    expect(contextOpen()).toEqual([]);
+    expect(document.activeElement).toBe(contextTrigger("model"));
+    await click(plus());
+    await click(button("compose.approvalMode"));
+    expect(contextOpen()).toEqual(["permission"]);
+    expect(document.activeElement).toBe(contextTrigger("permission"));
+    await click(host.querySelector<HTMLButtonElement>(".task-input-secondary button")!);
+    expect(createEmpty).toHaveBeenCalledOnce();
+    expect(props.onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("保留输入法换行和Enter发送，并在辅助操作分行时显示保存错误", async () => {
+    props.status = "save failed";
+    await render();
+    const textarea = host.querySelector("textarea")!;
+    await act(async () => textarea.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })));
+    await key(textarea, "Enter");
+    expect(props.onSubmit).not.toHaveBeenCalled();
+    await act(async () => textarea.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true })));
+    await act(async () => textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true, cancelable: true })));
+    expect(props.onSubmit).not.toHaveBeenCalled();
+    await key(textarea, "Enter");
+    expect(props.onSubmit).toHaveBeenCalledOnce();
+    expect(host.querySelector('[role="status"]')?.className).toBe("composer-hint");
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("save failed");
+  });
+});

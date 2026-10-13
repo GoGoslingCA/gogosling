@@ -399,7 +399,7 @@
   },
   "work": {
     "smallIdea": "Commencez par une petite idée.",
-    "welcome": "Quelle idée voulez-vous faire avancer aujourd'hui ?",
+    "welcome": "Sur quoi souhaitez-vous avancer ?",
     "welcomeHint": "Apportez une idée et vos fichiers, puis commencez.",
     "startPlaceholder": "Que souhaitez-vous terminer ? Ajoutez des fichiers si besoin…",
     "taskGoal": "Objectif de la tâche",

@@ -1,0 +1,146 @@
+/* 开始页使用留白而非嵌套卡片区分输入、快捷想法和最近任务。 */
+.start-page.start-page-calm {
+  padding: clamp(64px, 15vh, 128px) 40px 32px;
+}
+.start-page-calm .welcome,
+.start-page-calm .recent-tasks {
+  width: 100%;
+  max-width: 800px;
+}
+.start-page-calm .start-welcome-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 36px;
+}
+.start-page-calm .start-welcome-heading .welcome-gosli {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  margin: 0;
+}
+.start-page-calm .start-welcome-heading h1 {
+  margin: 0;
+  font-size: clamp(22px, 2.1vw, 28px);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -.4px;
+}
+.start-page-calm .quick-starts {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 14px 0 0;
+}
+.start-page-calm .quick-starts button {
+  gap: 7px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.start-page-calm .quick-starts button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.start-page-calm .recent-tasks {
+  margin-top: 38px;
+}
+.start-page-calm .section-heading {
+  margin-bottom: 4px;
+}
+.start-page-calm .section-heading h2 {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+.start-page-calm .section-heading .btn {
+  color: var(--text-2);
+  font-size: 12px;
+}
+.start-page-calm .start-recent-list {
+  display: grid;
+  gap: 2px;
+}
+.start-page-calm .start-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+.start-page-calm .start-recent-item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.start-page-calm .start-recent-item:disabled {
+  cursor: default;
+  opacity: .55;
+}
+.start-page-calm .start-recent-item > svg {
+  flex: none;
+  color: var(--text-2);
+}
+.start-page-calm .start-recent-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.start-page-calm .start-recent-item time {
+  flex: none;
+  color: var(--text-2);
+  font-size: 11px;
+}
+.start-page-calm .recent-empty {
+  padding: 12px 0;
+  border: 0;
+  font-size: 12px;
+}
+.start-page.start-page-calm.project-start {
+  padding-top: 40px;
+}
+@media (max-width: 760px) {
+  .start-page.start-page-calm {
+    padding: 48px 20px 24px;
+  }
+  .start-page-calm .start-welcome-heading {
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .start-page-calm .start-welcome-heading h1 {
+    font-size: 22px;
+  }
+  .start-page-calm .quick-starts {
+    gap: 2px 8px;
+  }
+  .start-page-calm .recent-tasks {
+    margin-top: 28px;
+  }
+}
+@media (max-height: 620px) and (min-width: 761px) {
+  .start-page.start-page-calm {
+    padding-top: 36px;
+  }
+  .start-page-calm .start-welcome-heading {
+    margin-bottom: 24px;
+  }
+  .start-page-calm .recent-tasks {
+    margin-top: 24px;
+  }
+}

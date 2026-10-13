@@ -124,7 +124,7 @@ In enabled releases, **Settings → General → Local service → Diagnostics** 
 
 Sending first obtains a short-lived ticket bound to that report, then uploads it to the fixed Gogosling.ca endpoint. Tickets remain in main-process memory. There is one active request, a 15-second deadline, no background queue or automatic retry, and a 16 KiB report limit. Explicit retries preserve the report UUID; successful receipt releases the preview. Cancel stops the local request but cannot retract a report already received. The server retention period is 90 days.
 
-**Server integration is pending:** the existing authenticated intake is available, but the proposed ticket endpoint must be deployed before release uploads can succeed. See the [server handoff and acceptance contract](../../docs/development/diagnostics-server-handoff.md). Do not use a long-lived backend credential as a desktop fallback.
+The ticket endpoint is deployed under OpenAPI 1.1.0. Packaged-client consent, upload, cancellation, and the bundled module's retry/deduplication behavior were checked against the public service on 2026-10-13; see the [validation record](../../docs/reports/2026-10-13-desktop-diagnostics-validation.md) and [integration contract](../../docs/development/diagnostics-server-handoff.md). There is no long-lived backend credential fallback in the desktop client.
 
 The optional IPC methods are `diagnosticsStatus`, `diagnosticsPreview(category)`, `diagnosticsSend(previewId)`, and `diagnosticsCancel(previewId, discard)`. Their result types are defined in [the shared diagnostic contract](src/shared/diagnostics.ts). They accept no arbitrary URL, file path, log body, or credential from the renderer. Existing daemon HTTP and worker RPC contracts are unchanged.
 
