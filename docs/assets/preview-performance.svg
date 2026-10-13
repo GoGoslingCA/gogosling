@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="300" viewBox="0 0 960 300" role="img" aria-labelledby="title description">
+<title id="title">Median warm switch time for a table-heavy Word preview</title><desc id="description">A local synthetic fixture with 70 tables. Ten warm switches per build at 1280 by 900 on an Apple M3 with 16 GiB memory. Baseline 340.4 milliseconds, Beta 0.0.1104 71.5 milliseconds.</desc>
+<rect width="960" height="300" fill="#ffffff"/>
+<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" fill="#15334e">
+<text x="32" y="40" font-size="23" font-weight="600">Less waiting when switching Word documents</text>
+<text x="32" y="67" font-size="14" fill="#526c80">Median click → two-frame acknowledgement · synthetic 70-table document</text>
+<text x="32" y="121" font-size="15">Beta 0.0.1103</text><rect x="245" y="99" width="476.56" height="30" rx="5" fill="#bac8d2"/><text x="731.56" y="120" font-size="16">340.4 ms</text>
+<text x="32" y="174" font-size="15" font-weight="600">Beta 0.0.1104</text><rect x="245" y="152" width="100.10" height="30" rx="5" fill="#2867bf"/><text x="355.10" y="173" font-size="16" font-weight="600">71.5 ms</text>
+<g font-size="12" fill="#526c80"><text x="245.0" y="212" text-anchor="middle">0</text><text x="385.0" y="212" text-anchor="middle">100</text><text x="525.0" y="212" text-anchor="middle">200</text><text x="665.0" y="212" text-anchor="middle">300</text><text x="805.0" y="212" text-anchor="middle">400</text><text x="525" y="235" text-anchor="middle">Time (milliseconds) · lower is better</text></g>
+<text x="32" y="268" font-size="12" fill="#526c80">Local test · 10 warm switches/build · Apple M3, 16 GiB · 1280 × 900 · 2026-10-13</text>
+<text x="32" y="287" font-size="12" fill="#526c80">Source: published benchmark samples. Not a universal speed, memory, or energy claim.</text>
+</g></svg>

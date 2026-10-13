@@ -9,12 +9,12 @@
   <a href="https://gogosling.ca"><img src="https://img.shields.io/badge/Built_in-Canada-D52B1E" alt="Built in Canada"></a>
 </p>
 <p align="center">
-  <a href="#run-it">Run it</a> · <a href="docs/README.md">Docs</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contribute</a>
+  <a href="https://github.com/GoGoslingCA/gogosling/releases/tag/v0.0.1104-beta">Download the Mac beta</a> · <a href="#run-it">Run from source</a> · <a href="docs/README.md">Docs</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
 **An open-source desktop AI workspace, developed by [Gogosling.ca](https://gogosling.ca), a Canadian company.** Bring your own model connection. No gogosling account required.
 
-> **Beta:** run from source or build a desktop package. Signed installers are still on the [roadmap](ROADMAP.md).
+> **Beta 0.0.1104:** [Download for Mac with Apple Silicon](https://github.com/GoGoslingCA/gogosling/releases/tag/v0.0.1104-beta). The installer is unsigned and not notarized; see the release notes before installing. Other platforms can run from source. Signed installers remain on the [roadmap](ROADMAP.md).
 
 ![A project, conversation, and editable draft together in gogosling](docs/assets/workbench-en.jpg)
 
@@ -88,7 +88,7 @@ The package includes the daemon, Python runtime, worker, and UI. Users do not ne
 
 **The model is your choice.** Connect an OpenAI-compatible endpoint, Anthropic Messages, or a compatible local model server. Remote models receive the context you send and may charge for requests. Local storage does not mean every model request stays on the device.
 
-**Concurrency has a limit.** By default, two tasks run at once and up to 32 wait in the queue. Tasks sharing a workspace run in order. Only the selected file viewer is mounted, and the desktop keeps at most one webpage view. Idle MCP connections are released. We have not published comparative memory or energy benchmarks; [help us measure them](ROADMAP.md#help-measure-the-difference).
+**Concurrency has a limit.** By default, two tasks run at once and up to 32 wait in the queue. Tasks sharing a workspace run in order. Only the selected file viewer is mounted, and the desktop keeps at most one webpage view. Idle MCP connections are released. Our [local preview measurements](docs/reports/2026-10-13-performance-and-release.md) include the raw samples and remaining limits. Battery and power usage remain unmeasured.
 
 ## Know the current limits
 

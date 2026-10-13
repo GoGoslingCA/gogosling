@@ -33,12 +33,11 @@ export function ProjectForm({ project, agents, busy, loadingAgents = false, agen
   const agentId = project?.agent_id ?? (enabledAgents.some((agent) => agent.id === selectedAgent) ? selectedAgent : enabledAgents[0]?.id ?? "");
   const options = agents.filter((agent) => agent.enabled || agent.id === project?.agent_id);
   const cannotCreate = !project && (loadingAgents || !!agentError);
-  return <Dialog open title={t(project ? "projects.edit" : "projects.create")} dismissible={!busy} onClose={onClose} footer={<>
+  return <Dialog open className="project-form-dialog" title={t(project ? "projects.edit" : "projects.create")} dismissible={!busy} onClose={onClose} footer={<>
     <button type="button" className="btn" disabled={busy} onClick={onClose}>{t("common.cancel")}</button>
     <button type="button" className="btn primary" disabled={!name.trim() || !agentId || busy || unavailable || cannotCreate} onClick={() => onSubmit(agentId, name.trim(), description.trim())}>{t("common.save")}</button>
   </>}>
     <label className="field">{t("projects.name")}<input autoFocus className="input" value={name} maxLength={120} disabled={busy} onChange={(event) => setName(event.target.value)} /></label>
-    <label className="field">{t("projects.description")}<textarea className="textarea" value={description} maxLength={2000} disabled={busy} onChange={(event) => setDescription(event.target.value)} /></label>
     <label className="field">{t("chat.agent")}<select className="select" value={agentId} disabled={!!project || busy || loadingAgents || !!agentError || unavailable} onChange={(event) => setSelectedAgent(event.target.value)}>
       {!agentId ? <option value="">{t(loadingAgents ? "common.loading" : "projects.noEnabledAgent")}</option> : null}
       {project && !options.some((agent) => agent.id === project.agent_id) ? <option value={project.agent_id}>{project.agent_id}</option> : null}
@@ -48,6 +47,10 @@ export function ProjectForm({ project, agents, busy, loadingAgents = false, agen
     <ErrorBanner error={agentError} />
     {!!agentError && onRetryAgents ? <button type="button" className="btn" disabled={busy || loadingAgents} onClick={onRetryAgents}>{t("projects.retryAgents")}</button> : null}
     <p className="muted">{t("projects.agentHint")}</p>
+    <details className="project-form-description" open={project ? true : undefined}>
+      <summary>{t("projects.description")}</summary>
+      <label className="field"><span className="sr-only">{t("projects.description")}</span><textarea className="textarea" value={description} maxLength={2000} disabled={busy} onChange={(event) => setDescription(event.target.value)} /></label>
+    </details>
   </Dialog>;
 }
 

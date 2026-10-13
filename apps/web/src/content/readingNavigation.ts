@@ -5,11 +5,11 @@ export const MAX_FIND_MATCHES = 200;
 export const MAX_OUTLINE_HEADINGS = 200;
 
 /** 按 UTF-16 位置分页，同时保持代理对完整。 */
-export function textPage(all: string, requested: number) {
-  const pages = Math.max(1, Math.ceil(all.length / TEXT_PAGE_CHARS));
+export function textPage(all: string, requested: number, pageCharacters = TEXT_PAGE_CHARS) {
+  const pages = Math.max(1, Math.ceil(all.length / pageCharacters));
   const page = Math.max(0, Math.min(pages - 1, requested));
-  let start = page * TEXT_PAGE_CHARS;
-  let end = Math.min(all.length, (page + 1) * TEXT_PAGE_CHARS);
+  let start = page * pageCharacters;
+  let end = Math.min(all.length, (page + 1) * pageCharacters);
   const lowSurrogate = (at: number) => all.charCodeAt(at) >= 0xdc00 && all.charCodeAt(at) <= 0xdfff;
   if (start > 0 && lowSurrogate(start)) start--;
   if (end < all.length && lowSurrogate(end)) end--;

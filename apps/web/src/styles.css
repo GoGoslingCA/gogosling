@@ -74,6 +74,22 @@ body {
   background: var(--bg);
 }
 
+/* 原生窗口顶部只保留系统按钮与拖动区，不增加标题条或分隔线。 */
+html[data-native-frame="macos"] body { padding-top: 38px; }
+html[data-native-frame="macos"] #native-frame-drag {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 38px;
+  z-index: 50;
+  background: var(--surface);
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+html[data-native-frame="macos"] body:has(.app:not(.settings-layout)) > #native-frame-drag {
+  background: linear-gradient(to right, var(--surface-2) var(--nav-w), var(--surface) var(--nav-w));
+}
+html[data-native-frame="macos"] body:has(.settings-layout) > #native-frame-drag { background: var(--surface-2); }
+
 a {
   color: var(--accent);
   text-decoration: none;
@@ -429,7 +445,7 @@ pre {
 /* ---- 对话框 ------------------------------------------------------------ */
 
 dialog.dialog {
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
@@ -445,8 +461,9 @@ dialog.dialog::backdrop {
 .dialog-head {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  padding: 20px 20px 12px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -455,8 +472,8 @@ dialog.dialog::backdrop {
 }
 
 .dialog-body {
-  padding: 14px 16px;
-  max-height: 70vh;
+  padding: 12px 20px;
+  max-height: min(70vh, calc(100dvh - 180px));
   overflow: auto;
 }
 
@@ -464,9 +481,19 @@ dialog.dialog::backdrop {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding: 10px 16px;
-  border-top: 1px solid var(--border);
+  padding: 16px 20px 20px;
 }
+
+.dialog-foot > .btn { min-width: 72px; }
+.dialog-foot > .btn:not(.primary):not(.danger) { border-color: transparent; background: var(--surface-2); }
+.dialog-foot > .btn:not(.primary):not(.danger):hover { background: var(--surface-3); }
+dialog.project-form-dialog { width: min(520px, calc(100vw - 32px)); }
+.project-form-dialog .field { gap: 8px; margin-bottom: 18px; }
+.project-form-dialog .input, .project-form-dialog .select, .project-form-dialog .textarea { background: var(--surface-2); border-color: transparent; }
+.project-form-dialog .input:focus, .project-form-dialog .select:focus, .project-form-dialog .textarea:focus { outline-color: var(--focus-ring); }
+.project-form-description { color: var(--text-2); font-size: 13px; margin-top: 20px; }
+.project-form-description summary { cursor: pointer; width: fit-content; border-radius: 4px; }
+.project-form-description .field { margin: 12px 0 0; }
 
 /* ---- 提示（toast） ---------------------------------------------------- */
 
@@ -706,6 +733,7 @@ dialog.dialog::backdrop {
 }
 
 @media (max-width: 760px) {
+  html[data-native-frame="macos"] body:has(.app) > #native-frame-drag { background: var(--surface-2); }
   .app {
     grid-template-columns: 1fr;
     grid-template-rows: var(--header-h) auto 1fr;

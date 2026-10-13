@@ -3,14 +3,14 @@
 .app-route { flex: 1; min-width: 0; height: 100%; overflow: auto; }
 .app-content.workspace-visible > .app-route .artifact-container { display: none; }
 .app-content.workspace-visible > .app-route .chat-head .optional-label { display: none; }
-.workspace-pane { position: relative; display: flex; flex-direction: column; flex: 0 0 var(--workspace-width); width: var(--workspace-width); min-width: 0; min-height: 0; height: 100%; background: var(--surface); box-shadow: -1px 0 var(--border); }
-.workspace-pane-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px 4px; flex-shrink: 0; }
+.workspace-pane { position: relative; display: flex; flex-direction: column; flex: 0 0 var(--workspace-width); width: var(--workspace-width); min-width: 0; min-height: 0; height: 100%; background: var(--surface); }
+.workspace-pane-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px 6px; flex-shrink: 0; }
 .workspace-pane-head .btn { color: var(--text-2); }
 .workspace-open-count { color: var(--text-3); font-size: 12px; }
 .workspace-pane-content { flex: 1; min-height: 0; overflow: hidden; }
 .workspace-pane .content-preview { height: 100%; }
-.workspace-pane .content-preview-head { border: 0; }
-.workspace-pane .content-preview-toolbar { border: 0; }
+.workspace-pane .content-preview-head { border: 0; padding: 12px 20px 8px; }
+.workspace-pane .content-preview-toolbar { border: 0; padding: 8px 20px 12px; }
 .workspace-open-items { margin-top: 16px; }
 .workspace-open-items .nav-section-head > span { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-3); }
 .workspace-open-items small { font-size: inherit; }
@@ -25,7 +25,7 @@
 .workspace-close-tab:hover { background: var(--surface-2); }
 .workspace-open-empty { margin: 4px 8px; font-size: 12px; color: var(--text-3); }
 .workspace-web-view { display: flex; flex-direction: column; height: 100%; }
-.workspace-web-toolbar { display: flex; align-items: center; gap: 3px; padding: 10px 12px; }
+.workspace-web-toolbar { display: flex; align-items: center; gap: 4px; padding: 10px 16px 14px; }
 .workspace-web-toolbar input { min-width: 0; width: 100%; flex: 1; font: inherit; font-size: 12px; border: 0; border-radius: 7px; padding: 8px; background: var(--surface-2); color: var(--text); }
 .workspace-web-host { flex: 1; min-height: 0; overflow: hidden; }
 .workspace-web-error { margin: 0 16px 8px; color: var(--danger); font-size: 13px; }

@@ -9,6 +9,9 @@ import { browserURL, isPublicBrowserAddress } from "./workspace-browser-policy.j
 type Address = { address: string; family: number };
 type Resolve = (hostname: string) => Promise<Address[]>;
 
+/** 同一浏览器宿主在重建出口时共用 DNS 槽位；已取消请求不能绕过真实解析上限。 */
+export interface WorkspaceBrowserResolutionBudget { active: number }
+
 /** 检查全部解析结果；不缓存地址，返回值只用于本次固定 IP 连接。 */
 export async function resolveBrowserAddress(hostname: string, resolve: Resolve = host => lookup(host, { all: true })): Promise<Address> {
   const host = hostname.replace(/^\[|\]$/g, "");
@@ -34,10 +37,14 @@ export class WorkspaceBrowserEgress {
   private disposed = false;
   private pending: Promise<string> | null = null;
   private requests = 0;
-  private resolutions = 0;
   private cancelStart: (() => void) | null = null;
 
-  constructor(private readonly resolve: Resolve = host => lookup(host, { all: true })) {}
+  constructor(
+    private readonly resolve: Resolve = host => lookup(host, { all: true }),
+    private readonly resolutionBudget: WorkspaceBrowserResolutionBudget = { active: 0 },
+  ) {}
+
+  private get resolutions(): number { return this.resolutionBudget.active; }
 
   /** 首次显示网页时启动，返回 Chromium 固定代理地址。 */
   start(): Promise<string> {
@@ -100,9 +107,9 @@ export class WorkspaceBrowserEgress {
 
   private async resolveBounded(hostname: string): Promise<Address[]> {
     if (this.disposed || this.resolutions >= 32) throw new Error("resolve_busy");
-    ++this.resolutions;
+    ++this.resolutionBudget.active;
     // 系统 DNS 不能取消；只在真实解析结束时归还槽位，客户端取消不会绕过上限。
-    try { return await this.resolve(hostname); } finally { --this.resolutions; }
+    try { return await this.resolve(hostname); } finally { --this.resolutionBudget.active; }
   }
 
   private async tunnel(request: http.IncomingMessage, client: Duplex, head: Buffer): Promise<void> {

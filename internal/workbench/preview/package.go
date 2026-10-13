@@ -65,8 +65,11 @@ func (p *officePackage) read(name string) ([]byte, error) {
 		return nil, Error("corrupt")
 	}
 	defer r.Close()
-	data, err := io.ReadAll(io.LimitReader(r, MaxPart+1))
+	data, err := io.ReadAll(io.LimitReader(packageReader{ctx: p.ctx, reader: r}, MaxPart+1))
 	p.total += int64(len(data))
+	if p.ctx.Err() != nil {
+		return nil, p.ctx.Err()
+	}
 	if len(data) > MaxPart || p.total > MaxExpanded {
 		return nil, Error("too_large")
 	}
@@ -74,6 +77,19 @@ func (p *officePackage) read(name string) ([]byte, error) {
 		return nil, Error("corrupt")
 	}
 	return data, nil
+}
+
+// packageReader 在解压产生新数据时检查取消，不等待整个 XML 成员解压完成。
+type packageReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r packageReader) Read(data []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.reader.Read(data)
 }
 
 // xmlNode 只用于最多8MiB的包成员；限制节点数/嵌套层数避免极端输入。
@@ -84,12 +100,20 @@ type xmlNode struct {
 	children []*xmlNode
 }
 
-func parseXML(data []byte) (*xmlNode, error) {
+func parseXML(ctx context.Context, data []byte) (*xmlNode, error) {
 	root := &xmlNode{}
 	stack := []*xmlNode{root}
 	d := xml.NewDecoder(bytes.NewReader(data))
 	count := 0
+	tokens := 0
 	for {
+		// 解压结束后的 CPU 遍历也必须响应关闭/切换文件，及时归还唯一解析槽。
+		if tokens%256 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
+		tokens++
 		t, e := d.Token()
 		if e == io.EOF {
 			break
@@ -103,7 +127,10 @@ func parseXML(data []byte) (*xmlNode, error) {
 			if count > 100000 || len(stack) > 80 {
 				return nil, Error("too_large")
 			}
-			n := &xmlNode{name: v.Name.Local, attrs: map[string]string{}}
+			n := &xmlNode{name: v.Name.Local}
+			if len(v.Attr) > 0 {
+				n.attrs = make(map[string]string, len(v.Attr))
+			}
 			for _, a := range v.Attr {
 				n.attrs[a.Name.Local] = a.Value
 				if a.Name.Local == "id" && (strings.Contains(a.Name.Space, "/relationships") || a.Name.Space == "r") {
@@ -147,7 +174,7 @@ func (p *officePackage) xml(name string) (*xmlNode, error) {
 	if e != nil {
 		return nil, e
 	}
-	return parseXML(b)
+	return parseXML(p.ctx, b)
 }
 func (n *xmlNode) child(name string) *xmlNode {
 	for _, c := range n.children {
@@ -155,7 +182,7 @@ func (n *xmlNode) child(name string) *xmlNode {
 			return c
 		}
 	}
-	return &xmlNode{attrs: map[string]string{}}
+	return &xmlNode{}
 }
 func (n *xmlNode) all(name string) []*xmlNode {
 	var out []*xmlNode

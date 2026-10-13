@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "label": "7f05bb4",
+  "daemon_sha256": "096d78e1f570e4f0db4a6a1529aee03f92c5c5ad75b79d7126a8119e0a95643e",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "samples_per_file": 25,
+  "percentile_method": "nearest-rank",
+  "scope": "Local authenticated preview API; synthetic files; no UI or model requests",
+  "rss_sample_interval_ms": 20,
+  "idle_seconds": 3,
+  "rss_note": "Process RSS includes reusable runtime capacity; no forced GC; null means unavailable",
+  "rss_idle_mib": 27.6875,
+  "rss_peak_sampled_mib": 65.859375,
+  "rss_after_work_mib": 65.859375,
+  "rss_after_idle_mib": 65.859375,
+  "files": [
+    {
+      "name": "dense-table.md",
+      "bytes": 34161,
+      "xml_bytes": null,
+      "response_bytes": 35206,
+      "p50_ms": 0.515,
+      "p95_ms": 1.151,
+      "max_ms": 3.36,
+      "duration_ms": [
+        3.36,
+        0.667,
+        0.818,
+        0.529,
+        0.502,
+        0.487,
+        0.513,
+        0.512,
+        0.778,
+        0.611,
+        0.559,
+        0.532,
+        0.46,
+        0.498,
+        1.151,
+        0.64,
+        0.502,
+        0.726,
+        0.515,
+        0.447,
+        0.492,
+        0.523,
+        0.491,
+        0.472,
+        0.472
+      ],
+      "rss_after_mib": 30.96875
+    },
+    {
+      "name": "dense-tables.docx",
+      "bytes": 19007,
+      "xml_bytes": 462521,
+      "response_bytes": 165172,
+      "p50_ms": 14.563,
+      "p95_ms": 22.7,
+      "max_ms": 24.704,
+      "duration_ms": [
+        15.258,
+        14.86,
+        13.826,
+        13.828,
+        13.092,
+        14.244,
+        14.453,
+        15.264,
+        16.518,
+        14.505,
+        14.424,
+        13.731,
+        15.948,
+        14.234,
+        13.858,
+        14.563,
+        15.266,
+        14.124,
+        15.866,
+        17.148,
+        14.543,
+        17.039,
+        16.102,
+        22.7,
+        24.704
+      ],
+      "rss_after_mib": 39.78125
+    },
+    {
+      "name": "document-large.docx",
+      "bytes": 50948,
+      "xml_bytes": 1693946,
+      "response_bytes": 2675100,
+      "p50_ms": 45.869,
+      "p95_ms": 65.587,
+      "max_ms": 65.903,
+      "duration_ms": [
+        65.587,
+        65.159,
+        48.502,
+        53.34,
+        65.903,
+        53.974,
+        47.442,
+        45.725,
+        52.517,
+        46.26,
+        42.709,
+        43.585,
+        42.805,
+        42.865,
+        45.891,
+        46.59,
+        41.731,
+        42.755,
+        45.869,
+        44.964,
+        42.741,
+        44.971,
+        41.273,
+        40.695,
+        47.524
+      ],
+      "rss_after_mib": 65.734375
+    },
+    {
+      "name": "document-medium.docx",
+      "bytes": 9824,
+      "xml_bytes": 281946,
+      "response_bytes": 407500,
+      "p50_ms": 7.867,
+      "p95_ms": 9.004,
+      "max_ms": 10.004,
+      "duration_ms": [
+        8.888,
+        7.267,
+        7.46,
+        8.824,
+        7.867,
+        9.004,
+        7.623,
+        7.924,
+        7.217,
+        7.561,
+        8.023,
+        8.807,
+        7.235,
+        10.004,
+        7.686,
+        8.278,
+        8.199,
+        8.942,
+        7.109,
+        8.307,
+        7.291,
+        7.553,
+        7.356,
+        7.91,
+        7.284
+      ],
+      "rss_after_mib": 65.765625
+    },
+    {
+      "name": "notes-100k.md",
+      "bytes": 100000,
+      "xml_bytes": null,
+      "response_bytes": 105530,
+      "p50_ms": 0.796,
+      "p95_ms": 2.144,
+      "max_ms": 2.153,
+      "duration_ms": [
+        2.153,
+        0.813,
+        0.682,
+        1.082,
+        1.241,
+        0.818,
+        0.628,
+        0.821,
+        2.144,
+        0.98,
+        0.749,
+        0.72,
+        0.796,
+        0.766,
+        0.642,
+        0.606,
+        0.838,
+        0.656,
+        0.614,
+        0.643,
+        0.897,
+        0.705,
+        0.608,
+        1.113,
+        0.851
+      ],
+      "rss_after_mib": 65.796875
+    },
+    {
+      "name": "notes-24k.md",
+      "bytes": 24000,
+      "xml_bytes": null,
+      "response_bytes": 25434,
+      "p50_ms": 0.503,
+      "p95_ms": 1.692,
+      "max_ms": 1.851,
+      "duration_ms": [
+        1.692,
+        0.537,
+        0.466,
+        0.469,
+        0.459,
+        0.592,
+        0.618,
+        0.472,
+        0.508,
+        0.485,
+        0.463,
+        0.533,
+        0.497,
+        1.851,
+        0.713,
+        0.503,
+        0.511,
+        0.52,
+        0.462,
+        0.491,
+        0.481,
+        0.591,
+        0.469,
+        0.472,
+        0.643
+      ],
+      "rss_after_mib": 65.828125
+    }
+  ],
+  "cancel_large_docx": {
+    "p50_ms": 28.028,
+    "p95_ms": 30.618,
+    "max_ms": 83.42,
+    "samples": [
+      {
+        "release_ms": 25.937,
+        "probe_attempts": 14
+      },
+      {
+        "release_ms": 24.508,
+        "probe_attempts": 14
+      },
+      {
+        "release_ms": 28.192,
+        "probe_attempts": 13
+      },
+      {
+        "release_ms": 30.618,
+        "probe_attempts": 16
+      },
+      {
+        "release_ms": 83.42,
+        "probe_attempts": 12
+      },
+      {
+        "release_ms": 29.631,
+        "probe_attempts": 16
+      },
+      {
+        "release_ms": 27.939,
+        "probe_attempts": 15
+      },
+      {
+        "release_ms": 26.327,
+        "probe_attempts": 13
+      },
+      {
+        "release_ms": 29.73,
+        "probe_attempts": 15
+      },
+      {
+        "release_ms": 26.592,
+        "probe_attempts": 14
+      },
+      {
+        "release_ms": 29.624,
+        "probe_attempts": 15
+      },
+      {
+        "release_ms": 28.35,
+        "probe_attempts": 15
+      },
+      {
+        "release_ms": 28.104,
+        "probe_attempts": 16
+      },
+      {
+        "release_ms": 28.125,
+        "probe_attempts": 14
+      },
+      {
+        "release_ms": 27.771,
+        "probe_attempts": 13
+      },
+      {
+        "release_ms": 25.691,
+        "probe_attempts": 14
+      },
+      {
+        "release_ms": 27.952,
+        "probe_attempts": 13
+      },
+      {
+        "release_ms": 29.33,
+        "probe_attempts": 15
+      },
+      {
+        "release_ms": 26.224,
+        "probe_attempts": 14
+      },
+      {
+        "release_ms": 27.761,
+        "probe_attempts": 15
+      }
+    ],
+    "scope": "Close client socket 3 ms after request, then probe the parser slot with a Markdown read"
+  }
+}

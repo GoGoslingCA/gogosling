@@ -1,0 +1,591 @@
+{
+  "label": "final-pooled-transport",
+  "measured_at": "2026-10-13T11:59:24.127Z",
+  "electron": "44.7.0",
+  "chrome": "152.0.7977.130",
+  "compiled_host_sha256": "b67d35728395226532836757dba62e6bbab34ca0a47843d350222f9ec33b3b0c",
+  "platform": "darwin",
+  "arch": "arm64",
+  "os_release": "27.0.0",
+  "physical_memory_mib": 16384,
+  "workload": "public HTTPS, network dependent, not a controlled comparison",
+  "measurements": [
+    {
+      "index": 0,
+      "origin": "https://gogosling.ca",
+      "page": "/",
+      "show_return_ms": 9.04,
+      "did_finish_load_ms": 1437.7,
+      "two_frame_ack_ms": 1457.72,
+      "stages": {
+        "release_ms": 0.07,
+        "prepare_session_ms": 3.18,
+        "native_view_and_attach_ms": 1.5,
+        "install_policy_ms": 0.1,
+        "start_to_navigation_commit_ms": 698.47,
+        "loading_to_commit_ms": 689.65,
+        "commit_to_dom_ready_ms": 564.5,
+        "dom_ready_to_load_ms": 174.73,
+        "load_to_two_frames_ms": 20.02
+      },
+      "visibility": "visible",
+      "navigation_paints": [
+        {
+          "name": "first-paint",
+          "startTime": 1376
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 1376
+        }
+      ],
+      "navigation_timing": {
+        "fetchStart": 1.7000000029802322,
+        "requestStart": 437,
+        "responseStart": 610.5,
+        "responseEnd": 614.6000000089407,
+        "domInteractive": 709.4000000059605,
+        "domContentLoadedEventEnd": 1253,
+        "domComplete": 1429.5,
+        "loadEventEnd": 1429.9000000059605
+      }
+    },
+    {
+      "index": 1,
+      "origin": "https://gogosling.ca",
+      "page": "/desktop.html",
+      "show_return_ms": 5.26,
+      "did_finish_load_ms": 768.58,
+      "two_frame_ack_ms": 915.53,
+      "stages": {
+        "release_ms": 3.03,
+        "prepare_session_ms": 0,
+        "native_view_and_attach_ms": 0.81,
+        "install_policy_ms": 0.02,
+        "start_to_navigation_commit_ms": 243.66,
+        "loading_to_commit_ms": 238.58,
+        "commit_to_dom_ready_ms": 378.72,
+        "dom_ready_to_load_ms": 146.21,
+        "load_to_two_frames_ms": 146.95
+      },
+      "visibility": "visible",
+      "navigation_paints": [],
+      "navigation_timing": {
+        "fetchStart": 1.0999999940395355,
+        "requestStart": 2.0999999940395355,
+        "responseStart": 173.09999999403954,
+        "responseEnd": 174.09999999403954,
+        "domInteractive": 243.8999999910593,
+        "domContentLoadedEventEnd": 617.2000000029802,
+        "domComplete": 763.7000000029802,
+        "loadEventEnd": 764.2000000029802
+      }
+    },
+    {
+      "index": 2,
+      "origin": "https://gogosling.ca",
+      "page": "/how.html",
+      "show_return_ms": 4.86,
+      "did_finish_load_ms": 778.96,
+      "two_frame_ack_ms": 810.77,
+      "stages": {
+        "release_ms": 1.81,
+        "prepare_session_ms": 0,
+        "native_view_and_attach_ms": 1.4,
+        "install_policy_ms": 0.13,
+        "start_to_navigation_commit_ms": 257.36,
+        "loading_to_commit_ms": 252.68,
+        "commit_to_dom_ready_ms": 370.59,
+        "dom_ready_to_load_ms": 151.01,
+        "load_to_two_frames_ms": 31.81
+      },
+      "visibility": "visible",
+      "navigation_paints": [
+        {
+          "name": "first-paint",
+          "startTime": 664
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 664
+        }
+      ],
+      "navigation_timing": {
+        "fetchStart": 1.2999999970197678,
+        "requestStart": 2.9000000059604645,
+        "responseStart": 174.40000000596046,
+        "responseEnd": 175.20000000298023,
+        "domInteractive": 259.20000000298023,
+        "domContentLoadedEventEnd": 623.5999999940395,
+        "domComplete": 775.2000000029802,
+        "loadEventEnd": 775.2999999970198
+      }
+    },
+    {
+      "index": 3,
+      "origin": "https://gogosling.ca",
+      "page": "/faq.html",
+      "show_return_ms": 5.23,
+      "did_finish_load_ms": 763.57,
+      "two_frame_ack_ms": 793.49,
+      "stages": {
+        "release_ms": 2.33,
+        "prepare_session_ms": 0.01,
+        "native_view_and_attach_ms": 1.09,
+        "install_policy_ms": 0.02,
+        "start_to_navigation_commit_ms": 239.61,
+        "loading_to_commit_ms": 234.64,
+        "commit_to_dom_ready_ms": 352.07,
+        "dom_ready_to_load_ms": 171.89,
+        "load_to_two_frames_ms": 29.92
+      },
+      "visibility": "visible",
+      "navigation_paints": [
+        {
+          "name": "first-paint",
+          "startTime": 648
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 648
+        }
+      ],
+      "navigation_timing": {
+        "fetchStart": 1.4000000059604645,
+        "requestStart": 3.1000000089406967,
+        "responseStart": 173.40000000596046,
+        "responseEnd": 174.20000000298023,
+        "domInteractive": 241.6000000089407,
+        "domContentLoadedEventEnd": 586.1000000089407,
+        "domComplete": 759.5,
+        "loadEventEnd": 759.6000000089407
+      }
+    }
+  ],
+  "operations": [
+    {
+      "operation": "close last page",
+      "duration_ms": 4.33
+    }
+  ],
+  "samples": [
+    {
+      "phase": "empty_before",
+      "main_rss_mib": 152.2,
+      "main_heap_used_mib": 4.29,
+      "electron_working_set_mib": 357.14,
+      "os_process_rss_sum_mib": 357.73,
+      "metric_processes": 4,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 151.11,
+          "os_rss_mib": 151.7
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 72.69,
+          "os_rss_mib": 72.69
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 43.78,
+          "os_rss_mib": 43.78
+        },
+        "Tab": {
+          "processes": 1,
+          "working_set_mib": 89.56,
+          "os_rss_mib": 89.56
+        }
+      },
+      "live_web_contents": 1,
+      "guest_views": 0,
+      "proxy_listening": false,
+      "proxy_sockets": 0,
+      "proxy_requests": 0,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 0,
+      "retained_session": false,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 0,
+      "host_state_events": 0,
+      "responseCount": 0
+    },
+    {
+      "phase": "loaded_1",
+      "main_rss_mib": 153.63,
+      "main_heap_used_mib": 4.88,
+      "electron_working_set_mib": 521.25,
+      "os_process_rss_sum_mib": 521.3,
+      "metric_processes": 5,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 153.25,
+          "os_rss_mib": 153.3
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 98.52,
+          "os_rss_mib": 98.52
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 48.11,
+          "os_rss_mib": 48.11
+        },
+        "Tab": {
+          "processes": 2,
+          "working_set_mib": 221.38,
+          "os_rss_mib": 221.38
+        }
+      },
+      "live_web_contents": 2,
+      "guest_views": 1,
+      "proxy_listening": true,
+      "proxy_sockets": 2,
+      "proxy_requests": 1,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 1,
+      "retained_session": true,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 3,
+      "host_state_events": 4,
+      "responseCount": 0
+    },
+    {
+      "phase": "loaded_2",
+      "main_rss_mib": 155.02,
+      "main_heap_used_mib": 5.23,
+      "electron_working_set_mib": 505.28,
+      "os_process_rss_sum_mib": 506.83,
+      "metric_processes": 5,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 154.8,
+          "os_rss_mib": 154.84
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 99.11,
+          "os_rss_mib": 99.19
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 48.33,
+          "os_rss_mib": 48.33
+        },
+        "Tab": {
+          "processes": 2,
+          "working_set_mib": 203.05,
+          "os_rss_mib": 204.47
+        }
+      },
+      "live_web_contents": 2,
+      "guest_views": 1,
+      "proxy_listening": true,
+      "proxy_sockets": 2,
+      "proxy_requests": 1,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 1,
+      "retained_session": true,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 3,
+      "host_state_events": 9,
+      "responseCount": 0
+    },
+    {
+      "phase": "loaded_3",
+      "main_rss_mib": 153.23,
+      "main_heap_used_mib": 5.56,
+      "electron_working_set_mib": 493.98,
+      "os_process_rss_sum_mib": 494.05,
+      "metric_processes": 5,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 153.06,
+          "os_rss_mib": 153.13
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 96.2,
+          "os_rss_mib": 96.2
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 48.36,
+          "os_rss_mib": 48.36
+        },
+        "Tab": {
+          "processes": 2,
+          "working_set_mib": 196.36,
+          "os_rss_mib": 196.36
+        }
+      },
+      "live_web_contents": 2,
+      "guest_views": 1,
+      "proxy_listening": true,
+      "proxy_sockets": 2,
+      "proxy_requests": 1,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 1,
+      "retained_session": true,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 3,
+      "host_state_events": 14,
+      "responseCount": 0
+    },
+    {
+      "phase": "loaded_4",
+      "main_rss_mib": 153.69,
+      "main_heap_used_mib": 5.88,
+      "electron_working_set_mib": 493.27,
+      "os_process_rss_sum_mib": 493.28,
+      "metric_processes": 5,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 153.55,
+          "os_rss_mib": 153.56
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 96.25,
+          "os_rss_mib": 96.25
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 48.41,
+          "os_rss_mib": 48.41
+        },
+        "Tab": {
+          "processes": 2,
+          "working_set_mib": 195.06,
+          "os_rss_mib": 195.06
+        }
+      },
+      "live_web_contents": 2,
+      "guest_views": 1,
+      "proxy_listening": true,
+      "proxy_sockets": 2,
+      "proxy_requests": 1,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 1,
+      "retained_session": true,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 3,
+      "host_state_events": 19,
+      "responseCount": 0
+    },
+    {
+      "phase": "closed_0s",
+      "main_rss_mib": 153.88,
+      "main_heap_used_mib": 6.05,
+      "electron_working_set_mib": 378.56,
+      "os_process_rss_sum_mib": 378.58,
+      "metric_processes": 4,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 153.75,
+          "os_rss_mib": 153.78
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 95.81,
+          "os_rss_mib": 95.8
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 48.52,
+          "os_rss_mib": 48.52
+        },
+        "Tab": {
+          "processes": 1,
+          "working_set_mib": 80.48,
+          "os_rss_mib": 80.48
+        }
+      },
+      "live_web_contents": 1,
+      "guest_views": 0,
+      "proxy_listening": false,
+      "proxy_sockets": 0,
+      "proxy_requests": 0,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 1,
+      "retained_session": true,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 0,
+      "host_state_events": 20,
+      "responseCount": 0
+    },
+    {
+      "phase": "closed_5s",
+      "main_rss_mib": 152.94,
+      "main_heap_used_mib": 6.19,
+      "electron_working_set_mib": 366.61,
+      "os_process_rss_sum_mib": 366.64,
+      "metric_processes": 4,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 152.83,
+          "os_rss_mib": 152.86
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 82.89,
+          "os_rss_mib": 82.89
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 48.53,
+          "os_rss_mib": 48.53
+        },
+        "Tab": {
+          "processes": 1,
+          "working_set_mib": 82.36,
+          "os_rss_mib": 82.36
+        }
+      },
+      "live_web_contents": 1,
+      "guest_views": 0,
+      "proxy_listening": false,
+      "proxy_sockets": 0,
+      "proxy_requests": 0,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 1,
+      "retained_session": true,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 0,
+      "host_state_events": 20,
+      "responseCount": 0
+    },
+    {
+      "phase": "closed_15s",
+      "main_rss_mib": 125.52,
+      "main_heap_used_mib": 4.94,
+      "electron_working_set_mib": 297.3,
+      "os_process_rss_sum_mib": 299.44,
+      "metric_processes": 4,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 121.23,
+          "os_rss_mib": 123.38
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 60.64,
+          "os_rss_mib": 60.64
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 43.11,
+          "os_rss_mib": 43.11
+        },
+        "Tab": {
+          "processes": 1,
+          "working_set_mib": 72.31,
+          "os_rss_mib": 72.31
+        }
+      },
+      "live_web_contents": 1,
+      "guest_views": 0,
+      "proxy_listening": false,
+      "proxy_sockets": 0,
+      "proxy_requests": 0,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 1,
+      "retained_session": true,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 0,
+      "host_state_events": 20,
+      "responseCount": 0
+    },
+    {
+      "phase": "disposed_250ms",
+      "main_rss_mib": 133.38,
+      "main_heap_used_mib": 5.09,
+      "electron_working_set_mib": 310.36,
+      "os_process_rss_sum_mib": 310.64,
+      "metric_processes": 4,
+      "process_groups": {
+        "Browser": {
+          "processes": 1,
+          "working_set_mib": 132.83,
+          "os_rss_mib": 133.11
+        },
+        "GPU": {
+          "processes": 1,
+          "working_set_mib": 60.64,
+          "os_rss_mib": 60.64
+        },
+        "Utility": {
+          "processes": 1,
+          "working_set_mib": 44.58,
+          "os_rss_mib": 44.58
+        },
+        "Tab": {
+          "processes": 1,
+          "working_set_mib": 72.31,
+          "os_rss_mib": 72.31
+        }
+      },
+      "live_web_contents": 1,
+      "guest_views": 0,
+      "proxy_listening": false,
+      "proxy_sockets": 0,
+      "proxy_requests": 0,
+      "proxy_dns_pending": 0,
+      "created_memory_sessions": 1,
+      "retained_session": true,
+      "storage_on_disk": false,
+      "session_cache_bytes": 0,
+      "session_workers": 0,
+      "active_tcp_resources": 0,
+      "host_state_events": 20,
+      "responseCount": 0
+    }
+  ],
+  "failures": [],
+  "summary": {
+    "switches": {
+      "count": 4,
+      "p50_ms": 768.58,
+      "p95_ms": 1437.7,
+      "max_ms": 1437.7
+    },
+    "two_frame_ack": {
+      "count": 4,
+      "p50_ms": 810.77,
+      "p95_ms": 1457.72,
+      "max_ms": 1457.72
+    },
+    "show_return": {
+      "count": 4,
+      "p50_ms": 5.23,
+      "p95_ms": 9.04,
+      "max_ms": 9.04
+    }
+  },
+  "scope": "Isolated native webpage host; four read-only public page loads; network-dependent; not complete app memory"
+}

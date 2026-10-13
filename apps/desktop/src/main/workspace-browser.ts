@@ -19,11 +19,14 @@ export class WorkspaceBrowser {
   private intendedURL = "";
   private pageSession: Session | null = null;
   private egress: WorkspaceBrowserEgress | null = null;
+  private readonly resolutionBudget = { active: 0 };
   private starting: Promise<void> | null = null;
+  private idleCleanup: Promise<void> | null = null;
   private busy = false;
   private disposed = false;
   private visibilityGeneration = 0;
   private wantedVisible = false;
+  private pageReady = false;
   private bounds: WorkspaceBrowserBounds | null = null;
   private error: WorkspaceBrowserError | undefined;
 
@@ -58,10 +61,14 @@ export class WorkspaceBrowser {
     try {
       if (!await this.release()) { this.error = "cancelled"; this.emit(); return this.snapshot(); }
       await this.prepareSession();
-      if (this.disposed || generation !== this.visibilityGeneration || win.isDestroyed()) return this.snapshot("cancelled", input.tabId);
+      if (this.disposed || generation !== this.visibilityGeneration || win.isDestroyed()) {
+        await this.releaseIdleResources();
+        return this.snapshot("cancelled", input.tabId);
+      }
       this.tabId = input.tabId;
       this.intendedURL = url.href;
       this.error = undefined;
+      this.pageReady = false;
       const view = new WebContentsView({ webPreferences: {
         session: this.pageSession!, contextIsolation: true, sandbox: true, nodeIntegration: false,
         nodeIntegrationInSubFrames: false, nodeIntegrationInWorker: false, webSecurity: true,
@@ -73,11 +80,12 @@ export class WorkspaceBrowser {
       win.contentView.addChildView(view);
       this.installPagePolicy(view);
       this.present();
-      void view.webContents.loadURL(url.href).catch(() => {
-        if (this.view === view && !view.webContents.isDestroyed()) { this.error = "load_failed"; this.emit(); }
-      });
+      void view.webContents.loadURL(url.href).catch(error => this.failLoad(view, error));
       return { ...this.snapshot(), url: url.href, loading: true };
-    } catch { return this.snapshot("unavailable", input.tabId); }
+    } catch {
+      if (!this.view) await this.releaseIdleResources();
+      return this.snapshot("unavailable", input.tabId);
+    }
     finally { this.busy = false; }
   }
 
@@ -94,7 +102,7 @@ export class WorkspaceBrowser {
     if (this.busy) return this.snapshot("busy");
     this.busy = true;
     try {
-      if (await this.release()) return null;
+      if (await this.release(true)) return null;
       this.error = "cancelled";
       this.emit();
       return this.snapshot();
@@ -106,7 +114,7 @@ export class WorkspaceBrowser {
   async closeForQuit(): Promise<boolean> {
     if (this.busy) return false;
     this.busy = true;
-    try { return await this.release(); } catch { return false; } finally { this.busy = false; }
+    try { return await this.release(true); } catch { return false; } finally { this.busy = false; }
   }
 
   /** 在当前标签导航，不允许控制后台或未知标签。 */
@@ -120,9 +128,7 @@ export class WorkspaceBrowser {
     this.error = undefined;
     this.intendedURL = url.href;
     const view = this.view;
-    void view.webContents.loadURL(url.href).catch(() => {
-      if (this.view === view && !view.webContents.isDestroyed()) { this.error = "load_failed"; this.emit(); }
-    });
+    void view.webContents.loadURL(url.href).catch(error => this.failLoad(view, error));
     return this.snapshot();
   }
 
@@ -152,7 +158,7 @@ export class WorkspaceBrowser {
     if (!win || win.isDestroyed() || !view || view.webContents.isDestroyed()) return;
     const [width, height] = win.getContentSize();
     const bounds = browserBounds(this.bounds, { width, height });
-    const visible = this.wantedVisible && !!bounds && win.isVisible() && !win.isMinimized();
+    const visible = this.wantedVisible && this.pageReady && !!bounds && win.isVisible() && !win.isMinimized();
     if (bounds) view.setBounds(bounds);
     view.setVisible(visible);
     view.webContents.setAudioMuted(!visible);
@@ -162,11 +168,19 @@ export class WorkspaceBrowser {
   dispose(): void {
     this.disposed = true;
     this.hide();
-    if (this.view && !this.view.webContents.isDestroyed()) this.view.webContents.close({ waitForBeforeUnload: false });
+    const view = this.view;
     this.view = null;
+    this.pageReady = false;
+    const win = this.host.window();
+    if (view && win && !win.isDestroyed()) win.contentView.removeChildView(view);
+    if (view && !view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false });
     this.egress?.dispose();
     this.egress = null;
-    if (this.pageSession) void this.pageSession.clearStorageData().catch(() => {});
+    if (this.pageSession) {
+      void this.pageSession.closeAllConnections().catch(() => {});
+      void this.pageSession.clearStorageData().catch(() => {});
+      void this.pageSession.clearCache().catch(() => {});
+    }
   }
 
   /** 主进程证书事件只拒绝此来宾的请求。 */
@@ -180,16 +194,30 @@ export class WorkspaceBrowser {
 
   private emit(): void { this.host.state(this.snapshot()); }
 
+  private failLoad(view: WebContentsView, error: unknown): void {
+    // 停止、替换导航及拒绝离开均可产生 ERR_ABORTED，不能把这些用户操作变成失败。
+    if (this.view !== view || view.webContents.isDestroyed() || this.error === "cancelled") return;
+    if (error instanceof Error && "code" in error && error.code === "ERR_ABORTED") return;
+    this.error = "load_failed";
+    this.pageReady = false;
+    this.present();
+    this.emit();
+  }
+
   private async prepareSession(): Promise<void> {
-    if (this.pageSession) return;
+    // 崩溃后的异步清理必须先结束，否则它可能关闭新标签刚建立的连接。
+    if (this.idleCleanup) await this.idleCleanup;
+    if (this.pageSession && this.egress) return;
     this.starting ??= (async () => {
-      const egress = new WorkspaceBrowserEgress();
+      const egress = new WorkspaceBrowserEgress(undefined, this.resolutionBudget);
       this.egress = egress;
       const proxy = await egress.start();
       if (this.disposed) { egress.dispose(); throw new Error("disposed"); }
-      const ses = session.fromPartition(`workspace-${randomUUID()}`, { cache: false });
+      // Electron 的内存分区容器无法单独销毁；复用唯一容器，避免关闭再打开累积 Session。
+      const ses = this.pageSession ?? session.fromPartition(`workspace-${randomUUID()}`, { cache: false });
       await ses.setProxy({ mode: "fixed_servers", proxyRules: proxy, proxyBypassRules: "<-loopback>" });
       if (this.disposed) { egress.dispose(); throw new Error("disposed"); }
+      if (this.pageSession) return;
       ses.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
       ses.setPermissionCheckHandler(() => false);
       ses.setDevicePermissionHandler(() => false);
@@ -213,6 +241,7 @@ export class WorkspaceBrowser {
     })();
     try { await this.starting; }
     catch (error) { this.egress?.dispose(); this.egress = null; this.starting = null; throw error; }
+    finally { this.starting = null; }
   }
 
   private installPagePolicy(view: WebContentsView): void {
@@ -223,6 +252,8 @@ export class WorkspaceBrowser {
       const win = this.host.window();
       if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
       this.view = null;
+      this.pageReady = false;
+      if (!this.busy && !this.disposed) void this.releaseIdleResources();
       this.host.state({ tabId, url: "", title: "", loading: false, canGoBack: false, canGoForward: false, error: this.error === "load_failed" ? "load_failed" : "unavailable" });
     });
     contents.setWebRTCIPHandlingPolicy("disable_non_proxied_udp");
@@ -242,13 +273,23 @@ export class WorkspaceBrowser {
     });
     contents.on("login", (event, _details, _authInfo, callback) => { event.preventDefault(); callback(); });
     contents.on("did-start-loading", () => { this.error = undefined; this.emit(); });
+    contents.on("dom-ready", () => {
+      if (this.view !== view || this.error === "load_failed" || !browserURL(contents.getURL())) return;
+      this.pageReady = true;
+      this.present();
+    });
     contents.on("did-stop-loading", () => this.emit());
     const navigated = () => { if (browserURL(contents.getURL())) this.intendedURL = contents.getURL(); this.emit(); };
     contents.on("did-navigate", navigated);
     contents.on("did-navigate-in-page", navigated);
     contents.on("page-title-updated", () => this.emit());
     contents.on("did-fail-load", (_event, code, _description, _url, mainFrame) => {
-      if (mainFrame && code !== -3) { this.error = "load_failed"; this.emit(); }
+      if (mainFrame && code !== -3) {
+        this.error = "load_failed";
+        this.pageReady = false;
+        this.present();
+        this.emit();
+      }
     });
     contents.on("render-process-gone", () => {
       this.error = "load_failed";
@@ -257,14 +298,20 @@ export class WorkspaceBrowser {
         const win = this.host.window();
         if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
         this.view = null;
+        this.pageReady = false;
         if (!contents.isDestroyed()) contents.close({ waitForBeforeUnload: false });
+        void this.releaseIdleResources();
       }
     });
   }
 
-  private async release(): Promise<boolean> {
+  private async release(stopNetwork = false): Promise<boolean> {
     const view = this.view;
-    if (!view || view.webContents.isDestroyed()) { this.view = null; return true; }
+    if (!view || view.webContents.isDestroyed()) {
+      this.view = null;
+      if (stopNetwork) await this.releaseIdleResources();
+      return true;
+    }
     const contents = view.webContents;
     const released = await new Promise<boolean>(resolve => {
       let settled = false;
@@ -293,10 +340,26 @@ export class WorkspaceBrowser {
       if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
       this.view = null;
     }
-    if (this.pageSession) {
+    if (stopNetwork) await this.releaseIdleResources();
+    else if (this.pageSession) {
       await this.pageSession.clearStorageData({ storages: ["serviceworkers", "cachestorage"] }).catch(() => {});
-      await this.pageSession.closeAllConnections().catch(() => {});
+      // 旧页面请求随 WebContents 销毁而取消；保留有界连接池，避免同站切页重复握手。
     }
     return true;
+  }
+
+  private async releaseIdleResources(): Promise<void> {
+    if (this.idleCleanup) return this.idleCleanup;
+    // 仅在活动原生页关闭后停止出口；保留休眠标签回到站点时所需的身份和本地存储。
+    this.egress?.dispose();
+    this.egress = null;
+    const ses = this.pageSession;
+    if (!ses) return;
+    this.idleCleanup = (async () => {
+      await ses.closeAllConnections().catch(() => {});
+      await ses.clearStorageData({ storages: ["serviceworkers", "cachestorage"] }).catch(() => {});
+      await ses.clearCache().catch(() => {});
+    })();
+    try { await this.idleCleanup; } finally { this.idleCleanup = null; }
   }
 }

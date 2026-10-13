@@ -1,8 +1,9 @@
 // 少量手写基础组件：对话框、表单字段、徽标、空态、错误条。
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { describeError } from "../lib/errorMessage";
+import { Icon } from "./Icon";
 
 export function Dialog({
   open,
@@ -11,6 +12,7 @@ export function Dialog({
   children,
   footer,
   dismissible = true,
+  className,
 }: {
   open: boolean;
   title: ReactNode;
@@ -19,8 +21,10 @@ export function Dialog({
   footer?: ReactNode;
   /** false 时没有关闭按钮，Esc 也不关闭：必须通过底部按钮做出决定（例如审批）。 */
   dismissible?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -33,7 +37,8 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className="dialog"
+      className={className ? `dialog ${className}` : "dialog"}
+      aria-labelledby={titleId}
       onClose={() => {
         if (dismissible) onClose();
       }}
@@ -45,11 +50,11 @@ export function Dialog({
       {open ? (
         <>
           <div className="dialog-head">
-            <span>{title}</span>
+            <span id={titleId}>{title}</span>
             <span className="spacer" />
             {dismissible ? (
               <button type="button" className="btn ghost sm" onClick={onClose} aria-label={t("common.close")}>
-                ✕
+                <Icon name="close" size={16} />
               </button>
             ) : null}
           </div>

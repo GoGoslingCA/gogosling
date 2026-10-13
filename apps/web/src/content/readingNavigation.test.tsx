@@ -36,7 +36,8 @@ function button(label: string) { return [...host.querySelectorAll<HTMLButtonElem
 describe("有界阅读导航", () => {
   it("目录关闭时不索引标题，打开后最多挂载两百个真实锚点并说明范围", async () => {
     await showText({ ...doc, text: "# x\n".repeat(15_000) });
-    expect(host.querySelectorAll(".reading-text-body h1")).toHaveLength(15_000);
+    expect(host.querySelectorAll(".reading-text-body h1")).toHaveLength(250);
+    expect(host.querySelector(".preview-mode")?.textContent).toContain("1 / 60");
     expect(host.querySelectorAll(".reading-text-body h1[id]")).toHaveLength(0);
     expect(host.querySelectorAll(".reading-outline a")).toHaveLength(0);
     await openDetails(".reading-outline");
@@ -46,6 +47,28 @@ describe("有界阅读导航", () => {
     const details = host.querySelector<HTMLDetailsElement>(".reading-outline")!;
     await act(async () => { details.open = false; details.dispatchEvent(new Event("toggle")); });
     expect(host.querySelectorAll(".reading-outline a")).toHaveLength(0);
+  });
+
+  it("高密度Markdown表格仍可阅读，翻页重复表头且查找范围跟随当前页", async () => {
+    const text = "| Item | Result |\n| --- | --- |\n" + Array.from({ length: 500 }, (_, index) => `| row-${index} | checked |`).join("\n");
+    await showText({ ...doc, text });
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(100);
+    expect(host.querySelectorAll("thead th")).toHaveLength(2);
+    expect(host.textContent).not.toContain("row-499");
+    await openDetails(".reading-find-panel");
+    await type(".reading-find input", "row-100");
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("readingNavigation.matches:0/0");
+    await act(async () => button("preview.next").click());
+    expect(host.querySelectorAll("tbody tr")).toHaveLength(100);
+    expect(host.querySelectorAll("thead th")).toHaveLength(2);
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("readingNavigation.matches:1/1");
+    expect(window.getSelection()?.toString()).toBe("row-100");
+    for (let page = 0; page < 3; page++) await act(async () => button("preview.next").click());
+    expect(host.textContent).toContain("row-499");
+    expect(button("preview.next").disabled).toBe(true);
+    await act(async () => button("preview.source").click());
+    expect(host.querySelector("pre")?.textContent).toBe(text);
+    expect(host.querySelectorAll(".preview-code span")).toHaveLength(0);
   });
 
   it("没有标题时仍提供折叠目录入口并明确显示空状态", async () => {
@@ -106,20 +129,63 @@ describe("有界阅读导航", () => {
   });
 
   it("长文只查当前页，切页更新结果，新文件重置页码、查找与阅读模式", async () => {
-    const long = { ...doc, text: "a".repeat(59_999) + "😀TARGET" };
+    const long = { ...doc, text: "a".repeat(19_999) + "😀TARGET" };
     await showText(long);
-    expect(host.querySelector(".message-markdown")).toBeNull();
+    expect(host.querySelector(".message-markdown")).not.toBeNull();
     await openDetails(".reading-find-panel");
     await type(".reading-find input", "TARGET");
     expect(host.querySelector('[role="status"]')?.textContent).toBe("readingNavigation.matches:0/0");
-    expect(host.querySelector("pre")?.textContent?.endsWith("\ud83d")).toBe(false);
+    expect(host.querySelector(".message-markdown")?.textContent?.endsWith("\ud83d")).toBe(false);
+    await act(async () => button("preview.next").click());
+    expect(host.querySelector(".message-markdown")?.textContent).toBe("😀TARGET");
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("readingNavigation.matches:1/1");
+    await act(async () => button("preview.source").click());
+    expect(host.querySelector("pre")?.textContent?.length).toBe(19_999);
     await act(async () => button("preview.next").click());
     expect(host.querySelector("pre")?.textContent).toBe("😀TARGET");
-    expect(host.querySelector('[role="status"]')?.textContent).toBe("readingNavigation.matches:1/1");
+    await act(async () => button("preview.read").click());
+    expect(host.querySelector(".message-markdown")?.textContent).toBe("😀TARGET");
     await showText({ ...doc, version: "2", text: "# New document" }, "other.md");
     expect(host.querySelector("h1")?.textContent).toBe("New document");
     expect(host.querySelector<HTMLInputElement>(".reading-find input")?.value).toBe("");
     expect(host.querySelector<HTMLDetailsElement>(".reading-find-panel")?.open).toBe(false);
+  });
+
+  it("复杂块回退显示实际原文页，逐页恢复CRLF围栏及emoji而不是伪阅读", async () => {
+    const text = "# " + "x".repeat(19_997) + "😀" + "y".repeat(25_000) + "\r\n\r\n```md\r\n# retained\r\n```";
+    await showText({ ...doc, text });
+    expect(host.querySelector(".message-markdown")).toBeNull();
+    expect(host.querySelector(".preview-mode .muted")?.textContent).toBe("preview.source");
+    expect(host.querySelector(".reading-outline")).toBeNull();
+    const shown: string[] = [];
+    do {
+      const content = host.querySelector("pre code")?.textContent ?? "";
+      expect(content.length).toBeLessThanOrEqual(20_001);
+      expect(content.endsWith("\ud83d")).toBe(false);
+      shown.push(content);
+      if (button("preview.next").disabled) break;
+      await act(async () => button("preview.next").click());
+    } while (shown.length < 10);
+    expect(shown.join("")).toBe(text);
+  });
+
+  it("围栏阅读分页后复制仍复制整个代码块", async () => {
+    const content = "first ".repeat(5000) + "😀 last";
+    const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      await showText({ ...doc, text: "```text\n" + content + "\n```" });
+      expect(host.querySelector("pre code")?.textContent?.length).toBeLessThanOrEqual(20_000);
+      await act(async () => button("chat.copyCode").click());
+      expect(writeText).toHaveBeenLastCalledWith(content);
+      await act(async () => button("preview.next").click());
+      await act(async () => button("chat.copyCode").click());
+      expect(writeText).toHaveBeenLastCalledWith(content);
+    } finally {
+      if (original) Object.defineProperty(navigator, "clipboard", original);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
   });
 
   it("Unicode大小写展开保持原文位置，符号按字面查找，命中与查询均有上限", () => {

@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { assertOutputDirectory, copyRelocatable, desktopRoot, nativeTarget, pythonRelative, pythonVersion, repositoryRoot, resourcesRoot, run, stagedRoot, within } from "./runtime-lib.mjs";
 import { verifyRuntime } from "./verify-runtime.mjs";
+import { collectDistributionLicenses } from "./distribution-licenses.mjs";
 
 async function collectLicenses(root, goEnv) {
   const licenseRoot = path.join(root, "licenses");
@@ -86,6 +87,7 @@ export async function stageRuntime() {
     const ldflags = `-s -w -X ${versionPackage}.Version=${pkg.version} -X ${versionPackage}.Commit=${commit}${dirty ? "-dirty" : ""} -X ${versionPackage}.Date=${builtAt}`;
     run("go", ["build", "-trimpath", "-buildvcs=false", "-ldflags", ldflags, "-o", path.join(output, "bin") + path.sep, "./cmd/gogoslingd", "./cmd/gogosling"], { env: goEnv });
     await collectLicenses(output, goEnv);
+    await collectDistributionLicenses(repositoryRoot, path.join(output, "licenses"));
     const manifest = { schema: 1, platform: target.platform, arch: target.arch, app_version: pkg.version, python_version: pythonVersion, source_commit: commit, source_dirty: dirty, built_at: builtAt, worker_lock_sha256: createHash("sha256").update(await fs.readFile(path.join(repositoryRoot, "worker", "uv.lock"))).digest("hex") };
     await fs.writeFile(path.join(output, "runtime-manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
     console.log("Verifying relocated runtime with an empty PATH and a local mock model…");

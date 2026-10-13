@@ -1,0 +1,96 @@
+name: desktop release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Beta tag matching both app versions, for example v0.0.1104-beta'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: desktop-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and verify macOS Apple Silicon
+    runs-on: macos-15
+    timeout-minutes: 45
+    outputs:
+      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      # Official upstream release commits, resolved before adding this workflow.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          architecture: arm64
+          cache: npm
+      - name: Require main, matching versions, ARM64, and successful exact-commit CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node apps/desktop/scripts/release.mjs gate --arm64
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0, official uv project
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Verify release tooling
+        run: node --test apps/desktop/scripts/runtime-checks.mjs
+      - name: Build the self-contained unsigned package
+        run: npm run package -w @gogosling/desktop -- --diagnostics --mac --arm64 --config.directories.output=release/publish
+      - name: Verify final bundle and prepare the three release assets
+        run: node apps/desktop/scripts/release.mjs prepare
+      - name: Transfer verified assets from this run
+        id: artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-macos-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/desktop/release/publish-assets/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+          overwrite: false
+          include-hidden-files: false
+
+  publish:
+    name: Publish the verified beta
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Download only the build job artifact from this workflow run
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: apps/desktop/release/publish-assets/
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Recheck CI, checksums, source, versions, and release ownership; publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node apps/desktop/scripts/release.mjs publish

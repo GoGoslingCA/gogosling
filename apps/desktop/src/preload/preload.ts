@@ -11,6 +11,22 @@ import type { ConnectionInfo, DaemonStatus, GogoslingBridge, IpcChannelMap, Shel
 import type { DiagnosticPreview, DiagnosticReceipt, DiagnosticResult, DiagnosticStatus } from "../shared/diagnostics.js";
 import type { WorkspaceBrowserState } from "../shared/workspace-browser.js";
 
+// 仅原生 macOS 主页面预留窗口按钮和拖动区域；网页阅读视图不加载此 preload。
+if (process.platform === "darwin") {
+  const markNativeFrame = () => { document.documentElement.dataset.nativeFrame = "macos"; };
+  const installDragRegion = () => {
+    markNativeFrame();
+    if (document.getElementById("native-frame-drag")) return;
+    const region = document.createElement("div");
+    region.id = "native-frame-drag";
+    region.setAttribute("aria-hidden", "true");
+    document.body.prepend(region);
+  };
+  if (document.documentElement) markNativeFrame();
+  if (document.readyState === "loading") window.addEventListener("DOMContentLoaded", installDragRegion, { once: true });
+  else installDragRegion();
+}
+
 const CHANNELS = {
   getConnection: "gogosling:connection:get",
   getVersion: "gogosling:version:get",

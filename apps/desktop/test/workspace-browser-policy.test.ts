@@ -67,7 +67,7 @@ describe("工作台网页边界", () => {
     proxy.dispose();
     await expect(starting).rejects.toThrow("disposed");
   });
-  it("请求取消后未完成 DNS 仍占用解析槽位", async () => {
+  it("请求取消或重建出口后未完成 DNS 仍占用解析槽位", async () => {
     const pending: ((value: { address: string; family: number }[]) => void)[] = [];
     let allStarted!: () => void;
     const started = new Promise<void>(resolve => { allStarted = resolve; });
@@ -75,8 +75,9 @@ describe("工作台网页边界", () => {
       if (pending.length === 32) return Promise.resolve([{ address: "127.0.0.1", family: 4 }]);
       return new Promise<{ address: string; family: number }[]>(resolve => { pending.push(resolve); if (pending.length === 32) allStarted(); });
     });
-    const proxy = new WorkspaceBrowserEgress(resolver);
-    const endpoint = new URL(await proxy.start());
+    const resolutionBudget = { active: 0 };
+    let proxy = new WorkspaceBrowserEgress(resolver, resolutionBudget);
+    let endpoint = new URL(await proxy.start());
     const clients: http.ClientRequest[] = [];
     const request = () => new Promise<number>((resolve, reject) => {
       const client = http.get({ host: endpoint.hostname, port: endpoint.port, path: "http://example.com/", agent: false }, response => { response.resume(); resolve(response.statusCode!); });
@@ -91,6 +92,11 @@ describe("工作台网页边界", () => {
       await started;
       await Promise.all(clients.map(client => new Promise<void>(resolve => { client.once("close", resolve); client.destroy(); })));
       await new Promise(resolve => setTimeout(resolve, 20));
+      expect(await request()).toBe(403);
+      expect(resolver).toHaveBeenCalledTimes(32);
+      proxy.dispose();
+      proxy = new WorkspaceBrowserEgress(resolver, resolutionBudget);
+      endpoint = new URL(await proxy.start());
       expect(await request()).toBe(403);
       expect(resolver).toHaveBeenCalledTimes(32);
       for (const complete of pending) complete([]);

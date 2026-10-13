@@ -2,6 +2,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { pdfAssets } from "./pdf-assets.ts";
+import { buildLicenseIndex } from "./build-license-index.ts";
 import { readFileSync } from "node:fs";
 
 // 守护进程默认端口（见 api/openapi/openapi.yaml 的 servers）。
@@ -12,7 +13,7 @@ export default defineConfig({
   define: { __GOGOSLING_RELEASE__: JSON.stringify(releaseVersion) },
   // 相对路径 base：构建产物既能从 http 服务器加载，也能被 file:// 与桌面壳的 app:// 协议直接加载。
   base: "./",
-  plugins: [react(), pdfAssets()],
+  plugins: [react(), pdfAssets(), buildLicenseIndex()],
   build: {
     outDir: "dist",
     emptyOutDir: true,

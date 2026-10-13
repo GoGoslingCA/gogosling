@@ -7,6 +7,7 @@ import type { Project, Session, SessionPatchInput } from "../api/types";
 import { readUiPreferences } from "../lib/uiPreferences";
 import { queryKeys } from "../state/queryKeys";
 import { NavigationSidebar } from "./NavigationSidebar";
+import { APP_RELEASE_LABEL } from "../lib/release";
 
 const { list, get, update, listProjects, toast, version } = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), update: vi.fn(), listProjects: vi.fn(), toast: vi.fn(), version: vi.fn() }));
 vi.mock("../state/ConnectionContext", () => ({ useApi: () => ({ sessions: { list, get, update }, system: { version }, workbench: { listProjects } }) }));
@@ -265,7 +266,7 @@ describe("NavigationSidebar 头像设置菜单", () => {
   it("显示指定版本并保留全部设置入口，打开菜单不会增加请求", async () => {
     version.mockResolvedValue({ version: "test", capabilities: { "runtime.resources": 1 } });
     await render();
-    expect(host.querySelector(".nav-avatar-copy")?.textContent).toContain("版本：Beta 0.0.1103");
+    expect(host.querySelector(".nav-avatar-copy")?.textContent).toContain(`版本：${APP_RELEASE_LABEL}`);
     expect(host.querySelector(".nav-local")).toBeNull();
     const requestCount = version.mock.calls.length;
     const listCount = list.mock.calls.length;

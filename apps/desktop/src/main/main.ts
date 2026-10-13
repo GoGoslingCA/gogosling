@@ -328,6 +328,8 @@ class DesktopShell {
       show: false,
       autoHideMenuBar: true,
       title: "gogosling",
+      // macOS 保留原生窗口按钮，标题栏融入应用画布；其他平台沿用系统边框。
+      ...(this.ctx.platform === "darwin" ? { titleBarStyle: "hiddenInset" as const } : {}),
       webPreferences: {
         preload: path.join(__dirname, "..", "preload", "preload.js"),
         contextIsolation: true,

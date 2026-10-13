@@ -1,7 +1,7 @@
 {
   "name": "@gogosling/desktop",
   "private": true,
-  "version": "0.0.1103-beta",
+  "version": "0.0.1104-beta",
   "description": "Local-first desktop workbench developed by Gogosling.ca, a Canadian company.",
   "main": "dist/main/main.js",
   "scripts": {
@@ -14,7 +14,8 @@
     "stage:runtime": "node scripts/stage-runtime.mjs",
     "verify:runtime": "node scripts/verify-runtime.mjs",
     "test:runtime": "node --test scripts/runtime-checks.mjs",
-    "test:browser-runtime": "npm run build && node scripts/workspace-browser-runtime.mjs"
+    "test:browser-runtime": "npm run build && node scripts/workspace-browser-runtime.mjs",
+    "bench:browser": "npm run build && node scripts/workspace-browser-benchmark.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.9.0",

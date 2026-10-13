@@ -5,7 +5,7 @@ import { Spinner } from "../components/ui";
 import { useWorkbenchCapabilities } from "../state/useWorkbenchCapabilities";
 import { clampArtifactWidth } from "../lib/uiPreferences";
 import { useWorkspaceActions } from "./useWorkspaceActions";
-const ContentPreview = lazy(() => import("../content/ContentPreview").then(module => ({ default: module.ContentPreview })));
+import { ContentPreview } from "../content/ContentPreview";
 const WorkspaceWebView = lazy(() => import("./WorkspaceWebView").then(module => ({ default: module.WorkspaceWebView })));
 
 export function WorkspacePane({ width, onResize, onResizeEnd }: { width: number; onResize: (width: number) => void; onResizeEnd?: (width: number) => void }) {

@@ -5,7 +5,73 @@ import path from "node:path";
 import os from "node:os";
 import { verifyRuntime } from "./verify-runtime.mjs";
 import { diagnosticsBuildArgs } from "./diagnostics-build.mjs";
+import { collectDistributionLicenses, verifyDistributionLicenses } from "./distribution-licenses.mjs";
+import "./release-checks.mjs";
 import { assertContainedLinks, copyRelocatable, isolatedEnv, nativeTarget, pythonRelative, within } from "./runtime-lib.mjs";
+
+async function distributionFixture() {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "gogosling-distribution-test-"));
+  const write = async (relative, value) => {
+    const file = path.join(root, relative); await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, typeof value === "string" ? value : JSON.stringify(value));
+  };
+  await write("package-lock.json", { packages: { "node_modules/reader": { version: "1.0.0" }, "node_modules/electron": { version: "2.0.0" } } });
+  await write("node_modules/reader/package.json", { name: "reader", version: "1.0.0", license: "MIT" });
+  await write("node_modules/reader/LICENSE", "Synthetic upstream license.\n");
+  await write("node_modules/electron/package.json", { name: "electron", version: "2.0.0", license: "MIT" });
+  await write("node_modules/electron/dist/LICENSE", "Synthetic Electron license.\n");
+  await write("node_modules/electron/dist/LICENSES.chromium.html", "<p>Synthetic Chromium notices.</p>\n");
+  const index = { schema: 1, packages: [{ name: "reader", version: "1.0.0", lockPath: "node_modules/reader", notices: ["LICENSE"] }] };
+  await write("apps/web/dist/licenses/bundled-dependencies.json", index);
+  return { root, write, index, output: path.join(root, "output") };
+}
+
+test("distribution keeps complete upstream notices and rejects stale or traversing web indexes", async () => {
+  const { root, write, index, output } = await distributionFixture();
+  try {
+    await collectDistributionLicenses(root, output);
+    const verified = await verifyDistributionLicenses(output);
+    assert.equal(verified.packages.length, 2);
+    assert.equal(await fs.readFile(path.join(output, "javascript/reader@1.0.0/LICENSE"), "utf8"), "Synthetic upstream license.\n");
+    assert.equal(await fs.readFile(path.join(output, "electron/LICENSES.chromium.html"), "utf8"), "<p>Synthetic Chromium notices.</p>\n");
+    assert.equal(JSON.stringify(verified).includes(root), false);
+    index.packages[0].version = "9.0.0";
+    await write("apps/web/dist/licenses/bundled-dependencies.json", index);
+    await assert.rejects(() => collectDistributionLicenses(root, output), /stale/);
+    index.packages[0].version = "1.0.0"; index.packages[0].notices = ["../../outside/LICENSE"];
+    await write("apps/web/dist/licenses/bundled-dependencies.json", index);
+    await assert.rejects(() => collectDistributionLicenses(root, output), /Unsafe Web license/);
+    index.packages[0].lockPath = "node_modules/../../outside";
+    await write("apps/web/dist/licenses/bundled-dependencies.json", index);
+    await assert.rejects(() => collectDistributionLicenses(root, output), /Unsafe Web dependency/);
+    await fs.rm(path.join(output, "electron/LICENSES.chromium.html"));
+    await assert.rejects(() => verifyDistributionLicenses(output), /ENOENT/);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test("distribution refuses installed versions that differ from the lock file", async () => {
+  const { root, write, output } = await distributionFixture();
+  try {
+    await write("node_modules/reader/package.json", { name: "reader", version: "9.0.0" });
+    await assert.rejects(() => collectDistributionLicenses(root, output), /package-lock/);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test("native packages configure valid brand icons instead of the Electron default", async () => {
+  const desktop = path.resolve(import.meta.dirname, "..");
+  const config = await fs.readFile(path.join(desktop, "electron-builder.yml"), "utf8");
+  for (const ext of ["icns", "ico", "png"]) assert.ok(config.includes(`icon: build/icon.${ext}`));
+  const icns = await fs.readFile(path.join(desktop, "build/icon.icns"));
+  assert.equal(icns.toString("ascii", 0, 4), "icns"); assert.equal(icns.readUInt32BE(4), icns.length);
+  const ico = await fs.readFile(path.join(desktop, "build/icon.ico"));
+  assert.equal(ico.readUInt16LE(2), 1); assert.ok(ico.readUInt16LE(4) >= 4);
+  for (let i = 0; i < ico.readUInt16LE(4); i++) {
+    const size = ico.readUInt32LE(6 + i * 16 + 8), offset = ico.readUInt32LE(6 + i * 16 + 12);
+    assert.ok(offset + size <= ico.length); assert.equal(ico.toString("ascii", offset + 1, offset + 4), "PNG");
+  }
+  const png = await fs.readFile(path.join(desktop, "build/icon.png"));
+  assert.equal(png.toString("ascii", 1, 4), "PNG"); assert.equal(png.readUInt32BE(16), 512); assert.equal(png.readUInt32BE(20), 512);
+});
 
 test("diagnostics requires an explicit package flag and has no credential input", () => {
   assert.ok(diagnosticsBuildArgs([]).includes("--config.extraMetadata.gogoslingDiagnostics.enabled=false"));

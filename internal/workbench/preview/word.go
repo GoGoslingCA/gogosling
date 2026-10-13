@@ -54,7 +54,7 @@ func parseWord(ctx context.Context, in Input) (Document, error) {
 	return Document{Blocks: blocks, Warnings: []string{"content_layout"}}, nil
 }
 func wordParagraph(n *xmlNode, p *officePackage, rels map[string]string) []Block {
-	runs := []Run{}
+	var runs []Run
 	var body strings.Builder
 	for _, r := range n.all("r") {
 		text := r.texts()
@@ -67,7 +67,15 @@ func wordParagraph(n *xmlNode, p *officePackage, rels map[string]string) []Block
 		prop := r.child("rPr")
 		bold := prop.child("b")
 		italic := prop.child("i")
-		runs = append(runs, Run{Text: text, Bold: bold.name != "" && bold.attrs["val"] != "0", Italic: italic.name != "" && italic.attrs["val"] != "0"})
+		run := Run{Text: text, Bold: bold.name != "" && bold.attrs["val"] != "0", Italic: italic.name != "" && italic.attrs["val"] != "0"}
+		// 无段内格式时 Text 已完整表达内容，不再发送相同正文的第二份 JSON。
+		// 首次遇到格式时补回前面的普通文字，保留混合格式的实际顺序。
+		if len(runs) > 0 || run.Bold || run.Italic {
+			if len(runs) == 0 && body.Len() > 0 {
+				runs = append(runs, Run{Text: body.String()})
+			}
+			runs = append(runs, run)
+		}
 		body.WriteString(text)
 	}
 	block := Block{Kind: "paragraph", Text: body.String(), Runs: runs}

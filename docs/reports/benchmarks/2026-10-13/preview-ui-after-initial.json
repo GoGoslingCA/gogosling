@@ -1,0 +1,716 @@
+{
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "samples": [
+    {
+      "file": "notes-24k.md",
+      "startMs": 798.1999999880791,
+      "endMs": 1433.199999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 635,
+      "domNodes": 334,
+      "heapBytes": 24221851,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 1765,
+      "endMs": 1846.3999999910593,
+      "visibility": "visible",
+      "clickToPaintMs": 81.3999999910593,
+      "domNodes": 2,
+      "heapBytes": 20303536,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 2300.7999999970198,
+      "endMs": 2635.8999999910593,
+      "visibility": "visible",
+      "clickToPaintMs": 335.09999999403954,
+      "domNodes": 100,
+      "heapBytes": 23225517,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 2967.5,
+      "endMs": 3034.2999999970198,
+      "visibility": "visible",
+      "clickToPaintMs": 66.79999999701977,
+      "domNodes": 100,
+      "heapBytes": 28241131,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 3520.699999988079,
+      "endMs": 3560.2999999970198,
+      "visibility": "visible",
+      "clickToPaintMs": 39.6000000089407,
+      "domNodes": 503,
+      "heapBytes": 27393138,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 4068.199999988079,
+      "endMs": 4152.199999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 84,
+      "domNodes": 1110,
+      "heapBytes": 21391639,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 4601.79999999702,
+      "endMs": 4644.5999999940395,
+      "visibility": "visible",
+      "clickToPaintMs": 42.79999999701977,
+      "domNodes": 334,
+      "heapBytes": 25095643,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 4887.29999999702,
+      "endMs": 4963.5,
+      "visibility": "visible",
+      "clickToPaintMs": 76.20000000298023,
+      "domNodes": 2,
+      "heapBytes": 26529070,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 5153,
+      "endMs": 5211.899999991059,
+      "visibility": "visible",
+      "clickToPaintMs": 58.8999999910593,
+      "domNodes": 100,
+      "heapBytes": 21939498,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 5419.29999999702,
+      "endMs": 5479.5999999940395,
+      "visibility": "visible",
+      "clickToPaintMs": 60.29999999701977,
+      "domNodes": 100,
+      "heapBytes": 25614885,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 5702.899999991059,
+      "endMs": 5745.5,
+      "visibility": "visible",
+      "clickToPaintMs": 42.6000000089407,
+      "domNodes": 503,
+      "heapBytes": 27752249,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 5985.399999991059,
+      "endMs": 6052.29999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 66.90000000596046,
+      "domNodes": 1110,
+      "heapBytes": 25741676,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 6252.199999988079,
+      "endMs": 6296.0999999940395,
+      "visibility": "visible",
+      "clickToPaintMs": 43.900000005960464,
+      "domNodes": 334,
+      "heapBytes": 22929478,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 6519.699999988079,
+      "endMs": 6594.899999991059,
+      "visibility": "visible",
+      "clickToPaintMs": 75.20000000298023,
+      "domNodes": 2,
+      "heapBytes": 24282784,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 6786.29999999702,
+      "endMs": 6829.79999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 43.5,
+      "domNodes": 100,
+      "heapBytes": 25669240,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 7072.79999999702,
+      "endMs": 7134.79999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 62,
+      "domNodes": 100,
+      "heapBytes": 29339616,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 7352.79999999702,
+      "endMs": 7396.899999991059,
+      "visibility": "visible",
+      "clickToPaintMs": 44.099999994039536,
+      "domNodes": 503,
+      "heapBytes": 31422062,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 7623.199999988079,
+      "endMs": 7701.699999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 78.5,
+      "domNodes": 1110,
+      "heapBytes": 33524587,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 7887,
+      "endMs": 7930.699999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 43.69999998807907,
+      "domNodes": 334,
+      "heapBytes": 35814943,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 8153.29999999702,
+      "endMs": 8235.199999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 81.8999999910593,
+      "domNodes": 2,
+      "heapBytes": 26483091,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 8420.5,
+      "endMs": 8464.5,
+      "visibility": "visible",
+      "clickToPaintMs": 44,
+      "domNodes": 100,
+      "heapBytes": 27641519,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 8707.699999988079,
+      "endMs": 8770.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 62.70000000298023,
+      "domNodes": 100,
+      "heapBytes": 29981235,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 8989,
+      "endMs": 9031.59999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 42.599999994039536,
+      "domNodes": 503,
+      "heapBytes": 31984179,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 9256,
+      "endMs": 9339.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 83.3999999910593,
+      "domNodes": 1110,
+      "heapBytes": 33833403,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 9523.29999999702,
+      "endMs": 9565.09999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 41.79999999701977,
+      "domNodes": 334,
+      "heapBytes": 35964407,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 9789.29999999702,
+      "endMs": 9869.89999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 80.59999999403954,
+      "domNodes": 2,
+      "heapBytes": 29080091,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 10055.29999999702,
+      "endMs": 10099.199999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 43.8999999910593,
+      "domNodes": 100,
+      "heapBytes": 30237371,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 10339.699999988079,
+      "endMs": 10399.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 59.70000000298023,
+      "domNodes": 100,
+      "heapBytes": 32567911,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 10626.199999988079,
+      "endMs": 10666.199999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 40,
+      "domNodes": 503,
+      "heapBytes": 34577303,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 10908.199999988079,
+      "endMs": 10972.09999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 63.900000005960464,
+      "domNodes": 1110,
+      "heapBytes": 22458695,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 11191.89999999106,
+      "endMs": 11233.5,
+      "visibility": "visible",
+      "clickToPaintMs": 41.6000000089407,
+      "domNodes": 334,
+      "heapBytes": 24664621,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 11458.09999999404,
+      "endMs": 11536.79999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 78.70000000298023,
+      "domNodes": 2,
+      "heapBytes": 26075293,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 11723.79999999702,
+      "endMs": 11766.199999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 42.3999999910593,
+      "domNodes": 100,
+      "heapBytes": 27486897,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 12006.89999999106,
+      "endMs": 12067.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 60.5,
+      "domNodes": 100,
+      "heapBytes": 31167313,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 12291.79999999702,
+      "endMs": 12334.199999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 42.3999999910593,
+      "domNodes": 503,
+      "heapBytes": 33213951,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 12575.5,
+      "endMs": 12639.29999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 63.79999999701977,
+      "domNodes": 1110,
+      "heapBytes": 35098707,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 12857.59999999404,
+      "endMs": 12901.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 43.79999999701977,
+      "domNodes": 334,
+      "heapBytes": 26587531,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 13124.59999999404,
+      "endMs": 13204,
+      "visibility": "visible",
+      "clickToPaintMs": 79.40000000596046,
+      "domNodes": 2,
+      "heapBytes": 27840939,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 13391.699999988079,
+      "endMs": 13452,
+      "visibility": "visible",
+      "clickToPaintMs": 60.30000001192093,
+      "domNodes": 100,
+      "heapBytes": 29009147,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 13675.09999999404,
+      "endMs": 13734.59999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 59.5,
+      "domNodes": 100,
+      "heapBytes": 31351187,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 13958.29999999702,
+      "endMs": 14002.199999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 43.8999999910593,
+      "domNodes": 503,
+      "heapBytes": 33360147,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 14242.199999988079,
+      "endMs": 14305.09999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 62.900000005960464,
+      "domNodes": 1110,
+      "heapBytes": 35225683,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 14526.199999988079,
+      "endMs": 14568.5,
+      "visibility": "visible",
+      "clickToPaintMs": 42.30000001192093,
+      "domNodes": 334,
+      "heapBytes": 29265119,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 14793.79999999702,
+      "endMs": 14873.699999988079,
+      "visibility": "visible",
+      "clickToPaintMs": 79.8999999910593,
+      "domNodes": 2,
+      "heapBytes": 22058828,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 15060.199999988079,
+      "endMs": 15103.29999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 43.1000000089407,
+      "domNodes": 100,
+      "heapBytes": 23476764,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 15345.09999999404,
+      "endMs": 15407.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 62.29999999701977,
+      "domNodes": 100,
+      "heapBytes": 27155993,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 15629.39999999106,
+      "endMs": 15670.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 41,
+      "domNodes": 503,
+      "heapBytes": 29236239,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 15912.199999988079,
+      "endMs": 15977,
+      "visibility": "visible",
+      "clickToPaintMs": 64.80000001192093,
+      "domNodes": 1110,
+      "heapBytes": 31304502,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 16194.89999999106,
+      "endMs": 16237.5,
+      "visibility": "visible",
+      "clickToPaintMs": 42.6000000089407,
+      "domNodes": 334,
+      "heapBytes": 33482921,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 16462.29999999702,
+      "endMs": 16541,
+      "visibility": "visible",
+      "clickToPaintMs": 78.70000000298023,
+      "domNodes": 2,
+      "heapBytes": 34688893,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 16729,
+      "endMs": 16771.29999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 42.29999999701977,
+      "domNodes": 100,
+      "heapBytes": 35864665,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 17012.59999999404,
+      "endMs": 17076.59999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 64,
+      "domNodes": 100,
+      "heapBytes": 38213257,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 17295,
+      "endMs": 17338.29999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 43.29999999701977,
+      "domNodes": 503,
+      "heapBytes": 40234445,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 17578.29999999702,
+      "endMs": 17643.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 65.09999999403954,
+      "domNodes": 1110,
+      "heapBytes": 42083813,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 17861.59999999404,
+      "endMs": 17905.59999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 44,
+      "domNodes": 334,
+      "heapBytes": 44228829,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 18129.5,
+      "endMs": 18207.29999999702,
+      "visibility": "visible",
+      "clickToPaintMs": 77.79999999701977,
+      "domNodes": 2,
+      "heapBytes": 45407981,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 18395.09999999404,
+      "endMs": 18439.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 44.29999999701977,
+      "domNodes": 100,
+      "heapBytes": 46588721,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 18680.59999999404,
+      "endMs": 19051.19999998808,
+      "visibility": "visible",
+      "clickToPaintMs": 370.59999999403954,
+      "domNodes": 100,
+      "heapBytes": 48970189,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 19212.29999999702,
+      "endMs": 19256.59999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 44.29999999701977,
+      "domNodes": 503,
+      "heapBytes": 31130745,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 19499.69999998808,
+      "endMs": 19591,
+      "visibility": "visible",
+      "clickToPaintMs": 91.30000001192093,
+      "domNodes": 1110,
+      "heapBytes": 22524868,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-24k.md",
+      "startMs": 19796.29999999702,
+      "endMs": 19840.5,
+      "visibility": "visible",
+      "clickToPaintMs": 44.20000000298023,
+      "domNodes": 334,
+      "heapBytes": 24731782,
+      "longTaskMs": 0
+    },
+    {
+      "file": "notes-100k.md",
+      "startMs": 20066.19999998808,
+      "endMs": 20144,
+      "visibility": "visible",
+      "clickToPaintMs": 77.80000001192093,
+      "domNodes": 2,
+      "heapBytes": 26129878,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-medium.docx",
+      "startMs": 20331.89999999106,
+      "endMs": 20391,
+      "visibility": "visible",
+      "clickToPaintMs": 59.1000000089407,
+      "domNodes": 100,
+      "heapBytes": 27551106,
+      "longTaskMs": 0
+    },
+    {
+      "file": "document-large.docx",
+      "startMs": 20601.29999999702,
+      "endMs": 20661.39999999106,
+      "visibility": "visible",
+      "clickToPaintMs": 60.099999994039536,
+      "domNodes": 100,
+      "heapBytes": 31226282,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-table.md",
+      "startMs": 20883.59999999404,
+      "endMs": 20924.59999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 41,
+      "domNodes": 503,
+      "heapBytes": 33278976,
+      "longTaskMs": 0
+    },
+    {
+      "file": "dense-tables.docx",
+      "startMs": 21167.59999999404,
+      "endMs": 21248.09999999404,
+      "visibility": "visible",
+      "clickToPaintMs": 80.5,
+      "domNodes": 1110,
+      "heapBytes": 35158764,
+      "longTaskMs": 0
+    }
+  ],
+  "longTasks": [
+    {
+      "start": 1792.199999988079,
+      "duration": 54
+    },
+    {
+      "start": 4911.399999991059,
+      "duration": 51
+    },
+    {
+      "start": 8180.79999999702,
+      "duration": 54
+    },
+    {
+      "start": 9815.5,
+      "duration": 54
+    },
+    {
+      "start": 11483.5,
+      "duration": 53
+    },
+    {
+      "start": 13151.5,
+      "duration": 52
+    },
+    {
+      "start": 14818.699999988079,
+      "duration": 54
+    },
+    {
+      "start": 16487.59999999404,
+      "duration": 53
+    },
+    {
+      "start": 18155.69999998808,
+      "duration": 51
+    },
+    {
+      "start": 19540.29999999702,
+      "duration": 50
+    },
+    {
+      "start": 20090.19999998808,
+      "duration": 53
+    }
+  ],
+  "scope": "Built React client, real isolated daemon, 1280x900; six first loads then ten warm switches per file; click event to two animation frames after active content mount",
+  "longTaskNote": "Use longTasks entries within each sample startMs/endMs; per-sample longTaskMs can undercount delayed PerformanceObserver delivery"
+}

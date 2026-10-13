@@ -1,0 +1,114 @@
+{
+  "before": {
+    "dense-table.md": {
+      "n": 10,
+      "first_open_ms": 173.8,
+      "p50_ms": 57.0,
+      "p95_ms": 158.2,
+      "dom_nodes": 5411,
+      "long_tasks": 1,
+      "max_long_task_ms": 92
+    },
+    "dense-tables.docx": {
+      "n": 10,
+      "first_open_ms": 323.6,
+      "p50_ms": 340.4,
+      "p95_ms": 363.3,
+      "dom_nodes": 7770,
+      "long_tasks": 10,
+      "max_long_task_ms": 279
+    },
+    "document-large.docx": {
+      "n": 10,
+      "first_open_ms": 90.8,
+      "p50_ms": 92.1,
+      "p95_ms": 93.3,
+      "dom_nodes": 500,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    },
+    "document-medium.docx": {
+      "n": 10,
+      "first_open_ms": 339.3,
+      "p50_ms": 58.9,
+      "p95_ms": 73.7,
+      "dom_nodes": 500,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    },
+    "notes-100k.md": {
+      "n": 10,
+      "first_open_ms": 81.3,
+      "p50_ms": 77.3,
+      "p95_ms": 83.2,
+      "dom_nodes": 3,
+      "long_tasks": 5,
+      "max_long_task_ms": 51
+    },
+    "notes-24k.md": {
+      "n": 10,
+      "first_open_ms": 667.5,
+      "p50_ms": 53.1,
+      "p95_ms": 176.4,
+      "dom_nodes": 1110,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    }
+  },
+  "after": {
+    "dense-table.md": {
+      "n": 10,
+      "first_open_ms": 45.2,
+      "p50_ms": 42.4,
+      "p95_ms": 43.7,
+      "dom_nodes": 503,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    },
+    "dense-tables.docx": {
+      "n": 10,
+      "first_open_ms": 86.6,
+      "p50_ms": 71.5,
+      "p95_ms": 81.9,
+      "dom_nodes": 1110,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    },
+    "document-large.docx": {
+      "n": 10,
+      "first_open_ms": 66.6,
+      "p50_ms": 61.5,
+      "p95_ms": 67.2,
+      "dom_nodes": 100,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    },
+    "document-medium.docx": {
+      "n": 10,
+      "first_open_ms": 56.6,
+      "p50_ms": 42.0,
+      "p95_ms": 43.9,
+      "dom_nodes": 100,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    },
+    "notes-100k.md": {
+      "n": 10,
+      "first_open_ms": 41.5,
+      "p50_ms": 41.9,
+      "p95_ms": 44.3,
+      "dom_nodes": 301,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    },
+    "notes-24k.md": {
+      "n": 10,
+      "first_open_ms": 42.2,
+      "p50_ms": 43.8,
+      "p95_ms": 44.7,
+      "dom_nodes": 301,
+      "long_tasks": 0,
+      "max_long_task_ms": 0
+    }
+  }
+}

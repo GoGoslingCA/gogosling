@@ -126,4 +126,23 @@ describe("共享项目创建入口", () => {
     await act(async () => button("common.save").click());
     expect(submit).toHaveBeenCalledWith(agent.id, "Renamed project", "");
   });
+
+  it("新建项目收起可选说明，展开编辑再收起后仍提交完整说明", async () => {
+    await mount(); await ready(() => expect(api.agents.list).toHaveBeenCalledOnce());
+    const details = host.querySelector<HTMLDetailsElement>(".project-form-description")!;
+    expect(details.open).toBe(false);
+    await setName("A project with notes");
+    await act(async () => details.querySelector("summary")!.click());
+    expect(details.open).toBe(true);
+    await act(async () => {
+      const input = details.querySelector<HTMLTextAreaElement>("textarea")!;
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "Keep the brief with this project.");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      details.querySelector("summary")!.click();
+    });
+    expect(details.open).toBe(false);
+    await act(async () => button("common.save").click());
+    await ready(() => expect(onCreated).toHaveBeenCalledOnce());
+    expect(api.workbench.createProject).toHaveBeenCalledWith({ agent_id: agent.id, name: "A project with notes", description: "Keep the brief with this project." });
+  });
 });
