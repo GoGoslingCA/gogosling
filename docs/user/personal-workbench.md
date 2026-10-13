@@ -109,7 +109,7 @@ Skills and extensions can be filtered by name and type. MCP status has a manual 
 
 A failed task shows a compact notice above the composer. Technical details identify the local task, run, time, version, and available failure reason. A new run, a different task, success, or cancellation does not reuse an old failure notice. Empty model output is treated as failure without automatic replay.
 
-Source builds provide local failure details only. Diagnostic-enabled desktop packages can prepare a report for a verified failed run; there is no general upload entry in Settings. The report excludes chat/file content, raw provider errors, and user identifiers and requires explicit consent. Task-report delivery still requires the [server schema-2 rollout](../development/diagnostics-server-handoff.md#task-failure-reports-schema-2); a service rejection is shown clearly rather than replaced with a generic report.
+Source builds provide local failure details only. Diagnostic-enabled desktop packages can prepare a report for a verified failed run; there is no general upload entry in Settings. The report excludes chat/file content, raw provider errors, and user identifiers and requires explicit consent. Task-report delivery uses the deployed [schema-2 contract](../development/diagnostics-server-handoff.md#task-failure-reports-schema-2); a service rejection is shown clearly rather than replaced with a generic report.
 
 ### 4.1 Tasks
 
@@ -335,3 +335,14 @@ The team workflow is a separate draft. It requires explicit choices before perso
 ### Excluded buttons
 
 The local-edition plan adds no automatic resume, multiple assistants per project, cloud continuation, assistant delegation, Office editing in preview, or calculated account balances. Selecting materials does not redefine file permissions. Messaging and web-retrieval shortcuts, online conversion, and sharing links are outside that draft's scope; this does not disable existing connections or tools. Phone/computer synchronization is unavailable, and the proposed mobile entry would open only the official download page.
+
+
+## Open files and webpages
+
+The sidebar's **Open items** list keeps up to 12 files and webpages within reach. Open a file from task attachments, Workspace files, or project materials; select it in the sidebar to return to it. A reading pane appears beside the task on wide windows, or as a separate view on narrower windows. **Back to task** keeps the item in the list.
+
+Only the selected file is loaded for reading. Your current conversation and result draft remain in place while you inspect another file. Reading a file does not add it to the model's context.
+
+Use **Open webpage** to add a public HTTP(S) address. Desktop keeps one webpage loaded at a time; returning to a page replaced by another webpage reloads it. A page that asks to preserve unsaved changes requires confirmation before leaving. Use **Open in browser** for sites that need downloads, popups, or additional browser permissions. Browser clients and older desktop shells use that external action directly.
+
+Opened items are temporary. File entries are cleared when the daemon connection changes. Webpage entries remain available during the app session; URLs and page content are not saved in UI preferences. See [workspace tabs](../development/workspace-tabs.md) for the resource limits and isolation boundary.

@@ -8,6 +8,7 @@
 // 打包后 ConnectionInfo 也不带令牌（proxy 模式），只有开发模式（direct）才把令牌交给页面。
 
 import type { DiagnosticCategory, DiagnosticPreview, DiagnosticReceipt, DiagnosticResult, DiagnosticStatus, DiagnosticTaskRequest } from "./diagnostics.js";
+import type { WorkspaceBrowserBridge } from "./workspace-browser.js";
 
 /** IPC 通道名。前缀 gogosling: 避免与第三方 preload（无）或 Electron 内部通道冲突。 */
 export const IPC = {
@@ -27,6 +28,13 @@ export const IPC = {
   diagnosticsCancelPreparation: "gogosling:diagnostics:cancel-preparation",
   diagnosticsSend: "gogosling:diagnostics:send",
   diagnosticsCancel: "gogosling:diagnostics:cancel",
+  workspaceBrowserShow: "gogosling:workspace-browser:show",
+  workspaceBrowserHide: "gogosling:workspace-browser:hide",
+  workspaceBrowserClose: "gogosling:workspace-browser:close",
+  workspaceBrowserNavigate: "gogosling:workspace-browser:navigate",
+  workspaceBrowserAction: "gogosling:workspace-browser:action",
+  workspaceBrowserState: "gogosling:workspace-browser:state",
+  workspaceBrowserCurrent: "gogosling:workspace-browser:current",
 } as const;
 
 /** 每个通道的字面量类型；preload 用它校验自己重写的通道名。 */
@@ -119,6 +127,7 @@ export interface ShellVersion {
  * 基础连接与可选诊断成员；apps/web 的 global.d.ts 应与之保持一致。
  */
 export interface GogoslingBridge {
+  workspaceBrowser?: WorkspaceBrowserBridge;
   /** 守护进程就绪时返回连接信息（打包后为 proxy 模式、不含令牌），否则 null。 */
   getConnection(): Promise<ConnectionInfo | null>;
   /** 订阅守护进程状态；订阅后会立即收到一次当前状态。返回取消订阅函数。 */

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useApi } from "../state/ConnectionContext";
@@ -9,14 +9,16 @@ import { folderBreadcrumbs, MAX_FIND_QUERY } from "./readingNavigation";
 import "./preview.css";
 import "./viewer-navigation.css";
 
-interface Props { agentId: string; onClose: () => void; layoutAvailable?: boolean }
+export interface FileBrowserLocation { folder: string; filter: string }
+interface Props { agentId: string; onClose: () => void; layoutAvailable?: boolean; onOpenFile?: (path: string) => void; initialLocation?: FileBrowserLocation; onLocationChange?: (location: FileBrowserLocation) => void }
 export function FileBrowser(props: Props) { return <FolderBrowser key={props.agentId} {...props} />; }
-function FolderBrowser({ agentId, onClose, layoutAvailable }: Props) {
+function FolderBrowser({ agentId, onClose, layoutAvailable, onOpenFile, initialLocation, onLocationChange }: Props) {
   const { t } = useTranslation();
   const api = useApi();
-  const [folder, setFolder] = useState("");
+  const [folder, setFolder] = useState(initialLocation?.folder ?? "");
   const [file, setFile] = useState("");
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState(initialLocation?.filter ?? "");
+  useEffect(() => { onLocationChange?.({ folder, filter }); }, [folder, filter, onLocationChange]);
   const query = useQuery({ queryKey: ["preview-files", agentId, folder], queryFn: ({ signal }) => api.preview.list(agentId, folder, signal), gcTime: 0, staleTime: 10000, retry: false, refetchOnWindowFocus: false, enabled: !file });
   const entries = useMemo(() => {
     const needle = filter.toLowerCase();
@@ -40,7 +42,7 @@ function FolderBrowser({ agentId, onClose, layoutAvailable }: Props) {
       {query.isPending ? <Spinner /> : null}
       {query.data?.truncated ? <p className="muted">{t("preview.warning_truncated")}</p> : null}
       {query.data && !entries.length ? <p className="reading-empty">{t(filter ? "readingNavigation.noFiles" : "readingNavigation.emptyFolder")}</p> : null}
-      {entries.map(item => <button type="button" className="preview-entry preview-file-link" key={item.path} onClick={() => item.is_dir ? openFolder(item.path) : setFile(item.path)}><Icon name={item.is_dir ? "folder" : "document"} size={17} /><span>{item.name}</span>{!item.is_dir ? <small>{Math.ceil(item.size / 1024)} KB</small> : null}</button>)}
+      {entries.map(item => <button type="button" className="preview-entry preview-file-link" key={item.path} onClick={() => item.is_dir ? openFolder(item.path) : onOpenFile ? onOpenFile(item.path) : setFile(item.path)}><Icon name={item.is_dir ? "folder" : "document"} size={17} /><span>{item.name}</span>{!item.is_dir ? <small>{Math.ceil(item.size / 1024)} KB</small> : null}</button>)}
     </div>
   </section>;
 }

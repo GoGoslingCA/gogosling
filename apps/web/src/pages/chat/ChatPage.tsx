@@ -4,6 +4,8 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useBlocker, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import type { FileBrowserLocation } from "../../content/FileBrowser";
+import { useWorkspaceActions } from "../../workspace/useWorkspaceActions";
 import { useApi } from "../../state/ConnectionContext";
 import { useLiveRunsDispatch, useSessionLiveRuns } from "../../state/EventStreamProvider";
 import { queryKeys } from "../../state/queryKeys";
@@ -51,6 +53,7 @@ function ChatWorkspace() {
   const { t } = useTranslation();
   const api = useApi();
   const caps = useWorkbenchCapabilities();
+  const workspace = useWorkspaceActions();
   const location = useLocation();
   const currentLocationKey = useRef(location.key);
   const mounted = useRef(true);
@@ -83,6 +86,7 @@ function ChatWorkspace() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [previewFile,setPreviewFile] = useState<string | null>(null);
   const [filesOpen,setFilesOpen] = useState(false);
+  const [fileBrowserLocation, setFileBrowserLocation] = useState<FileBrowserLocation>({ folder: "", filter: "" });
   const [artifactOpen, setArtifactOpen] = useState(false);
   const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 1250px)").matches);
   useEffect(() => {
@@ -94,6 +98,8 @@ function ChatWorkspace() {
   const [artifactDirty, setArtifactDirty] = useState(false);
   const [composerDirty, setComposerDirty] = useState(false);
   const artifactIntent = useRef(0);
+  const allowedArtifactLocation = useRef<string | null>(null);
+  useEffect(() => { allowedArtifactLocation.current = null; }, [location.key]);
   const [savedArtifactId, setSavedArtifactId] = useState<string | null>(null);
   const activeSessionRef = useRef(sessionId); activeSessionRef.current = sessionId;
   const [requestedResult, setRequestedResult] = useState<{messageId: string; version: number} | null>(null);
@@ -115,8 +121,10 @@ function ChatWorkspace() {
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     const pathChanged = currentLocation.pathname !== nextLocation.pathname;
+    const nextArtifact = new URLSearchParams(nextLocation.search).get("artifact");
+    const artifactChanged = !!nextArtifact && nextArtifact !== new URLSearchParams(currentLocation.search).get("artifact") && nextArtifact !== allowedArtifactLocation.current;
     const startScopeChanged = !sessionId && (new URLSearchParams(currentLocation.search).get("project") ?? "") !== (new URLSearchParams(nextLocation.search).get("project") ?? "");
-    return !allowStartNavigation.current && ((artifactDirty && pathChanged) || (homeDirty && (pathChanged || startScopeChanged)) || (composerDirty && !nextLocation.pathname.startsWith("/chat")));
+    return !allowStartNavigation.current && ((artifactDirty && (pathChanged || artifactChanged)) || (homeDirty && (pathChanged || startScopeChanged)) || (composerDirty && !nextLocation.pathname.startsWith("/chat")));
   });
   useEffect(() => {
     if (blocker.state === "blocked") {
@@ -127,7 +135,7 @@ function ChatWorkspace() {
   useEffect(() => {
     if (search.get("history") === "1") { setHistoryOpen(true); requestAnimationFrame(() => searchInput.current?.focus()); }
   }, [search]);
-  useEffect(() => { setArtifactDirty(false); setPreviewFile(null); setFilesOpen(false); setTab("conversation"); setPendingContext(null); setRequestedResult(null); setRetryDraft(null); setArtifactOpen(false); setSavedArtifactId(null); artifactIntent.current += 1; allowStartNavigation.current = false; }, [sessionId]);
+  useEffect(() => { setArtifactDirty(false); setPreviewFile(null); setFilesOpen(false); setFileBrowserLocation({ folder: "", filter: "" }); setTab("conversation"); setPendingContext(null); setRequestedResult(null); setRetryDraft(null); setArtifactOpen(false); setSavedArtifactId(null); artifactIntent.current += 1; allowStartNavigation.current = false; }, [sessionId]);
   const [messageMore, setMessageMore] = useState<Record<string, boolean>>({});
   const detailKey = queryKeys.session(sessionId ?? "");
 
@@ -301,9 +309,9 @@ function ChatWorkspace() {
   const savedArtifacts = useQuery({ queryKey: [...queryKeys.artifacts, "session", sessionId], queryFn: () => api.workbench.listArtifacts({ session_id: sessionId!, limit: 200 }), enabled: caps.artifacts && !!sessionId });
   useEffect(() => {
     const id = search.get("artifact");
-    if (caps.artifacts && id && sessionId) { setSavedArtifactId(id); setArtifactOpen(true); setTab("artifact"); }
-  }, [caps.artifacts, search, sessionId]);
-  const openPersistent = (id: string) => { setPreviewFile(null); setFilesOpen(false); artifactIntent.current += 1; setSavedArtifactId(id); setArtifactOpen(true); setTab("artifact"); const params = new URLSearchParams(search); params.set("artifact", id); setSearch(params, { replace: true }); };
+    if (caps.artifacts && id && sessionId && id !== savedArtifactId) { workspace.tabs?.store.hide(); setSavedArtifactId(id); setArtifactOpen(true); setTab("artifact"); }
+  }, [caps.artifacts, search, sessionId, savedArtifactId]);
+  const openPersistent = (id: string) => { if (id !== savedArtifactId && artifactDirty && !window.confirm(t("work.leaveUnsaved"))) return; allowedArtifactLocation.current = id; workspace.tabs?.store.hide(); setPreviewFile(null); setFilesOpen(false); artifactIntent.current += 1; setSavedArtifactId(id); setArtifactOpen(true); setTab("artifact"); const params = new URLSearchParams(search); params.set("artifact", id); setSearch(params, { replace: true }); };
   const createArtifact = useMutation({
     mutationFn: async ({ messageId, codeIndex }: { messageId: string; codeIndex?: number; intent: number }) => {
       const source = extractArtifacts(messages.data ?? []);
@@ -348,10 +356,10 @@ function ChatWorkspace() {
     <section className="chat-main">
       {sessionId || projectId ? <div className="chat-head">
         <div className="workspace-title"><span className="eyebrow">{t("work.workspace")}</span><h1>{sessionId ? session?.title || t("chat.untitled") : t("work.startPage")}</h1></div>
-        <button type="button" className="btn ghost sm" onClick={showHistory} title={t("work.searchShortcut")}><Icon name="clock" /><span className="optional-label">{t("work.history")}</span></button>
+        <button type="button" className="btn ghost sm" onClick={showHistory} aria-label={t("work.history")} title={t("work.searchShortcut")}><Icon name="clock" /><span className="optional-label">{t("work.history")}</span></button>
         {sessionId ? <>
-          {caps.preview ? <button type="button" className="btn ghost sm" onClick={() => {setPreviewFile(null);setFilesOpen(true);setArtifactOpen(true);setTab("artifact");}}><Icon name="folder"/><span className="optional-label">{t("preview.files")}</span></button> : null}
-          <button type="button" className={`btn sm ${artifactOpen ? "selected" : "ghost"}`} onClick={() => { setPreviewFile(null); setFilesOpen(false); setArtifactOpen(true); setTab("artifact"); }} aria-label={t("work.openArtifact")}><Icon name="panel" /><span className="optional-label">{t("work.artifact")}</span></button>
+          {caps.preview ? <button type="button" className="btn ghost sm" aria-label={t("preview.files")} title={t("preview.files")} onClick={() => {workspace.tabs?.store.hide();setPreviewFile(null);setFilesOpen(true);setArtifactOpen(true);setTab("artifact");}}><Icon name="folder"/><span className="optional-label">{t("preview.files")}</span></button> : null}
+          <button type="button" className={`btn sm ${artifactOpen ? "selected" : "ghost"}`} onClick={() => { workspace.tabs?.store.hide(); setPreviewFile(null); setFilesOpen(false); setArtifactOpen(true); setTab("artifact"); }} aria-label={t("work.openArtifact")} title={t("work.openArtifact")}><Icon name="panel" /><span className="optional-label">{t("work.artifact")}</span></button>
           <details className="task-menu"><summary className="btn ghost sm" aria-label={t("work.taskActions")}><Icon name="more" /></summary><div className="task-menu-items">
             <button type="button" className="btn ghost sm" disabled={!session || actionBusy} onClick={() => { if (session) beginRename(session); }}>{t("chat.rename")}</button>
             <button type="button" className="btn ghost sm" disabled={!session || actionBusy || activeRunId !== null || send.isPending} onClick={() => archiveSession.mutate({ id: sessionId, status: archived ? "active" : "archived" })}>{t(archived ? "chat.restore" : "chat.archive")}</button>
@@ -394,7 +402,7 @@ function ChatWorkspace() {
             const previous = (messages.data ? [...messages.data].reverse() : []).find((message) => message.role === "user")?.parts.filter((part) => part.type === "text").map((part) => part.text ?? "").join("\n") ?? "";
             setRetryDraft({ sessionId, id: crypto.randomUUID(), text: t("work.retryPrompt", { goal: previous }) });
           }} />
-          <MessageList onOpenFile={caps.preview ? attachment => {setPreviewFile(attachment.path);setFilesOpen(false);setArtifactOpen(true);setTab("artifact");} : undefined} key={sessionId} messages={messages.data ?? []} liveRuns={liveRuns} recovered={activeRun?.source === "session" ? { runId: activeRun.runId, status: activeRun.status } : null} loading={messages.isPending} timeZone={timeZone} persistResults={caps.artifacts} onOpenArtifact={(messageId, codeIndex) => { setPreviewFile(null);setFilesOpen(false);
+          <MessageList onOpenFile={caps.preview ? attachment => { if (workspace.tabs && agentOfSession) workspace.openFile({ agentId: agentOfSession.id, path: attachment.path, title: attachment.name }); else {setPreviewFile(attachment.path);setFilesOpen(false);setArtifactOpen(true);setTab("artifact");} } : undefined} key={sessionId} messages={messages.data ?? []} liveRuns={liveRuns} recovered={activeRun?.source === "session" ? { runId: activeRun.runId, status: activeRun.status } : null} loading={messages.isPending} timeZone={timeZone} persistResults={caps.artifacts} onOpenArtifact={(messageId, codeIndex) => { workspace.tabs?.store.hide(); setPreviewFile(null);setFilesOpen(false);
             if (caps.artifacts) { if (!createArtifact.isPending) createArtifact.mutate({ messageId, codeIndex, intent: ++artifactIntent.current }); }
             else { setRequestedResult((current) => ({ messageId, version: (current?.version ?? 0) + 1 })); setArtifactOpen(true); setTab("artifact"); }
           }} />
@@ -421,8 +429,8 @@ function ChatWorkspace() {
         onPointerUp={(event) => { resizeStart.current = null; event.currentTarget.releasePointerCapture(event.pointerId); writeUiPreferences({ artifactWidth }); }}
         onPointerCancel={() => { resizeStart.current = null; }}
         onKeyDown={(event) => { const next = event.key === "ArrowLeft" ? artifactWidth + 20 : event.key === "ArrowRight" ? artifactWidth - 20 : event.key === "Home" ? 420 : event.key === "End" ? 640 : null; if (next !== null) { event.preventDefault(); const width = clampArtifactWidth(next); setArtifactWidth(width); writeUiPreferences({ artifactWidth: width }); } }} />
-      <div className="artifact-editor-preserved" hidden={previewFile !== null || filesOpen}>{caps.artifacts && savedArtifactId ? <SavedArtifactEditor artifactId={savedArtifactId} sessionId={sessionId} visible={artifactOpen && !previewFile && !filesOpen && (!narrow || tab === "artifact")} onClose={() => { artifactIntent.current += 1; setArtifactOpen(false); setTab("conversation"); const params = new URLSearchParams(search); params.delete("artifact"); setSearch(params, { replace: true }); }} onDirtyChange={setArtifactDirty} /> : caps.artifacts ? <section className="artifact-panel"><header className="artifact-head"><h2>{t("versions.savedResults")}</h2><button className="btn ghost" onClick={() => { setArtifactOpen(false); setTab("conversation"); }}>{t("common.close")}</button></header><p className="artifact-notice">{t("versions.chooseHint")}</p>{savedArtifacts.data?.map((item) => <button className="btn ghost" key={item.id} onClick={() => openPersistent(item.id)}>{item.title}</button>)}</section> : <ArtifactPanel requestedMessageId={requestedResult?.messageId} requestedVersion={requestedResult?.version} visible={artifactOpen && !previewFile && !filesOpen && (!narrow || tab === "artifact")} key={sessionId} sessionId={sessionId} messages={messages.data ?? []} onDirtyChange={setArtifactDirty} onClose={() => { artifactIntent.current += 1; setArtifactOpen(false); setTab("conversation"); }} onUseAsContext={(attachment) => { setPendingContext({ sessionId, attachment }); setTab("conversation"); }} />}</div>
-      {caps.preview && artifactOpen && (!narrow || tab === "artifact") && agentOfSession ? <Suspense fallback={<p className="muted">{t("common.loading")}</p>}>{previewFile ? <ContentPreview agentId={agentOfSession.id} path={previewFile} layoutAvailable={caps.previewLayout} onClose={() => {setPreviewFile(null);setArtifactOpen(false);setTab("conversation");}}/> : filesOpen ? <FileBrowser key={agentOfSession.id} agentId={agentOfSession.id} layoutAvailable={caps.previewLayout} onClose={() => {setFilesOpen(false);setArtifactOpen(false);setTab("conversation");}}/> : null}</Suspense> : null}
+      <div className="artifact-editor-preserved" hidden={previewFile !== null || filesOpen}>{caps.artifacts && savedArtifactId ? <SavedArtifactEditor artifactId={savedArtifactId} sessionId={sessionId} visible={artifactOpen && !workspace.tabs?.visible && !previewFile && !filesOpen && (!narrow || tab === "artifact")} onClose={() => { artifactIntent.current += 1; setArtifactOpen(false); setTab("conversation"); const params = new URLSearchParams(search); params.delete("artifact"); setSearch(params, { replace: true }); }} onDirtyChange={setArtifactDirty} /> : caps.artifacts ? <section className="artifact-panel"><header className="artifact-head"><h2>{t("versions.savedResults")}</h2><button className="btn ghost" onClick={() => { setArtifactOpen(false); setTab("conversation"); }}>{t("common.close")}</button></header><p className="artifact-notice">{t("versions.chooseHint")}</p>{savedArtifacts.data?.map((item) => <button className="btn ghost" key={item.id} onClick={() => openPersistent(item.id)}>{item.title}</button>)}</section> : <ArtifactPanel requestedMessageId={requestedResult?.messageId} requestedVersion={requestedResult?.version} visible={artifactOpen && !workspace.tabs?.visible && !previewFile && !filesOpen && (!narrow || tab === "artifact")} key={sessionId} sessionId={sessionId} messages={messages.data ?? []} onDirtyChange={setArtifactDirty} onClose={() => { artifactIntent.current += 1; setArtifactOpen(false); setTab("conversation"); }} onUseAsContext={(attachment) => { setPendingContext({ sessionId, attachment }); setTab("conversation"); }} />}</div>
+      {caps.preview && artifactOpen && !workspace.tabs?.visible && (!narrow || tab === "artifact") && agentOfSession ? <Suspense fallback={<p className="muted">{t("common.loading")}</p>}>{previewFile ? <ContentPreview agentId={agentOfSession.id} path={previewFile} layoutAvailable={caps.previewLayout} onClose={() => {setPreviewFile(null);setArtifactOpen(false);setTab("conversation");}}/> : filesOpen ? <FileBrowser key={agentOfSession.id} agentId={agentOfSession.id} initialLocation={fileBrowserLocation} onLocationChange={setFileBrowserLocation} layoutAvailable={caps.previewLayout} onOpenFile={workspace.tabs ? path => workspace.openFile({ agentId: agentOfSession.id, path }) : undefined} onClose={() => {setFilesOpen(false);setArtifactOpen(false);setTab("conversation");}}/> : null}</Suspense> : null}
     </aside> : null}
     {renaming ? <Dialog open title={t("chat.rename")} onClose={() => setRenaming(null)} dismissible={!renameSession.isPending} footer={<><button className="btn" disabled={renameSession.isPending} onClick={() => setRenaming(null)}>{t("common.cancel")}</button><button className="btn primary" disabled={!renameValue.trim() || renameSession.isPending} onClick={() => renameSession.mutate({ id: renaming.id, title: renameValue.trim() }, { onSuccess: () => setRenaming(null) })}>{t("common.save")}</button></>}>
       <label htmlFor="task-title">{t("work.taskName")}</label><input autoFocus id="task-title" className="input" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />

@@ -4,8 +4,12 @@
 
 import type { TaskDiagnosticsRequest, DiagnosticsCategory, DiagnosticsPreview, DiagnosticsReceipt, DiagnosticsResult } from "./api/diagnostics";
 
+import type { WorkspaceBrowserBridge } from "./api/workspaceBrowser";
+
 declare global {
   interface GogoslingBridge {
+    /** 独立网页阅读视图；旧版本和源码浏览器可不提供。 */
+    workspaceBrowser?: WorkspaceBrowserBridge;
     /** 返回守护进程的连接信息；壳尚未发现守护进程时返回 null。 */
     getConnection?: () => Promise<{ endpoint: string; token: string; mode?: "proxy" | "direct" } | null>;
     /** 发行版可选诊断 IPC；源码版和旧桌面壳可不提供。 */

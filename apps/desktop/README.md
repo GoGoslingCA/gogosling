@@ -126,7 +126,7 @@ Task reports contain app/platform metadata, local run/session IDs, the recorded 
 
 Sending first obtains a short-lived ticket bound to that report, then uploads it to the fixed Gogosling.ca endpoint. Tickets remain in main-process memory. There is one active request, a 15-second deadline, no background queue or automatic retry, and a 16 KiB report limit. Explicit retries preserve the report UUID; successful receipt releases the preview. Cancel stops the local request but cannot retract a report already received. The server retention period is 90 days.
 
-The deployed OpenAPI 1.1.0 supports schema-1 reports. Its earlier packaged-client consent, upload, cancellation, and bundled-module retry checks are recorded in the [validation record](../../docs/reports/2026-10-13-desktop-diagnostics-validation.md). Task-specific reports require the [schema-2 server extension](../../docs/development/diagnostics-server-handoff.md#task-failure-reports-schema-2), which is integration-pending. A schema-2 ticket rejection is displayed as unsupported reporting; the client does not silently upload a generic substitute. There is no long-lived backend credential fallback.
+The deployed OpenAPI 1.2.0 accepts both report schemas. Real schema-2 ticket issuance, upload, cancellation, manual retry, and lost-acknowledgement deduplication passed with the packaged task-report module; see the [validation record](../../docs/reports/2026-10-13-desktop-diagnostics-validation.md) for the native UI and transport checks. The [schema-2 contract](../../docs/development/diagnostics-server-handoff.md#task-failure-reports-schema-2) limits task reports to the verified failure metadata. A schema-2 ticket rejection is displayed as unsupported reporting; the client does not silently upload a generic substitute. There is no long-lived backend credential fallback.
 
 The optional IPC methods are `diagnosticsStatus`, `diagnosticsTaskPreview({kind, requestId, sessionId, runId})`, `diagnosticsCancelPreparation(requestId)`, `diagnosticsSend(previewId)`, and `diagnosticsCancel(previewId, discard)`. The legacy `diagnosticsPreview(category)` remains error-gated and cannot create a generic task report. Types are defined in [the shared diagnostic contract](src/shared/diagnostics.ts). These methods accept no arbitrary URL, file path, log body, or credential. Existing daemon HTTP and worker RPC contracts are unchanged.
 
@@ -138,3 +138,18 @@ npm test -w @gogosling/desktop           # Shell tests and offline staging-bound
 npm run build -w @gogosling/desktop
 npm run package -w @gogosling/desktop   # Native staging, relocation smoke checks, unsigned package
 ```
+
+
+## Workspace webpages
+
+The sidebar can keep multiple webpage entries while the native shell hosts at most one page. Pages run in an isolated temporary session with no app preload or daemon access. Switching to another page releases the previous view after its leave-page check; returning reloads it. Hiding the reading pane keeps that one page reachable so forms are not silently discarded.
+
+Only public HTTP(S) pages on standard ports are accepted. Requests cannot reach local or private network addresses. Downloads, popups, and device permissions are disabled in this reader; **Open in browser** uses the regular browser when a site needs those features. No new daemon or worker interface is required. See [workspace tabs](../../docs/development/workspace-tabs.md).
+
+The normal test command covers URL policy, network bounds, IPC trust, and quit coordination without launching a browser. On a machine with a graphical desktop, run the additional isolated Electron lifecycle checks:
+
+```bash
+npm run test:browser-runtime -w @gogosling/desktop
+```
+
+This optional command uses synthetic pages and an isolated temporary profile. It checks actual page creation, cancellation of unsaved-page closing, renderer recovery, and the native quit lifecycle. It is not part of the headless CI command.

@@ -1026,5 +1026,31 @@
     "noMatches": "没有匹配的扩展。",
     "refresh": "刷新状态",
     "onDemand": "使用时连接"
+  },
+  "workspaceTabs": {
+    "opened": "已打开",
+    "empty": "文件与网页，在这里切换。",
+    "addWeb": "打开网页",
+    "address": "网页地址",
+    "open": "打开",
+    "go": "前往",
+    "closeTab": "关闭 {{name}}",
+    "reading": "阅读区",
+    "return": "返回任务",
+    "count": "{{n}} 个已打开",
+    "limit": "最多打开 {{n}} 项。请先关闭一个。",
+    "webHint": "网页不会自动加入任务上下文。仅保留一个已加载网页；打开其他网页后，原网页再次打开时会重新加载。",
+    "externalHint": "当前浏览器版本可在独立标签页查看网页。桌面版支持在此阅读。",
+    "external": "在浏览器中打开",
+    "previewUnavailable": "当前连接不支持文件预览。",
+    "back": "后退",
+    "forward": "前进",
+    "stop": "停止",
+    "invalid_url": "请输入完整的 http 或 https 网页地址，不要包含账户密码。",
+    "blocked_url": "此地址不允许在阅读区打开。",
+    "load_failed": "网页未能加载，请重试。",
+    "cancelled": "已取消切换，原网页已保留。",
+    "unavailable": "网页阅读暂不可用，请重试。",
+    "busy": "网页正在处理上一项操作，请稍后重试。"
   }
 }

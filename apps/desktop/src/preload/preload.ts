@@ -9,6 +9,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { ConnectionInfo, DaemonStatus, GogoslingBridge, IpcChannelMap, ShellVersion } from "../shared/ipc.js";
 import type { DiagnosticPreview, DiagnosticReceipt, DiagnosticResult, DiagnosticStatus } from "../shared/diagnostics.js";
+import type { WorkspaceBrowserState } from "../shared/workspace-browser.js";
 
 const CHANNELS = {
   getConnection: "gogosling:connection:get",
@@ -22,9 +23,29 @@ const CHANNELS = {
   diagnosticsCancelPreparation: "gogosling:diagnostics:cancel-preparation",
   diagnosticsSend: "gogosling:diagnostics:send",
   diagnosticsCancel: "gogosling:diagnostics:cancel",
+  workspaceBrowserShow: "gogosling:workspace-browser:show",
+  workspaceBrowserHide: "gogosling:workspace-browser:hide",
+  workspaceBrowserClose: "gogosling:workspace-browser:close",
+  workspaceBrowserNavigate: "gogosling:workspace-browser:navigate",
+  workspaceBrowserAction: "gogosling:workspace-browser:action",
+  workspaceBrowserState: "gogosling:workspace-browser:state",
+  workspaceBrowserCurrent: "gogosling:workspace-browser:current",
 } as const satisfies IpcChannelMap;
 
 const bridge: GogoslingBridge = {
+  workspaceBrowser: {
+    current: () => ipcRenderer.invoke(CHANNELS.workspaceBrowserCurrent) as Promise<WorkspaceBrowserState | null>,
+    show: request => ipcRenderer.invoke(CHANNELS.workspaceBrowserShow, request) as Promise<WorkspaceBrowserState>,
+    hide: () => ipcRenderer.invoke(CHANNELS.workspaceBrowserHide) as Promise<void>,
+    close: tabId => ipcRenderer.invoke(CHANNELS.workspaceBrowserClose, tabId) as Promise<WorkspaceBrowserState | null>,
+    navigate: request => ipcRenderer.invoke(CHANNELS.workspaceBrowserNavigate, request) as Promise<WorkspaceBrowserState>,
+    action: request => ipcRenderer.invoke(CHANNELS.workspaceBrowserAction, request) as Promise<WorkspaceBrowserState>,
+    onState: callback => {
+      const listener = (_event: Electron.IpcRendererEvent, state: WorkspaceBrowserState) => callback(state);
+      ipcRenderer.on(CHANNELS.workspaceBrowserState, listener);
+      return () => ipcRenderer.removeListener(CHANNELS.workspaceBrowserState, listener);
+    },
+  },
   getConnection: () => ipcRenderer.invoke(CHANNELS.getConnection) as Promise<ConnectionInfo | null>,
 
   onDaemonStatus: (callback) => {

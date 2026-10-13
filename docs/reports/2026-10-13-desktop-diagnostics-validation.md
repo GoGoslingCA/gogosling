@@ -1,5 +1,7 @@
 # Desktop diagnostics: live validation
 
+## Earlier schema-1 release
+
 Date: 2026-10-13. Client: Beta 0.0.1103, source revision `1ae0fc906c5364538f9f1466aa6459263be60fab`, macOS arm64. Service contract: [OpenAPI 1.1.0](https://api.gogosling.ca/v1/error-logs/openapi.json).
 
 Tests used isolated app data and profile directories, synthetic reports, the fixed public HTTPS endpoints, and normal TLS verification. No model connection, user project, chat content, raw log, or long-lived credential was used. Tickets stayed in memory and were excluded from saved evidence.
@@ -38,3 +40,20 @@ Cancellation proves that the client stops waiting and releases its active operat
 No query credential was used and no stored user reports were read. Server database contents, proxy log redaction, expiry/restart behavior, and the server owner's reported automated test count were not independently re-audited in this client pass. The deployed OpenAPI and returned acknowledgements were used to verify the client contract.
 
 No diagnostic runtime code change was required. Source-build gating, fixed destinations, bounded response bodies, callback races, and local cancellation remain covered by the existing offline tests in `apps/desktop/test/diagnostics*.test.ts` and the web diagnostic tests. Future UI or packaging changes must preserve the validated protocol and consent boundary.
+
+
+## Schema-2 task reports
+
+Date: 2026-10-13. Client: Beta 0.0.1103, source revision `d196e13b6c422a6e8574111b6d919298bc2e5041`, macOS arm64. The public service returned OpenAPI version `1.2.0`. This pass used the original packaged diagnostic and task-verification modules under the package's Electron 44.7.0 / Node 24.21.0 runtime.
+
+An isolated daemon and worker produced a real failed run against a local synthetic model service. The main-process verifier read that run from its authenticated, fixed local API route. The 551-byte report contained only the allowlisted fields, matching failure timestamps, and synthetic local task identifiers. The prompt, raw model error, and local paths were not uploaded.
+
+- Preview and discard made no public request. Canceling local preparation returned `cancelled` in 0.59 ms.
+- Ticket issuance with `schema_version: 2` and upload both returned `201`; the client accepted the matching receipt. The complete request took 1,102 ms.
+- Canceling an active upload settled the client operation in 0.66 ms; fetch rejected with `AbortError` in 0.62 ms. No automatic retry was observed during the next 300 ms.
+- Manual retry reused the frozen report bytes and succeeded in 1,052 ms.
+- The harness deliberately discarded a genuine `201` upload acknowledgement. Retrying the same frozen body with a fresh ticket returned a duplicate receipt in 354 ms.
+
+The unmodified native app also displayed the real failed-task entry and 551-byte preview. Consent was unchecked and Send was disabled by default. Closing and reopening the preview preserved the consent boundary; agreeing and sending then produced a success receipt. This native pass added one upload. Native cancellation and retry were not repeated; the original bundled module supplied those checks above. The isolated test app and daemon were both stopped afterward.
+
+The module checks requested five tickets; combined with the native pass, this validation used six tickets and four unique synthetic reports. These timings are single smoke-test observations, not throughput measurements, latency percentiles, or proof of physical socket closure. Cancellation cannot undo a server-side commit. No query credential was used; the server owner's 110 automated tests, storage behavior, and server-log audit were not independently repeated in this client pass.

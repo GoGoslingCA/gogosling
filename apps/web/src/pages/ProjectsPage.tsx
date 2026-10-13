@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useWorkspaceActions } from "../workspace/useWorkspaceActions";
 import { useApi } from "../state/ConnectionContext";
 import { useWorkbenchCapabilities } from "../state/useWorkbenchCapabilities";
 import { queryKeys } from "../state/queryKeys";
@@ -21,6 +22,7 @@ const ContentPreview = lazy(() => import("../content/ContentPreview").then(m => 
 export function ProjectsPage() {
  const [previewPath,setPreviewPath] = useState<string | null>(null);
   const { t } = useTranslation(); const api = useApi(); const caps = useWorkbenchCapabilities();
+  const workspace = useWorkspaceActions();
   const client = useQueryClient(); const toast = useToast(); const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
  useEffect(() => {setPreviewPath(null);},[projectId]);
@@ -119,7 +121,7 @@ export function ProjectsPage() {
         <div className="project-action-row"><details className="compact-explainer"><summary><Icon name="check" size={14} />{t("compact.selectMaterials")}<Icon name="chevron" size={12} /></summary><p>{t("projects.materialSelectionHint")}</p></details><input ref={fileInput} type="file" multiple hidden onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ""; void upload(files); }} /><button className="btn" disabled={!caps.materials || uploading || project.data.status !== "active"} onClick={() => fileInput.current?.click()}><Icon name="plus" size={15} />{t(uploading ? "chat.uploading" : "projects.addMaterials")}</button></div>
         <ErrorBanner error={materials.error} />
         {materials.isPending ? <Spinner /> : null}
-        <div className="project-material-list">{visibleMaterials.map((material) => <div className="project-material-row" key={material.id}><label><input type="checkbox" checked={selected.includes(material.id)} disabled={!selected.includes(material.id) && selected.length >= MATERIAL_SELECTION_LIMIT} onChange={(event) => setSelection((previous) => ({ ...previous, [projectId]: event.target.checked ? [...(previous[projectId] ?? []), material.id] : (previous[projectId] ?? []).filter((id) => id !== material.id) }))} /><Icon name="document" /><span>{material.name}<small>{Math.ceil(material.size / 1024)} KB</small></span></label>{caps.preview ? <button className="btn ghost sm" onClick={() => setPreviewPath(material.attachment.path)}>{t("preview.open")}</button> : null}<button className="btn ghost sm" disabled={remove.isPending || project.data?.status !== "active"} onClick={() => { if (window.confirm(t("projects.confirmRemove"))) remove.mutate({ projectId, materialId: material.id }); }}>{t("projects.removeReference")}</button></div>)}</div>
+        <div className="project-material-list">{visibleMaterials.map((material) => <div className="project-material-row" key={material.id}><label><input type="checkbox" checked={selected.includes(material.id)} disabled={!selected.includes(material.id) && selected.length >= MATERIAL_SELECTION_LIMIT} onChange={(event) => setSelection((previous) => ({ ...previous, [projectId]: event.target.checked ? [...(previous[projectId] ?? []), material.id] : (previous[projectId] ?? []).filter((id) => id !== material.id) }))} /><Icon name="document" /><span>{material.name}<small>{Math.ceil(material.size / 1024)} KB</small></span></label>{caps.preview ? <button className="btn ghost sm" onClick={() => { if (workspace.tabs) workspace.openFile({ agentId: material.agent_id, path: material.attachment.path, title: material.name }); else setPreviewPath(material.attachment.path); }}>{t("preview.open")}</button> : null}<button className="btn ghost sm" disabled={remove.isPending || project.data?.status !== "active"} onClick={() => { if (window.confirm(t("projects.confirmRemove"))) remove.mutate({ projectId, materialId: material.id }); }}>{t("projects.removeReference")}</button></div>)}</div>
         {!materials.isPending && !materials.error && !materialItems.length ? <p className="empty">{t("projects.noMaterials")}</p> : null}
         <div className="project-start"><span><Icon name="document" size={15} />{t("projects.selected", { n: selected.length })}</span><button className="btn primary" disabled={project.data.status !== "active" || uploading} onClick={() => void navigate(`/chat?project=${encodeURIComponent(projectId)}${selected.length ? `&materials=${selected.map(encodeURIComponent).join(",")}` : ""}`)}>{t("projects.startTask")}<Icon name="arrow" /></button></div>
       </section> : null}

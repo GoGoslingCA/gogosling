@@ -14,6 +14,7 @@ import { readUiPreferences, writeUiPreferences } from "../lib/uiPreferences";
 import { useWorkbenchCapabilities } from "../state/useWorkbenchCapabilities";
 import type { Session, VersionInfo } from "../api/types";
 import { AvatarSettingsMenu } from "./AvatarSettingsMenu";
+import { WorkspaceSidebar } from "../workspace/WorkspaceSidebar";
 import { SidebarProjects } from "./SidebarProjects";
 
 export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => void; modifier: string }) {
@@ -89,6 +90,7 @@ export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => 
         </div> : null}
       </section>
       {caps.projects ? <SidebarProjects activeProjectId={activeProjectId} onTaskMenu={showMenu} /> : null}
+      <WorkspaceSidebar />
       <div className="nav-bottom"><AvatarSettingsMenu open={avatarOpen} onOpenChange={changeAvatarOpen} resourcesAvailable={!caps.error && client.getQueryData<VersionInfo>(queryKeys.version)?.capabilities?.["runtime.resources"] === 1} /></div>
     </nav>
     {menu ? createPortal(<div ref={menuRef} className="session-context-menu" role="menu" style={{ left: menu.x, top: menu.y }} aria-label={t("work.taskActions")} onKeyDown={(event) => {

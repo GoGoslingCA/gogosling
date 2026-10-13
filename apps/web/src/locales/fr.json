@@ -1026,5 +1026,31 @@
     "noMatches": "Aucune extension correspondante.",
     "refresh": "Actualiser l’état",
     "onDemand": "Connexion à la demande"
+  },
+  "workspaceTabs": {
+    "opened": "Éléments ouverts",
+    "empty": "Retrouvez ici vos fichiers et pages web.",
+    "addWeb": "Ouvrir une page web",
+    "address": "Adresse web",
+    "open": "Ouvrir",
+    "go": "Aller",
+    "closeTab": "Fermer {{name}}",
+    "reading": "Volet de lecture",
+    "return": "Retour à la tâche",
+    "count": "{{n}} ouverts",
+    "limit": "Vous pouvez ouvrir {{n}} éléments au maximum. Fermez-en un d’abord.",
+    "webHint": "Les pages web restent séparées du contexte de la tâche. Une seule page reste chargée. Après en avoir ouvert une autre, la précédente se recharge à votre retour.",
+    "externalHint": "Cette version web ouvre les pages dans un onglet distinct. L’application de bureau peut les afficher ici.",
+    "external": "Ouvrir dans le navigateur",
+    "previewUnavailable": "Cette connexion ne prend pas en charge les aperçus de fichiers.",
+    "back": "Précédent",
+    "forward": "Suivant",
+    "stop": "Arrêter",
+    "invalid_url": "Saisissez une adresse http ou https complète, sans nom d’utilisateur ni mot de passe.",
+    "blocked_url": "Cette adresse ne peut pas s’ouvrir dans le volet de lecture.",
+    "load_failed": "La page web n’a pas pu se charger. Réessayez.",
+    "cancelled": "Le changement a été annulé. La page précédente reste ouverte.",
+    "unavailable": "La lecture de pages web est indisponible. Réessayez.",
+    "busy": "L’action précédente est encore en cours. Réessayez dans un instant."
   }
 }

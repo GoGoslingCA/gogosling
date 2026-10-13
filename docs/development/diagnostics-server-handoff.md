@@ -2,7 +2,7 @@
 
 Gogosling.ca is a Canadian company developing the gogosling local-first workbench. Desktop diagnostics are optional: users review a small report and choose whether to send it to Gogosling.ca.
 
-**Schema 1 status:** deployed in the service's [OpenAPI 1.1.0](https://api.gogosling.ca/v1/error-logs/openapi.json). On 2026-10-13, the earlier packaged desktop client was verified against the public service for consent, successful upload, and active cancellation. Its bundled diagnostic module also passed real HTTPS retry and deduplication checks; see the [validation record](../reports/2026-10-13-desktop-diagnostics-validation.md). These checks preceded the error-only, task-specific flow described below. Schema 2 requires a separate server rollout and live acceptance. This is anonymous, limited upload authorization, not proof of official-client or user identity.
+**Deployment status:** the public service publishes [OpenAPI 1.2.0](https://api.gogosling.ca/v1/error-logs/openapi.json), accepting schema 1 and schema 2. On 2026-10-13, the packaged client's task-report module passed real schema-2 ticket issuance, upload, cancellation, manual retry, and lost-acknowledgement deduplication checks. The [validation record](../reports/2026-10-13-desktop-diagnostics-validation.md) separates the earlier schema-1 native flow from the current task-specific checks. This is anonymous, limited upload authorization, not proof of official-client or user identity.
 
 ## Boundaries
 
@@ -42,7 +42,7 @@ Request:
 - `body_sha256`: SHA-256 of the exact, uncompressed UTF-8 upload body, including whitespace. No JSON reserialization or canonicalization is performed between hashing and sending.
 - `body_bytes`: an integer from 1 through 16,384, inclusive; measure bytes, not characters.
 - `event_id`: the UUID in the report's sole event. Reuse it when manually retrying that frozen report; create a new UUID for a newly generated report.
-- `schema_version`: exactly `1`.
+- `schema_version`: `1` for the original lifecycle report or `2` for the exact task-failure report described below. The ticket binds this version; the upload envelope does not gain a `schema_version` field.
 
 Return `201 Created` with `Cache-Control: no-store`:
 
@@ -154,7 +154,7 @@ Repeat these acceptance checks when changing either side of the integration. Off
 
 ## Task failure reports: schema 2
 
-**Server extension required; not yet verified against production.** The currently published OpenAPI 1.1.0 accepts only schema 1. The client must report `unsupported_report` when its schema-2 ticket request receives `422`; it must not silently substitute a generic application report. Keep schema 1 for earlier clients and actual native application/startup failures.
+**Deployed in OpenAPI 1.2.0 and verified with the packaged task-report module.** The client still reports `unsupported_report` when its schema-2 ticket request receives `422`; it does not silently substitute a generic application report. Schema 1 remains available for earlier clients and actual native application/startup failures.
 
 The task flow is: a real failed run shows a compact notice above the composer; the user opens a report, reviews the frozen payload, explicitly agrees, and sends it. Opening details makes no external request. Closing during preparation aborts the local read; closing or canceling an upload aborts its active request. There is no automatic retry or compensation/payment action.
 
@@ -164,9 +164,9 @@ The renderer supplies only `{kind: "task", requestId, sessionId, runId}` over th
 
 The current run API does not expose a structured provider error code, upstream request ID, or trace ID. Do not invent these identifiers or derive them from localized error text. The initial task classification is the fixed `run_failed`, meaning only that the verified run failed. Local details can show the existing user-facing reason; it does not enter the upload. Future provider diagnostics require a separate structured contract through provider, worker, daemon, and API.
 
-### Server change
+### Server contract
 
-Extend `POST /v1/desktop-diagnostics/tickets` to accept `schema_version: 2` as well as `1`. Store the version with the ticket binding; do not change its digest, byte-count, event UUID, expiry, scope, rate-limit, or one-use behavior. A schema-1 ticket must not accept schema-2 fields.
+`POST /v1/desktop-diagnostics/tickets` accepts `schema_version: 2` as well as `1`. The version is stored with the ticket binding; its digest, byte-count, event UUID, expiry, scope, rate-limit, and one-use behavior remain unchanged. A schema-1 ticket must not accept schema-2 fields.
 
 For schema 2, preserve the existing envelope, fixed event values, release/platform allowlists, and receipt shape. Require `context.category` to be `task`, `context.recent_errors` to be an empty array, and this additional object:
 
@@ -189,10 +189,10 @@ For schema 2, preserve the existing envelope, fixed event values, release/platfo
 
 The report's random `event_id` remains its receipt and deduplication identifier. A manual retry keeps the same frozen body, UUID, and schema version and requests a fresh ticket. Do not use local run IDs as identities for querying reports, and do not overwrite prior events. The client verifies run state locally; the public service still treats all uploaded claims as untrusted.
 
-Publish the additive contract, for example as OpenAPI 1.2.0, while preserving existing backend products and schema-1 behavior. The unchanged response requirements remain `201` for ticket issuance and upload, `401` for expired/consumed tickets, `403` for disallowed scope, `422` for binding/schema mismatches, and `429` with `Retry-After` for throttling.
+OpenAPI 1.2.0 publishes this additive contract while preserving existing backend products and schema-1 behavior. The unchanged response requirements remain `201` for ticket issuance and upload, `401` for expired/consumed tickets, `403` for disallowed scope, `422` for binding/schema mismatches, and `429` with `Retry-After` for throttling.
 
 ### Additional acceptance
 
 Use synthetic task IDs and metadata only. Verify schema-1 compatibility, schema-2 exact field validation, version-bound tickets, invalid/extra IDs and fields, digest/byte/UUID mismatches, matching timestamps, cancellation, explicit retries, lost acknowledgements, deduplication, concurrent ticket consumption, restart behavior, and existing rate limits. Audit application/proxy logs without printing tickets or request bodies. Confirm the new endpoint still cannot authenticate an official client, query reports, or change other products' access.
 
-After the server rollout, repeat packaged-client preview, send, receipt, cancel, and retry acceptance. Until then, task-report upload is integration-pending even when local tests pass. No refund or token-credit guarantee is inferred from sending a report.
+Repeat packaged-client preview, send, receipt, cancel, and retry acceptance after changes to either side. The linked validation record states which checks used the native UI and which used the original bundled module. No refund or token-credit guarantee is inferred from sending a report.

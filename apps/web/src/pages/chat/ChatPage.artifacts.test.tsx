@@ -9,7 +9,7 @@ import { ChatPage } from "./ChatPage";
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock("../../state/ConnectionContext", () => ({ useApi: () => api }));
 vi.mock("../../state/EventStreamProvider", () => ({ useLiveRunsDispatch: () => dispatch, useSessionLiveRuns: () => ({ runs: emptyRuns, active: null }) }));
-vi.mock("./SavedArtifactEditor", () => ({ SavedArtifactEditor: ({ artifactId }: { artifactId: string }) => <output aria-label="打开的成果">{artifactId}</output> }));
+vi.mock("./SavedArtifactEditor", () => ({ SavedArtifactEditor: ({ artifactId, onDirtyChange }: { artifactId: string; onDirtyChange: (dirty: boolean) => void }) => <><output aria-label="打开的成果">{artifactId}</output><button data-dirty-editor onClick={() => onDirtyChange(true)}>draft</button></> }));
 
 const dispatch = vi.fn();
 const emptyRuns: [] = [];
@@ -136,4 +136,16 @@ describe("ChatPage 成果入口兼容与打开目标", () => {
     expect(router.state.location.search).not.toContain("artifact="); expect(router.state.location.search).toContain("agent=agent-a");
     expect(openedResult()).toBeUndefined();
   });
+});
+
+it("同任务切换成果和地址定位都保护尚未持久化的编辑", async () => {
+  records = [savedB, savedA]; await mount("/chat/s1?artifact=saved-b"); await ready(() => expect(openedResult()).toBe("saved-b"));
+  await act(async () => host.querySelector<HTMLButtonElement>("button[data-dirty-editor]")!.click());
+  await act(async () => host.querySelectorAll<HTMLButtonElement>(".saved-results-bar button")[1]!.click());
+  expect(openedResult()).toBe("saved-b"); expect(window.confirm).toHaveBeenCalledOnce();
+  await act(async () => { await router.navigate("/chat/s1?artifact=saved-a"); });
+  expect(openedResult()).toBe("saved-b"); expect(router.state.location.search).toBe("?artifact=saved-b"); expect(window.confirm).toHaveBeenCalledTimes(2);
+  vi.mocked(window.confirm).mockReturnValue(true);
+  await act(async () => host.querySelectorAll<HTMLButtonElement>(".saved-results-bar button")[1]!.click());
+  await ready(() => expect(openedResult()).toBe("saved-a")); expect(window.confirm).toHaveBeenCalledTimes(3);
 });

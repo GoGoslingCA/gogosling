@@ -1,7 +1,7 @@
 // 已连接状态下的应用骨架：顶部状态栏、左侧导航、内容区、全局审批弹层。
 // 未连接时重定向到 /connect。
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useConnection } from "../state/ConnectionContext";
@@ -10,9 +10,12 @@ import { useSettingsQuery } from "../state/useSettings";
 import { applyLocale } from "../i18n";
 import { DraftProvider } from "../state/DraftProvider";
 import { NavigationSidebar } from "./NavigationSidebar";
-import { applyAppearance, readUiPreferences } from "../lib/uiPreferences";
+import { applyAppearance, readUiPreferences, writeUiPreferences } from "../lib/uiPreferences";
 import { StatusBar } from "./StatusBar";
 import { ApprovalDialog } from "./ApprovalDialog";
+import { useWorkspaceTabs } from "../state/WorkspaceTabsProvider";
+import { WorkspacePane } from "../workspace/WorkspacePane";
+import "../workspace/workspace.css";
 import { Spinner } from "../components/ui";
 
 export function AppShell() {
@@ -28,6 +31,8 @@ export function AppShell() {
 function Shell() {
   const { t } = useTranslation();
   const settings = useSettingsQuery();
+  const workspace = useWorkspaceTabs();
+  const [workspaceWidth, setWorkspaceWidth] = useState(() => readUiPreferences().artifactWidth);
   const stream = useStreamStatus();
   const [connectionOpen, setConnectionOpen] = useState(false);
   const connectionDetails = useRef<HTMLDetailsElement>(null);
@@ -85,7 +90,7 @@ function Shell() {
         <details ref={connectionDetails} className="connection-details" open={connectionOpen} onToggle={event => setConnectionOpen(event.currentTarget.open)}><summary aria-label={t("work.connectionStatus")} aria-description={streamLabel} title={`${t("work.connectionStatus")}: ${streamLabel}`}><span className={`status-dot ${streamTone}`} /><span className="sr-only">{t("work.connectionStatus")}</span></summary>{connectionOpen ? <div className="connection-popover"><StatusBar /></div> : null}</details>
       </header>
       {!settingsLayout ? <NavigationSidebar openSearch={openSearch} modifier={modifier} /> : null}
-      <main className="app-main"><Suspense fallback={<Spinner />}><Outlet /></Suspense></main>
+      <main className="app-main"><div className={`app-content ${workspace?.visible && !settingsLayout ? "workspace-visible" : ""}`} style={{ "--workspace-width": `${workspaceWidth}px` } as CSSProperties}><div className="app-route"><Suspense fallback={<Spinner />}><Outlet /></Suspense></div>{workspace?.visible && !settingsLayout ? <WorkspacePane width={workspaceWidth} onResize={setWorkspaceWidth} onResizeEnd={width => writeUiPreferences({ artifactWidth: width })} /> : null}</div></main>
       <ApprovalDialog />
     </div>
   );

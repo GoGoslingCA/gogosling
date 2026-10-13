@@ -22,7 +22,7 @@
 
 ## Keep your work in reach
 
-- **Read beside the conversation.** Open a document or code file in the results pane while asking for changes.
+- **Read beside the conversation.** Keep documents, code, and webpages in the sidebar. Switch between them while your task and draft stay in place. [How opened items work →](docs/development/workspace-tabs.md)
 - **Pick the context.** Group files and tasks into projects. Choose which materials a task should reference.
 - **Read document text through tools.** An enabled agent can extract bounded passages from DOCX, slides, spreadsheets, and text files in its permitted workspace, with source positions and file-version checks.
 - **Keep a draft you can return to.** Edit text, save versions, copy, and export. Resume a task from the sidebar.
@@ -88,7 +88,7 @@ The package includes the daemon, Python runtime, worker, and UI. Users do not ne
 
 **The model is your choice.** Connect an OpenAI-compatible endpoint, Anthropic Messages, or a compatible local model server. Remote models receive the context you send and may charge for requests. Local storage does not mean every model request stays on the device.
 
-**Concurrency has a limit.** By default, two tasks run at once and up to 32 wait in the queue. Tasks sharing a workspace run in order. File viewers load when opened; idle MCP connections are released. We have not published comparative memory or energy benchmarks; [help us measure them](ROADMAP.md#help-measure-the-difference).
+**Concurrency has a limit.** By default, two tasks run at once and up to 32 wait in the queue. Tasks sharing a workspace run in order. Only the selected file viewer is mounted, and the desktop keeps at most one webpage view. Idle MCP connections are released. We have not published comparative memory or energy benchmarks; [help us measure them](ROADMAP.md#help-measure-the-difference).
 
 ## Know the current limits
 

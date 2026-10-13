@@ -6,6 +6,7 @@ import { createHashRouter, Navigate, RouterProvider } from "react-router-dom";
 import { ApiError } from "./api/client";
 import type { Connection } from "./connection";
 import { ConnectionProvider } from "./state/ConnectionContext";
+import { WorkspaceTabsProvider } from "./state/WorkspaceTabsProvider";
 import { ToastProvider } from "./components/Toast";
 import { AppShell } from "./layout/AppShell";
 import { readUiPreferences } from "./lib/uiPreferences";
@@ -66,11 +67,11 @@ export function App({ initialConnection }: { initialConnection: Connection | nul
   return (
     <QueryClientProvider client={queryClient}>
       <ConnectionProvider initial={initialConnection} queryClient={queryClient}>
-        <ToastProvider>
+        <WorkspaceTabsProvider><ToastProvider>
           <Suspense fallback={<Spinner />}>
             <RouterProvider router={router} />
           </Suspense>
-        </ToastProvider>
+        </ToastProvider></WorkspaceTabsProvider>
       </ConnectionProvider>
     </QueryClientProvider>
   );

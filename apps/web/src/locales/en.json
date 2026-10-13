@@ -1026,5 +1026,31 @@
     "noMatches": "No matching extensions.",
     "refresh": "Refresh status",
     "onDemand": "Connects on use"
+  },
+  "workspaceTabs": {
+    "opened": "Open items",
+    "empty": "Switch between files and webpages here.",
+    "addWeb": "Open webpage",
+    "address": "Web address",
+    "open": "Open",
+    "go": "Go",
+    "closeTab": "Close {{name}}",
+    "reading": "Reading pane",
+    "return": "Back to task",
+    "count": "{{n}} open",
+    "limit": "You can open up to {{n}} items. Close one first.",
+    "webHint": "Webpages stay separate from task context. Only one webpage stays loaded. Opening another webpage reloads the previous one when you return.",
+    "externalHint": "This browser version opens webpages in a separate tab. The desktop app can show them here.",
+    "external": "Open in browser",
+    "previewUnavailable": "This connection does not support file previews.",
+    "back": "Back",
+    "forward": "Forward",
+    "stop": "Stop",
+    "invalid_url": "Enter a full http or https address without a username or password.",
+    "blocked_url": "This address cannot open in the reading pane.",
+    "load_failed": "The webpage could not load. Try again.",
+    "cancelled": "The switch was cancelled. Your previous webpage is still open.",
+    "unavailable": "Webpage viewing is unavailable. Try again.",
+    "busy": "The previous page action is still running. Try again shortly."
   }
 }

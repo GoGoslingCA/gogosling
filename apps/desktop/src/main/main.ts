@@ -37,6 +37,9 @@ import {
 } from "./shell-security.js";
 import { autostartSupported, buildTrayMenuTemplate, trayTooltip } from "./tray.js";
 import { createWindowStateSaver, readWindowState, restoreWindowState, WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH, writeWindowState, type WindowBounds } from "./window-state.js";
+import { WorkspaceBrowser } from "./workspace-browser.js";
+import { installWorkspaceBrowserIpc } from "./workspace-browser-ipc.js";
+import { WorkspaceBrowserQuitGate } from "./workspace-browser-quit.js";
 
 /** 渲染进程允许的权限请求；其余（摄像头、通知、地理位置…）一律拒绝。 */
 const ALLOWED_PERMISSIONS: ReadonlySet<string> = new Set(["clipboard-sanitized-write"]);
@@ -65,13 +68,39 @@ class DesktopShell {
   private failureDialogOpen = false;
   private windowStateSaver: ReturnType<typeof createWindowStateSaver> | null = null;
   private readonly csp: string;
+  private workspaceBrowser: WorkspaceBrowser;
+  private readonly browserQuitGate: WorkspaceBrowserQuitGate;
 
   constructor(private readonly ctx: ShellContext) {
     this.csp = buildCsp({ devOrigin: ctx.dev?.origin ?? null });
+    this.workspaceBrowser = this.createWorkspaceBrowser();
+    this.browserQuitGate = new WorkspaceBrowserQuitGate({ closeBrowser: () => this.workspaceBrowser.closeForQuit(), quit: () => app.quit() });
     this.quitFlow = new QuitFlow({
       stopDaemon: () => ctx.daemon.stop(),
       quit: () => app.quit(),
       onStopError: (err) => ctx.logger.error("停止守护进程失败", { err }),
+    });
+  }
+
+  private createWorkspaceBrowser(): WorkspaceBrowser {
+    return new WorkspaceBrowser({
+      window: () => this.window,
+      state: value => {
+        const win = this.window;
+        if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+        // 主页面刷新或崩溃期间可能暂时没有可接收消息的 frame；current() 会在重建后补发入口。
+        try { win.webContents.send(IPC.workspaceBrowserState, value); } catch {}
+      },
+      confirmDiscard: () => {
+        const win = this.window;
+        if (!win || win.isDestroyed()) return false;
+        return dialog.showMessageBoxSync(win, {
+          type: "warning", title: t(this.locale, "dialog.unsavedChanges.title"),
+          message: t(this.locale, "dialog.unsavedChanges.title"), detail: t(this.locale, "dialog.unsavedChanges.body"),
+          buttons: [t(this.locale, "dialog.unsavedChanges.keepEditing"), t(this.locale, "dialog.unsavedChanges.discard")],
+          defaultId: 0, cancelId: 0, noLink: true,
+        }) === 1;
+      },
     });
   }
 
@@ -88,6 +117,9 @@ class DesktopShell {
     this.installIpc();
     this.createTray();
     this.createWindow();
+    app.on("select-client-certificate", (event, contents, _url, _certificates, callback) => {
+      if (contents && this.workspaceBrowser.ownsWebContents(contents.id)) { event.preventDefault(); callback(); }
+    });
     screen.on("display-removed", () => this.ensureWindowVisible());
     screen.on("display-metrics-changed", () => this.ensureWindowVisible());
     this.ctx.daemon.onStatus((status) => this.onDaemonStatus(status));
@@ -117,13 +149,15 @@ class DesktopShell {
   }
 
   /** before-quit：先让页面处理未保存内容，服务继续运行到窗口真正关闭。 */
-  handleBeforeQuit(): void {
+  handleBeforeQuit(event: { preventDefault(): void }): void {
+    if (!this.browserQuitGate.beforeQuit(event)) return;
     this.windowStateSaver?.flush();
     this.quitFlow.beforeQuit();
   }
 
   /** 所有窗口均已完成卸载后，再停止由本壳启动的守护进程。 */
   handleWillQuit(event: { preventDefault(): void }): void {
+    this.workspaceBrowser.dispose();
     this.ctx.diagnostics.dispose();
     this.quitFlow.willQuit(event);
   }
@@ -200,6 +234,18 @@ class DesktopShell {
 
   private installIpc(): void {
     const { daemon } = this.ctx;
+    installWorkspaceBrowserIpc<IpcMainInvokeEvent>({
+      handle: (channel, listener) => ipcMain.handle(channel, listener),
+      assertTrusted: event => this.assertTrusted(event),
+      browser: {
+        current: () => this.workspaceBrowser.current(),
+        show: input => this.workspaceBrowser.show(input),
+        hide: () => this.workspaceBrowser.hide(),
+        close: input => this.workspaceBrowser.close(input),
+        navigate: input => this.workspaceBrowser.navigate(input),
+        action: input => this.workspaceBrowser.action(input),
+      },
+    });
     installDiagnosticsIpc<IpcMainInvokeEvent>({
       handle: (channel, listener) => ipcMain.handle(channel, listener),
       assertTrusted: event => this.assertTrusted(event),
@@ -245,7 +291,7 @@ class DesktopShell {
 
   private assertTrusted(event: IpcMainInvokeEvent | IpcMainEvent): void {
     if (!this.isTrusted(event)) {
-      this.ctx.logger.warn("拒绝来自不可信发送方的 IPC", { url: event.senderFrame?.url ?? "" });
+      this.ctx.logger.warn("拒绝来自不可信发送方的 IPC");
       throw new Error("untrusted sender");
     }
   }
@@ -293,6 +339,7 @@ class DesktopShell {
         devTools: !app.isPackaged,
       },
     });
+    if (this.workspaceBrowser.isDisposed) this.workspaceBrowser = this.createWorkspaceBrowser();
     this.window = win;
     let maximized = state.maximized;
     const saver = createWindowStateSaver(() => {
@@ -305,6 +352,11 @@ class DesktopShell {
     });
     this.windowStateSaver = saver;
     win.on("resize", saver.schedule);
+    win.on("resize", () => this.workspaceBrowser.present());
+    win.on("hide", () => this.workspaceBrowser.present());
+    win.on("minimize", () => this.workspaceBrowser.present());
+    win.on("restore", () => this.workspaceBrowser.present());
+    win.on("show", () => this.workspaceBrowser.present());
     win.on("move", saver.schedule);
     win.on("maximize", () => { maximized = true; saver.schedule(); });
     win.on("unmaximize", () => { maximized = false; this.ensureWindowVisible(); saver.schedule(); });
@@ -328,6 +380,7 @@ class DesktopShell {
       win.hide();
     });
     win.on("closed", () => {
+      this.workspaceBrowser.dispose();
       this.ctx.diagnostics.clear();
       saver.cancel();
       if (this.windowStateSaver === saver) this.windowStateSaver = null;
@@ -336,9 +389,10 @@ class DesktopShell {
 
     const contents = win.webContents;
     contents.on("did-start-navigation", (_event, _url, _inPlace, isMainFrame) => {
-      if (isMainFrame) this.ctx.diagnostics.clear();
+      if (isMainFrame) { this.ctx.diagnostics.clear(); this.workspaceBrowser.hide(); }
     });
     contents.on("render-process-gone", () => {
+      this.workspaceBrowser.hide();
       this.ctx.diagnostics.clear();
       this.ctx.diagnostics.record("renderer_gone");
     });
@@ -590,7 +644,7 @@ function bootstrap(): void {
   app.on("window-all-closed", () => {
     // 托盘常驻：窗口全部关闭也不退出。
   });
-  app.on("before-quit", () => shellApp.handleBeforeQuit());
+  app.on("before-quit", event => shellApp.handleBeforeQuit(event));
   app.on("will-quit", (event) => shellApp.handleWillQuit(event));
 
   app
