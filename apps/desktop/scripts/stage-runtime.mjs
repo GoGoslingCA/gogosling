@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { assertOutputDirectory, copyRelocatable, desktopRoot, nativeTarget, pythonRelative, pythonVersion, repositoryRoot, resourcesRoot, run, stagedRoot, within } from "./runtime-lib.mjs";
 import { verifyRuntime } from "./verify-runtime.mjs";
 import { collectDistributionLicenses } from "./distribution-licenses.mjs";
+import { ensureElectronRuntime } from "./electron-runtime.mjs";
 
 async function collectLicenses(root, goEnv) {
   const licenseRoot = path.join(root, "licenses");
@@ -30,6 +31,8 @@ export async function stageRuntime() {
   if ((process.env.GOOS && process.env.GOOS !== target.goos) || (process.env.GOARCH && process.env.GOARCH !== target.goarch)) throw new Error("Cross-compilation is not supported by native runtime staging");
   if (target.platform === "linux" && !process.report.getReport().header.glibcVersionRuntime) throw new Error("Runtime staging currently requires a glibc Linux build host");
   await assertOutputDirectory();
+  console.log(`Preparing locked Electron runtime for ${target.platform}/${target.arch}…`);
+  await ensureElectronRuntime(repositoryRoot, { target });
   const temporary = await fs.mkdtemp(path.join(resourcesRoot, ".runtime-stage-"));
   const output = path.join(temporary, "bundle");
   try {

@@ -40,6 +40,8 @@ npm run build -w @gogosling/desktop
 npm run start -w @gogosling/desktop
 ```
 
+`start`, `test:browser-runtime`, and `bench:browser` prepare the locked Electron binary before launching it. A fresh installation may download it once. Run `npm run prepare:electron -w @gogosling/desktop` to prepare or verify that cache separately. Regular builds, type checks, and unit tests do not download or launch Electron.
+
 Environment variables:
 
 | Variable | Description |
@@ -87,6 +89,8 @@ npm run package -w @gogosling/desktop
 ```
 
 This command builds the web UI and shell, stages the native Go daemon and CLI, and downloads a pinned CPython runtime through uv. Production Python dependencies come from `worker/uv.lock` and are verified against its hashes. Build tools and network access are required on the build machine; the installed app does not require globally installed Go, Node, Python, or uv.
+
+Staging also prepares the locked Electron runtime explicitly. A fresh `npm ci` may install only Electron's JavaScript package, without its binary. The build invokes that package's official installer with its bundled archive checksums when needed, then verifies the installed version, executable, and license notices. A complete matching cache is reused; missing notices are never skipped.
 
 The staging process uses a fresh temporary Python installation, not the developer's virtual environment. It copies only the worker package, runtime, production dependencies, and required licenses. It does not package user data, logs, credentials, or model settings. Go binaries use `-trimpath`; Python bytecode and unused console wrappers containing build paths are excluded. Upstream runtime and dependency licenses remain in the bundle.
 

@@ -5,7 +5,8 @@
   "description": "Local-first desktop workbench developed by Gogosling.ca, a Canadian company.",
   "main": "dist/main/main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "npm run prepare:electron && electron .",
+    "prepare:electron": "node scripts/electron-runtime.mjs",
     "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.json --noEmit",
     "test": "vitest run && npm run test:runtime",
@@ -14,8 +15,8 @@
     "stage:runtime": "node scripts/stage-runtime.mjs",
     "verify:runtime": "node scripts/verify-runtime.mjs",
     "test:runtime": "node --test scripts/runtime-checks.mjs",
-    "test:browser-runtime": "npm run build && node scripts/workspace-browser-runtime.mjs",
-    "bench:browser": "npm run build && node scripts/workspace-browser-benchmark.mjs"
+    "test:browser-runtime": "npm run prepare:electron && npm run build && node scripts/workspace-browser-runtime.mjs",
+    "bench:browser": "npm run prepare:electron && npm run build && node scripts/workspace-browser-benchmark.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.9.0",

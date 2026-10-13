@@ -7,6 +7,7 @@ import { verifyRuntime } from "./verify-runtime.mjs";
 import { diagnosticsBuildArgs } from "./diagnostics-build.mjs";
 import { collectDistributionLicenses, verifyDistributionLicenses } from "./distribution-licenses.mjs";
 import "./release-checks.mjs";
+import "./electron-runtime-checks.mjs";
 import { assertContainedLinks, copyRelocatable, isolatedEnv, nativeTarget, pythonRelative, within } from "./runtime-lib.mjs";
 
 async function distributionFixture() {
