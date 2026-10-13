@@ -44,7 +44,7 @@ A browser connection may request endpoint/token, held only in page memory. This 
 1. Open the desktop app directly into the workbench, without account login.
 2. Closing hides to the tray while tasks continue.
 3. Reopen from the tray; restore task/result positions from confirmed UI preferences.
-4. On actual exit, handle unsent text, uploads, and unconfirmed result edits before stopping.
+4. On Exit, resolve unsent text, uploads, and unconfirmed result edits. Stop the local service only if this desktop app started it; detach from a separately started service without stopping it.
 5. System/light/dark appearance affects only this device.
 
 ## 4. Inputs and outputs
@@ -52,7 +52,7 @@ A browser connection may request endpoint/token, held only in page memory. This 
 | Input | Output |
 |---|---|
 | Close window | Hidden window; accepted work continues rather than becoming stopped |
-| Exit | App stops after unsaved-content confirmation |
+| Exit | App closes after unsaved-content confirmation; only its own service process is stopped |
 | Reopen | Size and location restored; body text follows confirmed workbench saves |
 | Local file not uploaded | Reselect next time, with an explicit notice |
 
@@ -61,10 +61,10 @@ A browser connection may request endpoint/token, held only in page memory. This 
 | Module | Relationship |
 |---|---|
 | Workbench | Supplies unsaved state; desktop never silently discards or sends on exit |
-| Scheduled jobs | May run while in the tray; do not pretend they continue after exit |
+| Scheduled jobs | Continue while their local service is running. Exit stops a desktop-owned service; a separately started service remains active |
 | Mobile app | Closing/exiting does not start synchronization |
 
-Monitor unplugging and window restoration in packaged Windows/Linux builds are not promises for this version.
+Recovery after a monitor is disconnected, and window restoration in packaged Windows/Linux builds, still need platform validation.
 
 ## 6. Potential failures
 
@@ -73,7 +73,7 @@ Monitor unplugging and window restoration in packaged Windows/Linux builds are n
 | Unsaved edits on exit | Ask first; cancellation keeps the app open |
 | Exit while saving | Ask; an unconfirmed save is not guaranteed |
 | Power loss/forced termination | Only content last confirmed saved is guaranteed |
-| Position restoration failed | Workbench remains openable; do not clear tasks |
+| Position restoration failed | The workbench can still be opened; do not clear tasks |
 
 ## 7. Verification
 

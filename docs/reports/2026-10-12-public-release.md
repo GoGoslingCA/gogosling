@@ -4,7 +4,7 @@ This update prepares the repository's English public entry point and integrates 
 
 ## Changes
 
-- English README, Canadian company attribution, authentic development screenshots, Chinese entry, English setup/architecture guides, roadmap, and contribution/maintenance paths.
+- English README, Canadian company attribution, actual development screenshots, an initial Chinese README (later retired when public docs were consolidated in English), English setup and architecture guides, roadmap, and contribution/maintenance paths.
 - English issue forms for bugs, features, and performance; PR template and private security reporting instructions.
 - French UI, daemon, worker, and shell messages. OpenAPI adds `fr` to the existing locale enum; no route or persistence shape changes.
 - Locale normalization uses the primary language subtag, so `fr-CA` works and arbitrary words such as `french` do not masquerade as valid tags.

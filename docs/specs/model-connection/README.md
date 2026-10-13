@@ -4,9 +4,9 @@
 |---|---|
 | Status | Draft |
 | Date | 2026-10-12 |
-| Module | Model connections, called model providers in Settings |
+| Module | Model connections in Settings; individual connections are listed as providers |
 
-Plan the user's local or remote model endpoint. A chosen remote endpoint does not mean the app provides a cloud service.
+Manage the user's local or remote model endpoint. A chosen remote endpoint does not mean the app provides a cloud service.
 
 ---
 
@@ -42,7 +42,7 @@ Return not provided for absent usage, never zero or an estimated charge.
 
 1. Enter name, type, full service address, and a credential if required.
 2. Save before testing; discovery uses the saved connection.
-3. After successful testing, an assistant may select it.
+3. After saving, select the connection and model when configuring an assistant. Test first to check connectivity; the saved provider, not a successful test result, is what the assistant references.
 4. A blank credential during editing retains the saved one; supplying a value replaces it.
 5. Reject deletion while an assistant uses it and retain the connection.
 
@@ -62,7 +62,7 @@ Credentials are not outputs; no page echoes saved credentials.
 
 | Module | Relationship |
 |---|---|
-| Assistant | Uses its connection/model; reselect a disabled connection before saving |
+| Assistant | Uses its connection/model; replace a disabled or missing connection before saving |
 | Workbench | Reads model name, connectivity, and usage; no duplicate credential storage |
 | Prompt enhancement | Uses the current assistant connection; returns failure without task messages |
 

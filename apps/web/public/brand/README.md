@@ -1,5 +1,5 @@
-# Gosli Brand Image Assets
+# Gosli brand assets
 
-`gosli.png` App icon from the official gogosling website: https://gogosling.ca/assets/img/icon-192.png .
+`gosli.png` is the app icon from the [official Gogosling.ca website](https://gogosling.ca/assets/img/icon-192.png).
 
-Acquisition date: 2026-10-12. Local reference used for app identity and start page; no remote images are loaded at runtime. Color scheme based on: https://gogosling.ca/assets/css/products.css .
+Retrieved on 2026-10-12. The app bundles the image for its identity and start page; it does not fetch the image at runtime. The colour palette is based on the [Gogosling.ca product styles](https://gogosling.ca/assets/css/products.css).

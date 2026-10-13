@@ -4,7 +4,7 @@
 
 ## 1. Summary
 
-**Thin shell + Independent daemon + Versioned protocol.** All business state lives entirely inside the Go daemon `gogoslingd`; the desktop shell, Web UI, and CLI are merely its clients; the agent reasoning loop runs inside a Python worker process supervised by the daemon.
+**Thin clients, an independent daemon, and versioned protocols.** The Go daemon `gogoslingd` owns all business state. The desktop shell, web UI, and CLI are clients; a Python worker supervised by the daemon runs the agent reasoning loop.
 
 ## 2. Process Model
 
@@ -33,9 +33,9 @@
                                        Model service / Local model
 ```
 
-- **Daemon outlives windows**: Required by scheduled tasks and IM channels. The desktop shell is responsible for launching, discovery, and reconnection, and owns no state.
+- **Closing a window keeps the daemon running**: The desktop shell hides the window to the tray so scheduled tasks and messaging channels can continue. Quitting the app stops a daemon launched by that shell; an independently started daemon remains running. The shell handles launch, discovery, and reconnection and stores only UI preferences, not business state.
 - **Worker process is a replaceable engine**: The core relies only on the interface defined by `internal/engine` and the `api/worker-rpc` protocol; it can later be replaced by a Go implementation or another Python framework.
-- **Side effects do not occur in the worker process**: The worker process only "declares" tool calls; actual file, command, and network operations are executed by the daemon after permission checks and sandboxing (reverse requests to `host.tool.call`).
+- **Tool side effects run in the daemon**: The worker requests file, command, and network tools through reverse `host.tool.call` requests. The daemon checks permissions and applies the tool's workspace and sandbox constraints before execution. Provider inference requests are made directly by the worker.
 
 ## 3. Code Layout
 
@@ -93,7 +93,7 @@ Dependencies must flow **inward** only. Each row in the table below may only imp
 | Transport | `server` `client` | Leaf layer + Domain layer; **must not import `store`** (exception for `server/servertest` test harness) |
 | Composition Root | `app` `cmd/*` | Any package |
 
-Allowed dependencies within the domain layer (arrows mean "imports"):_
+Allowed dependencies within the domain layer (arrows mean "imports"):
 
 ```
 tools      → permission, workspace, sandbox, extension (only uses ToolProvider interface)
@@ -102,7 +102,7 @@ session    → agent, provider, engine (interface), permission (interface)
 scheduler  → session (interface)
 extension  → protocol/mcp
 gateway    → session (interface)
-permission → secret? No. permission does not depend on other domain packages.
+permission → (no domain dependencies)
 workbench  → (no domain dependencies; reuses capabilities like session and workspace via interfaces injected by the composition root)
 ```
 
@@ -121,12 +121,12 @@ Dependency direction is enforced by tests in `internal/archcheck`: it parses imp
 
 ### 5.1 A Single Conversation
 
-1. The client `POST /api/v1/sessions/{id}/messages`, `server` validates the token and Origin, and calls `session.Service.Send`.
+1. The client sends `POST /api/v1/sessions/{id}/messages`. `server` validates the token, Host, and Origin, then calls `session.Service.Send`.
 2. `session` appends the user message, creates `Run(queued)`, publishes `message.created`, and hands over execution to `engine.Runtime.StartRun` (carrying Agent, message history, `ProviderCredentials`, and available `ToolSpec`).
-3. `engine` passes to the worker process via JSON-RPC `run.start`; the worker process streams back `run.event` notifications, `engine` converts them into `model.RunEvent` and publishes them to `event.Bus`; `session` subscribes to and persists state changes.
-4. When the worker process needs to invoke a tool, it issues a reverse request `host.tool.call`; `engine` calls `tools.Executor`, which first passes through `permission.Check` (may suspend waiting for approval and publish `approval.requested`), then executes within `sandbox`, and returns `ToolResult` to the worker process.
+3. `engine` sends the request to the worker through JSON-RPC `run.start`. The worker streams back `run.event` notifications; `engine` converts these into `model.RunEvent` values, and the session service persists state changes and publishes events.
+4. When the worker process needs to invoke a tool, it issues a reverse request `host.tool.call`; `engine` calls `tools.Executor`, which first passes through `permission.Check` (may suspend waiting for approval and publish `approval.requested`), then executes with the tool's workspace and sandbox constraints and returns `ToolResult` to the worker.
 5. Execution completes: `session` writes the assistant message, updates `Run` final state and usage, and publishes `run.completed`.
-6. The client receives events via `GET /api/v1/events?since=<seq>`'s SSE throughout; upon disconnection, it reconnects carrying the last Seq.
+6. The client receives SSE events through `GET /api/v1/events?since=<seq>` and reconnects using the last sequence number. A daemon restart or a gap in retained events requires a full refresh.
 
 ### 5.2 Scheduled Tasks
 
@@ -138,40 +138,40 @@ The `gateway` adapter normalizes platform messages into `(session key, text, att
 
 ### 5.4 Workbench Persistent State
 
-- Project only organizes sessions and materials for the same Agent without creating an independent file permission boundary. The optional `project_id` of Session does not change ID, Key, Origin, or execution state; legacy sessions remain unattached to projects. Archiving a project does not stop existing sessions.
+- A Project organizes sessions and materials belonging to the same Agent; it does not create a separate file permission boundary. The optional `project_id` of Session does not change ID, Key, Origin, or execution state; legacy sessions remain unattached to projects. Archiving a project does not stop existing sessions.
 - Project materials are uploaded reusing the Agent workspace `inbound/`, with name, path, summary, and ownership saved in the database. Each message explicitly selects references, and the kernel validates ownership and current content prior to sending; selecting materials does not grant or tighten tool file permissions.
 - Drafts are saved by the kernel, unique by authenticated principal and scope; updates and deletions must check optimistic versioning. The body text does not enter browser or Electron UI preference files. Cross-window conflicts are returned to the client and must not be silently overwritten.
 - Artifacts reference real assistant messages, appending an immutable Revision on each save. Artifact and draft bodies are stored in SQLite; the version list does not carry body text, and reading/downloading goes through authenticated HTTP APIs. Saving a version is not equivalent to overwriting workspace files.
 - `model.WorkbenchStore` is an independent repository collection providing `WorkbenchTx`; the original interface collection of `model.Store` is not expanded as a result. Conditional updates of associations and versions are guaranteed by store within a transaction.
-- P3B uses an independent persistent Operation as the subject of manual file operations; approval can only bind to either a real Run or a real Operation, without faking model runs. Both application and undo pass through tools.Executor and existing permission guard/deny/one-time approval, and operations are not provided to the model. ChangeSet binds subject, artifact version, target, workspace identity, pre-image, and expiration summary; application does not accept new body text.
-- Pre-image, proposal, and execution intent for single-file UTF-8 changes are stored in a protected database. Creation, replacement, and undo with independent preview are supported; undoing a newly created file requires destructive approval. The workspace uses descriptor resolution, same-directory original preservation, and no-replace installation; if external writing is detected, it will not overwrite the new target. Linux/macOS provide controlled implementations; unsupported platforms or file systems reject in-place modification and retain export entries.
-- Files and databases cannot be atomically committed across media. Real file results are persistently recorded first, and the operation terminates only after original cleanup completes; cleanup failures also enter a visible recovery_required state. On restart, check complete directory, inode, permissions, and content identity; successful application is acknowledged only if the preserved log or persistently verified post-installation identity matches completely. When both log and post-installation identity are missing, application cannot be considered successful even if body text is identical. If the target still completely matches the pre-image, it is considered unapplied; if necessary, restore preserved originals to vacant targets strictly via no-replace, keeping the rest in recovery state. Operations pending recovery confirmation are forbidden from further writes. Waiting for approval does not hold database transactions or file locks; during application, concurrent model tools for the same Agent are blocked, and starting file side-effects is rejected if an active model run exists.
-- This implementation does not claim atomic CAS or security isolation against arbitrary external processes with the same UID; cases where same-UID processes hold old file descriptors or proactively move parent directories still require detection and manual recovery. hash+rename, directory 0700, or frontend confirmation cannot be treated as such a guarantee.
+- P3B uses an independent persistent Operation as the subject of manual file operations; approval can only bind to either a real Run or a real Operation, without faking model runs. Both apply and undo pass through `tools.Executor` and the existing permission guards, deny rules, and one-time approvals. Operations are not exposed to the model. A ChangeSet binds the execution subject, artifact version, target, workspace identity, pre-image, and expiry to the preview digest; apply does not accept replacement content.
+- Pre-image, proposal, and execution intent for single-file UTF-8 changes are stored in a protected database. Creation, replacement, and undo each require a separate preview; undoing a newly created file requires destructive approval. The workspace uses descriptor resolution, same-directory original preservation, and no-replace installation; if external writing is detected, it will not overwrite the new target. Linux and macOS have guarded implementations; unsupported platforms or filesystems reject in-place modification and offer export instead.
+- Filesystem changes and database records cannot be committed in a single atomic transaction. The file result is recorded durably before temporary originals are cleaned up. The operation completes only after cleanup; a cleanup failure leaves it visibly in `recovery_required`. On restart, verify directory, inode, permission, and content identity; successful apply is recorded only if the retained execution journal or persisted post-installation identity matches completely. When both the journal and post-installation identity are missing, apply cannot be considered successful even if the content is identical. If the target still completely matches the pre-image, it is considered unapplied; if necessary, restore preserved originals to vacant targets strictly via no-replace, keeping the rest in recovery state. Operations pending recovery confirmation are forbidden from further writes. Waiting for approval does not hold database transactions or file locks; while applying, concurrent model tools for the same Agent are blocked, and starting file side-effects is rejected if an active model run exists.
+- This implementation does not claim atomic CAS or security isolation against arbitrary external processes with the same UID; cases where same-UID processes hold old file descriptors or move parent directories during an operation still require detection and manual recovery. A hash check followed by rename, a directory mode of 0700, or a frontend confirmation cannot provide that guarantee.
 
 ### 5.5 Local Resource Scheduling
 
-The desktop composition root defaults to a maximum of two parallel runs, with a pending queue of up to 32 items; users can adjust parallelism between 1–8. Existing same-session mutual exclusion remains in effect, and tasks in the same actual workspace are dispatched serially. User-initiated tasks take priority over scheduled tasks; tasks waiting longer than 30 seconds receive a boost to prevent background tasks from being blocked indefinitely. Queuing does not create Python tasks, pre-read full message history, or retain credential copies; configuration is re-parsed when execution begins. Canceling queuing does not start the model, and lowering the cap does not kill currently executing tasks.
+The daemon composition root defaults to a maximum of two parallel runs, with a pending queue of up to 32 items; users can adjust parallelism between 1–8. Existing same-session mutual exclusion remains in effect, and tasks in the same actual workspace are dispatched serially. User-initiated tasks take priority over scheduled tasks; tasks waiting longer than 30 seconds receive a boost to prevent background tasks from being blocked indefinitely. Queuing does not create Python tasks, pre-read full message history, or retain credential copies; configuration is re-parsed when execution begins. Canceling a queued run does not start the model, and lowering the cap does not kill currently executing tasks.
 
-Body text and execution results are still persisted by the kernel; the client subscribes by session and merges incremental updates for display; approvals and final states do not wait for display timers. Real-time final state caches can only be released after being persisted to the DB and no longer subscribed by pages. No performance optimization may skip approvals, discard unsaved content, or simulate execution progress using percentages. Energy savings and speed comparisons require empirical testing under the same load; the queue cap itself does not equal energy saving percentages.
+The kernel persists content and execution results; the client subscribes by session and merges incremental updates for display; approvals and final states do not wait for display timers. A terminal-state cache can be released only after its contents have been persisted and no page subscribes to it. No performance optimization may skip approvals, discard unsaved content, or simulate execution progress using percentages. Claims about energy savings or speed require measurements under equivalent loads; a queue limit alone does not establish an energy-saving percentage.
 
-### 5.6 Pre-sending Prompt Optimization
+### 5.6 Prompt Enhancement Before Sending
 
-The input area's optimization module loads on click, discovering kernel interfaces via the optional capability `prompt.enhance`. Optimization carries only current text and internal instructions, reusing the current model and worker RPC; the temporary inference identity does not create business Session/Run, publish chat events, or hold tool permissions. It shares the execution slot budget, limited to at most one globally, cancels along with requests, and releases resources upon reaching final state. Results directly populate existing drafts and offer restoration; the modification suggestions popup opens only when the user chooses to adjust. Internal instructions do not enter frontend assets, logs, or business persistent state.
+The composer loads the enhancement module on demand and discovers support through the optional `prompt.enhance` capability. Requests use the current text, optional refinement feedback, and internal instructions with the selected model and existing worker RPC. The temporary inference identity creates no business Session or Run, publishes no chat events, and has no tool permissions. Enhancement shares the execution-slot budget, allows at most one request globally, and releases resources on cancellation or completion. The result replaces the composer text and offers Undo; the Refine dialog opens only on request. Internal instructions are excluded from frontend assets, logs, and persisted business records.
 
 ### 5.7 Content Preview
 
-Workbench preview is registered by `internal/workbench/preview` and calls independent format modules; see [Content Preview Architecture ](design/content-preview-architecture.md) for interfaces and directories. The composition root injects a controlled read-only workspace handle, and modules do not depend on server, store, or inference worker. Content parsing is single-concurrency with bounded reading; original files are output only via authenticated APIs. The frontend mounts only the current viewer, canceling requests and revoking Blob URLs when closed. HTML is displayed in an unprivileged iframe after sanitizing active content, with CSP rejecting external resources.
+Workbench preview is registered by `internal/workbench/preview` and calls independent format modules; see [Content Preview Architecture](design/content-preview-architecture.md) for interfaces and directories. The composition root injects a controlled read-only workspace handle, and modules do not depend on server, store, or inference worker. One file is parsed at a time, with bounded reads; original files are served only through authenticated APIs. The frontend mounts only the current viewer, canceling requests and revoking Blob URLs when closed. HTML is displayed in an unprivileged iframe after sanitizing active content, with CSP rejecting external resources.
 
-Legacy Office and layout previews rely on local LibreOffice and a conversion sandbox with restricted read and network prohibition, without falling back to online conversion or unisolated processes. The current conversion adapter targets macOS; other platforms retain built-in content reading and downloading. Previews are read-only and do not alter P3B application modifications, undos, conflict checks, or approvals.
+Legacy Office and layout previews use a local LibreOffice installation in a sandbox with restricted read access and no network access. They never fall back to online conversion or an unsandboxed process. The current conversion adapter targets macOS; other platforms retain built-in content reading and downloading. Previews are read-only and do not change P3B apply, undo, conflict detection, or approval behavior.
 
 ## 6. Security Invariants
 
-1. **Loopback address is not a security boundary.** Local APIs bind only to `127.0.0.1`; all require Bearer tokens except `/healthz`; validate `Host` and `Origin` (allowing only empty Origin, desktop shell custom protocols, and dev server whitelists).
+1. **Loopback address is not a security boundary.** Local APIs bind only to loopback addresses (`127.0.0.1:46750` by default); all require Bearer tokens except `/healthz`; validate `Host` and `Origin` (allowing only empty Origin, desktop shell custom protocols, and dev server whitelists).
 2. **Credentials never enter the database.** Model keys, channel credentials, and OAuth tokens live in `secret` storage. The database and configuration contain references only; credentials are supplied to worker memory through RPC at the point of use.
-3. **Side effects must undergo approval and sandboxing.** Worker processes have no permission to directly touch the file system, shell, or network; all tool executions go through the `permission → tools → sandbox` pipeline and write audit logs.
+3. **Tool side effects follow the permission boundary.** The worker must not execute workspace file, shell, or network tools directly; it submits them to the daemon. Every tool call passes permission evaluation, receives any required approval, follows its workspace and sandbox constraints, and is audited. Direct provider inference traffic is separate from tool execution.
 4. **Untrusted inputs carry a source.** IM messages, web content, and files are tagged when added to context. Permission rules may tighten behavior by source. A session must never automatically combine untrusted input, access to sensitive data, and outbound communication.
 5. **Third-party code runs out-of-process.** Plugins and MCP services run as subprocesses; no third-party code is loaded inside the kernel process.
-6. **Upgrades preserve recovery points.** When an existing database has pending migrations, the store backs up the old schema with an atomic SQLite snapshot before opening business logic, verifying integrity, version, and digest; if backup fails, migration is rejected. New empty databases require no backup. Downgrading to a kernel lower than the data directory version is forbidden; recovering an older kernel requires stopping writes, preserving current data, and then restoring a matching verified snapshot, without automatically discarding post-upgrade work.
+6. **Upgrades preserve recovery points.** When an existing database has pending migrations, the store backs up the old schema with an atomic SQLite snapshot before accepting application writes, verifying integrity, version, and digest; if backup fails, migration is rejected. New empty databases require no backup. Downgrading to a kernel lower than the data directory version is forbidden; recovering an older kernel requires stopping writes, preserving current data, and then restoring a matching verified snapshot, without automatically discarding post-upgrade work.
 
 ## 7. Data Directory (default `~/.gogosling`, environment variable `GOGOSLING_HOME`)
 
@@ -205,7 +205,7 @@ Migration snapshots are located in `backups/` under the database directory, usin
 ## 9. Decisions Made (ADR Summary)
 
 - **ADR-001 Daemon-First**: UI is a client, not the host. Rationale: Scheduled tasks and IM channels need to survive window closures; multiple frontends share a single set of APIs.
-- **ADR-002 Go Kernel + Python Worker Process**: Go handles the control plane, gateway, scheduling, sandboxing, updates, and distribution (single binary, cross-compilation); Python preserves the agent framework and ML/RAG ecosystem. The runtime environment is distributed with the installation package and is not downloaded over the network on first launch.
+- **ADR-002 Go Kernel + Python Worker Process**: Go handles the control plane, gateway, scheduling, sandboxing, updates, and distribution (single binary, cross-compilation); Python preserves the agent framework and ML/RAG ecosystem. Packaged releases are designed to include the worker runtime without a first-launch download; source builds require the local Python/uv setup described in the [quickstart](development/quickstart.md).
 - **ADR-003 Electron Shell**: Consistent rendering across three platforms with a mature ecosystem; no business logic resides within the shell, making it replaceable.
-- **ADR-004 Single-File SQLite Control Plane**: Local-first, zero operations; multi-device synchronization is a future capability that does not alter the local data model.
-- **ADR-005 Tool Execution in Kernel**: Only a single security boundary exists, facilitating auditing, approval, and sandboxing.
+- **ADR-004 Single-File SQLite Control Plane**: Local-first, with no separate database service to administer; multi-device synchronization is a future capability that does not alter the local data model.
+- **ADR-005 Tool Execution in Kernel**: Centralize permission checks, auditing, and sandbox dispatch for tool execution.

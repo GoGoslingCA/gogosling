@@ -51,7 +51,7 @@ Mobile-link failure retains desktop tasks, drafts, and files.
 
 ## 4. Verification
 
-Use a practice model and synthetic files. Fix this module's notice/state when a case fails; do not alter neighboring rules to force a pass.
+Use a test model service and synthetic files. Fix this module's notice/state when a case fails; do not alter neighboring rules to force a pass.
 
 | Case | Action | Expected result |
 |---|---|---|
@@ -67,14 +67,14 @@ Use a practice model and synthetic files. Fix this module's notice/state when a 
 | Enhancement | Fail/cancel optimization | Original retained, message count unchanged |
 | Capacity | Limit 1 occupied by other work | Later task queued, distinguishable from processing |
 | Capability | Connect to older service | New entries absent, legacy send/copy retained |
-| Local boundary | Inspect start/tasks/projects/settings | No messaging/cloud synchronization/online conversion/sharing/web retrieval |
+| Proposed local boundary | Review the draft navigation design | Proposed exclusions are explicit; do not mistake them for removal of existing runtime capabilities |
 | Mobile | No official URL | No empty Mobile app button |
 | Assistant switch | Draft under assistant A, switch to B | B's draft shown; A's input does not leak into B |
 | Late result | Start, then open another task | Current page retained; earlier content remains in original task |
 | Same-name materials | Add differing files concurrently | Both retained with correct independent content |
 | Preview after ending | Open saved result after Stop | Readable without an active assistant requirement |
 | Two approvals | Decide only one waiting task | Other remains waiting; decision not assigned to currently open task |
-| Start without body | Accept run, withhold content | Unknown or still processing; no automatic rerun |
+| Start without body | Accept run, withhold content | Use the recorded run state; no automatic rerun |
 | Leave page | Hide accepted run to tray | Does not become Stopped |
 | Persistent settings | Save limit 1, reopen | Still 1 |
 | Failed body | Leave/reopen unconfirmed failed output | Retained or explicit recovery failure; never silently empty success |

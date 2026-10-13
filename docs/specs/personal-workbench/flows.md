@@ -31,9 +31,9 @@ Use the same states as [the module plan](README.md), without adding new ones.
 
 An unfinished run prevents another concurrent send in the same task. Keep follow-up text in the input.
 
-After disconnection, completed state remains. Explain potentially incomplete intermediate events and use the full reply after completion. Retained messages prove records exist, not that the assistant resumed with all earlier context. Opening a task never resumes automatically.
+A disconnection does not erase a recorded completion. Explain potentially incomplete intermediate events and use the full reply after completion. Retained messages prove records exist, not that the assistant resumed with all earlier context. Opening a task never resumes automatically.
 
-Closing a page, switching tasks, or hiding to tray does not stop accepted work. User Stop or the run's own termination changes its state. A start signal without body remains unknown and must not trigger another run automatically.
+Closing a page, switching tasks, or hiding to tray does not stop accepted work. User Stop or the run's own termination changes its state. A start event without reply content is not proof of failure or completion. Inspect the run state and never start a duplicate automatically.
 
 Late start results belong to the original task, without redirecting the current page. Switching assistants restores each assistant's own unsent draft; the previous assistant's text stays under that assistant.
 
@@ -81,7 +81,7 @@ Confirmed, inactive real-time state may be released. Unconfirmed failed output s
 | Needs review | No further write or automatic retry |
 | Request outcome unknown/checking | Query state before any resubmission |
 
-One preview targets one file and uses a saved version. Current write-back accepts plain text up to 512 KiB, with create/replace. Undoing creation deletes the file and requires a separate preview and confirmation. Do not begin the write while the workspace has an active run.
+One preview targets one file and uses a saved version. Current write-back accepts UTF-8 text up to 512 KiB, with create/replace. Undoing creation deletes the file and requires a separate preview and confirmation. Do not begin the write while the workspace has an active run.
 
 ## 5. Projects, tasks, and assistants
 
@@ -99,7 +99,7 @@ A task may be in one project or unassigned. Association changes neither identity
 
 - Default 2 concurrent runs, configurable from 1 to 8.
 - At most 32 queued; waiting does not invoke the model.
-- Immediate user requests precede scheduled jobs.
+- Interactive requests have priority; long-waiting work gains priority to prevent starvation.
 - Same-workspace tasks execute serially.
 - Awaiting approval occupies a slot.
 - Lowering capacity does not interrupt accepted running work.

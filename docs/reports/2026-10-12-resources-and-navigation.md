@@ -9,14 +9,14 @@ Historical local delivery record, 2026-10-12. At that stage the changes were unc
 - Settings sections live in URLs with search, arrow navigation, refresh, and history. Five legacy routes redirect to sections. Returning preserves task/result parameters; existing preferences, history, drafts, and results remain readable.
 - Default global parallelism 2, configurable 1–8; at most 32 queued, same resolved workspace serialized, immediate user priority, aged queue promotion. Approval occupies a slot; reducing the limit does not terminate accepted work.
 - Waiting does not load full history, create worker tasks, or retain credential copies. Dispatch rechecks availability. Tests cover cancellation, start failure, shutdown, workspace competition, dynamic limits, and restart configuration.
-- Live state is session-scoped and batches text/reasoning. Critical states flush immediately; Seq replay deduplicates and daemon restart resets sequence. Release only confirmed persisted terminal caches without current subscribers; retain unsaved content.
+- Live state is session-scoped and batches text/reasoning. Critical states flush immediately; Seq replay deduplicates and daemon restart resets sequence. Completed-session caches are released only after persistence is confirmed and no active subscribers remain; unsaved content is retained.
 - Reuse message/tool indexes, mount folded details only on expansion, and query full history only when its drawer opens.
-- Tool guidance names actual tools/permissions, preserves saved personality, and is appended for Chinese/English runtime use. It injects no foreign identity, fixed model, external path, or nonexistent tool. The original sample was 16171 bytes rather than wholly injected; new guidance has a 2200-byte test cap.
+- Tool guidance names actual tools/permissions, preserves saved personality, and is appended for Chinese/English runtime use. It injects no foreign identity, fixed model, external path, or nonexistent tool. The runtime guidance has a tested 2,200-byte limit.
 - Product line: Work locally. Travel light. Architecture, authentication, and result storage remain intact.
 
 ## Interfaces and compatibility
 
-Optional `runtime.resources: 1`; older kernels hide the entry.
+Optional `runtime.resources: 1`; older daemons hide the entry.
 
 ```text
 GET /api/v1/resources

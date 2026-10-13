@@ -34,7 +34,7 @@ K1, K2, K4, and K9 are next presentation work. Add no buttons before those gaps 
 | K3 | Approval names action but not task | State task; remain awaiting confirmation when unclear rather than choosing |
 | K6 | Unknown result can still be clicked again | Require inspection; complete duplicate-send prevention is not a current capability |
 | K7 | Mode name cannot establish file outcome | Inspect actual approval and Applied state |
-| K8 | Lists/search appear complete | Preserve 200-item cap and loaded-task-only search notice |
+| K8 | Lists/search appear complete | Explain the 200-item limit on project/material/result lists and title search over loaded tasks; task history supports Load more |
 
 ## 3. Excluded expansion
 

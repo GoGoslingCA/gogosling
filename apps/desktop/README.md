@@ -1,9 +1,10 @@
 # @gogosling/desktop
 
-Electron desktop shell. The shell only holds OS capabilities (launching/discovering daemon process, windows, tray, autostart, deep linking),
-holds no business state; the UI is the same artifact as `apps/web`, communicating with `gogoslingd` via local HTTP API.
-In production builds, the page only accesses same-origin `app://gogosling/api/...`, which is proxied by the main process to the daemon process and injected with a token (the token never enters the page);
-in development mode (`GOGOSLING_WEB_URL`), the page directly connects to the daemon process.
+The Electron shell handles daemon discovery and launch, windows, the tray, autostart, and deep links. It stores UI preferences but no business state. It renders the same build as `apps/web` and communicates with `gogoslingd` through the local HTTP API.
+
+In production, the page requests same-origin `app://gogosling/api/...` URLs. The main process proxies these requests to the daemon and adds the access token; the token never enters the page. In development (`GOGOSLING_WEB_URL`), the page connects directly to the daemon with connection details held in memory.
+
+Closing the window hides it to the tray and leaves tasks running. Quitting the app stops only a daemon launched by that shell; an independently started daemon remains running.
 
 ## Structure
 
@@ -21,7 +22,7 @@ src/main/        Main process (Node, CommonJS)
   shell-security.ts IPC sender verification, external link whitelist, deep link parsing, dev server URL parsing
   tray.ts          Tray menu model
   i18n.ts          zh/en/fr copy for the shell itself
-  png.ts           Generates tray icon at runtime (no binary committing required)
+  png.ts           Generates the tray icon at runtime
   log.ts           Sanitized logs (<dataDir>/logs/desktop.log, 0600)
 src/preload/     Preload script (sandboxed, single file): four functions under window.gogosling
 src/shared/      IPC contracts shared between main process and preload (preload imports types only)
@@ -43,13 +44,13 @@ Environment variables:
 |---|---|
 | `GOGOSLING_HOME` | Data directory (defaults to `~/.gogosling`), shared by shell and daemon |
 | `GOGOSLING_DAEMON_PATH` | Daemon executable; if unset, searches for `<resources>/bin/gogoslingd[.exe]` and `PATH` in order |
-| `GOGOSLING_RESOURCES` | Automatically set to `<resources>/share/gogosling` when shell launches bundled daemon (builtin extensions are under `extensions/bundled`); won't overwrite if already set |
+| `GOGOSLING_RESOURCES` | Automatically set to `<resources>/share/gogosling` when shell launches bundled daemon (built-in extensions are under `extensions/bundled`); does not override an existing value |
 | `GOGOSLING_WEB_URL` | Points to Vite dev server in development (loopback addresses only), page connects directly to daemon, CSP relaxed accordingly |
 
-Daemon discovery rules: Reads `<dataDir>/daemon.json` first; if `GET /healthz` returns 200 and `GET /api/v1/version` accepts its token,
-it will be reused (not terminated on exit); otherwise, it is launched by the shell. Child process crashes trigger exponential backoff restarts (starting at 500ms, capped at 15s, up to 5 attempts; count resets after 60s of stable running).
+Daemon discovery first reads `<dataDir>/daemon.json`; if `GET /healthz` returns 200 and `GET /api/v1/version` accepts its token,
+the shell reuses it without taking ownership. If no live daemon is found, the shell launches one. A live daemon that rejects the handle token is reported as a stale-handle error rather than starting a second instance. Child process crashes trigger exponential backoff restarts (starting at 500ms, capped at 15s, up to 5 attempts; count resets after 60s of stable running).
 
-Stopping the daemon process (app exit and tray "Restart Daemon" follow the same path; see `daemon-stop.ts`):
+Daemon shutdown (app exit and the tray's "Restart Daemon" command share `daemon-stop.ts`; restart is available only for a daemon owned by the shell):
 
 1. **Instances launched by shell**: First verify daemon.json identity—the pid in the handle matches the child process pid, and `GET /api/v1/version` using its token
    returns 200 with `started_at` matching the handle; after confirmation, `POST /api/v1/system/shutdown`, if 202 is returned, wait for self-exit (up to 30s,

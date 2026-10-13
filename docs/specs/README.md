@@ -9,7 +9,7 @@
 | Authoritative detail | Complete requirements, stories, and acceptance criteria are in [the personal workbench PRD](../prd/personal-workbench.md), draft v0.5. Resolve wording differences here by aligning this directory with that PRD, rather than creating another rule set |
 | User guide | [Personal workbench guide](../user/personal-workbench.md) |
 
-This directory plans modules. It does not prescribe implementation or change other modules.
+This directory contains draft product requirements, not a release checklist. It does not remove existing features or override the implemented permission model. See the user guide for current workflows; proposed exclusions below apply only to this local-edition plan.
 
 ---
 
@@ -31,7 +31,7 @@ Usage displays only token counts actually supplied by the model service. Missing
 
 ## 2. Local edition boundaries
 
-The application's own networking capabilities are outside these module plans. The only retained external entry is [the mobile app](mobile-link/README.md): a browser link, without login, synchronization, or uploads. The official URL has not been supplied; hide the link until it is available.
+The application's own networking capabilities are outside these module plans. The only additional external navigation entry proposed here is [the mobile app](mobile-link/README.md): a browser link, without login, synchronization, or uploads. The official URL has not been supplied; hide the link until it is available.
 
 These capabilities are excluded from this directory and have no specification folders here:
 
@@ -55,11 +55,11 @@ These capabilities are excluded from this directory and have no specification fo
 | Skills and extensions | [extensions](extensions/README.md) | Use skills, services, and plugins already installed on this computer |
 | Activity records | [audit](audit/README.md) | Review past operations and decisions chronologically |
 | Desktop | [desktop](desktop/README.md) | Window, tray, and unsaved-content handling on exit |
-| Mobile app | [mobile-link](mobile-link/README.md) | The only external link |
+| Mobile app | [mobile-link](mobile-link/README.md) | Proposed link to the official mobile-app page |
 
 ## 4. Module handoffs
 
-The workbench hands a specific request to a neighboring module and displays the returned result. An unclear result remains unknown; it is neither synthesized as success nor displayed as zero.
+The workbench hands a specific request to a neighboring module and displays the returned result. If a result cannot be confirmed, show Unknown rather than success or zero.
 
 If one stage has a confirmed result and the next has none or is unknown, record the issue at that handoff. See [workbench troubleshooting](personal-workbench/troubleshooting.md).
 

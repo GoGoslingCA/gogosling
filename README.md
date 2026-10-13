@@ -37,7 +37,7 @@ Projects, drafts, task history, and result versions live in the local daemon. De
 - **Reviewable changes.** Draft conflict checks, immutable result versions, and guarded text-file apply/undo support recovery.
 - **Your model, your tools.** OpenAI-compatible and Anthropic endpoints, compatible local model servers, MCP, extensions, and scheduled tasks.
 
-These are design choices, not a measured claim of lower memory use or higher speed than another product. [Help us build reproducible benchmarks](ROADMAP.md#help-measure-the-difference).
+Resource and performance goals still need reproducible measurements. [Help us build benchmarks](ROADMAP.md#help-measure-the-difference) for memory use, responsiveness, and cancellation.
 
 ### Read files without leaving the task
 
@@ -78,7 +78,7 @@ npm run dev -w @gogosling/web -- --strictPort
 
 Open **http://127.0.0.1:5173**. Leave the connection address empty and enter the `token` from your local `~/.gogosling-dev/daemon.json`. Do not share this file; the browser keeps the token only in memory.
 
-In **Settings → Models**, connect your provider, then configure an agent and start a task. Starting the app and running tests do not require a paid model key; real requests may incur provider charges.
+In **Settings → Model connections**, connect your provider. Then choose the model in **Settings → Agents** and start a task. Starting the app and running tests do not require a paid model key; real requests may incur provider charges.
 
 [Full setup, Electron launch, and troubleshooting →](docs/development/quickstart.md)
 

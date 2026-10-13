@@ -4,12 +4,12 @@
 |---|---|
 | Status | Draft v0.5 |
 | Date | 2026-10-12 |
-| Audience | Product, Design, Acceptance, User Documentation |
-| Product Scope | A single individual on their own computer, using an assistant to complete tasks and manage materials and deliverables |
+| Audience | Product, design, acceptance testing, and user documentation |
+| Product Scope | An individual using an assistant on their own computer to complete tasks and manage reference materials and deliverables |
 | Excluded | Internal rules of team repositories. For how personal workbench interfaces with team capabilities, see Section 12.7; for the team itself, see [Team Workflow PRD](team-workflow.md) |
-| Implementation Status | Sections 2–10 cover currently acceptable capabilities, not yet submitted for release, with no official installation packages provided yet. Section 12 covers designs not yet delivered. Sections 13–15 plan this module only without modifying other modules |
+| Implementation Status | Sections 2–10 define the baseline and acceptance requirements; they are not a release checklist with every item passed. The local-only navigation changes in Section 4.3 and mobile app link are proposals, not current behaviour. Section 12 plans future work; Sections 13–15 define module boundaries and follow-up requirements. Signed installers are not yet available |
 
-This document only describes what users can see, what they can do, and what should happen after they do it. It does not prescribe technical implementation.
+This draft describes the personal workbench developed by Gogosling.ca, a Canadian company. It specifies user actions and expected outcomes, not technical implementation. For the current application, see the [user guide](../user/personal-workbench.md); proposed restrictions here do not remove existing messaging, network tools, or settings.
 
 ---
 
@@ -54,21 +54,21 @@ The following items lack user research samples or official release data; they ar
 | Number | Assumption |
 |---|---|
 | A1 | Primary users of the first version are individuals needing to produce documents, spreadsheets, or code, including product managers, operations, and indie developers. No demographic or industry distribution data is available |
-| A2 | One computer, one user. Drafts are saved separately according to the currently logged-in identity, but this document does not design for multi-user simultaneous editing |
+| A2 | One computer, one user. Drafts are scoped to the current access identity, but this document does not design for multi-user simultaneous editing |
 | A3 | The desktop application is the primary entry point. When opened via browser, the local address and access token must be obtained separately; this path does not serve as the primary five-minute onboarding flow |
 | A4 | Models are provided by the user's own provider account. This product does not sell packages or calculate billing |
 | A5 | "Assistant" and "Agent" in Settings refer to the same object. The workbench uses the term "Assistant" with users |
 | A6 | The verified environment for file write-back is macOS. Whether Linux is usable on physical machines is marked in this document as unverified and not included in this release's commitments. Windows cannot write changes back to original files in this release |
-| A7 | This application is local open-source software. The application's own networking capabilities are removed from this module. The only retained external entry point is the "Mobile App" link, used to obtain or open the mobile client, without login, sync, or upload |
+| A7 | The proposed local-only edition removes the navigation entries listed in Section 4.3 and retains a future "Mobile App" link. These changes are not implemented in the current application; they must not be described as existing behaviour |
 | A8 | The model address filled in by the user will still communicate according to that address. This is the model chosen by the user, not cloud services provided by this application. Local models can likewise be selected |
 
-### 1.3 To Be Confirmed (Not Supplemented as Facts in This Document)
+### 1.3 Decisions and Open Questions
 
 | Number | Question | How Handled in This Document |
 |---|---|---|
-| Q-1 | Under the three confirmation levels, does writing back to original files always pop up a confirmation | Not committed separately. Acceptance only requires: if a confirmation box appears, it must be handled by a human; a status other than "Applied" indicates the target file has not yet been changed per this preview |
+| Q-1 | Under the three confirmation levels, does writing back to original files always pop up a confirmation | Resolved in the current implementation: every permitted user-initiated file apply or undo requires approval for that operation only, regardless of the assistant tier. Deny rules still take precedence. "Applied" confirms success; an unknown or verification-required result does not prove that no write occurred |
 | Q-2 | Reply quality, speed, and cost on real providers | Not included as acceptance items for this release |
-| Q-3 | How the current interface paginates when exceeding 200 items | This release displays up to 200 items. How to browse and search subsequently has been defined in Section 12.3 as two separate items, but they cannot be used yet |
+| Q-3 | How the current interface paginates when exceeding 200 items | Task history loads pages of 200 and supports loading more; search covers only loaded tasks. Project, material, and deliverable lists currently expose only their first 200 items. Section 12.3 plans broader browsing and full-text search |
 | Q-4 | Window restoration for installation packages across multi-monitor hot-plugging, Windows, and Linux | Not validated on physical machines; not included in this release's launch commitments |
 | Q-5 | Official address of the mobile app | There is no verifiable store or download address in the repository. Before the address is determined, the interface will not display the link or use placeholder URLs |
 
@@ -80,7 +80,7 @@ The following items lack user research samples or official release data; they ar
 
 gogosling enables users on their own computers to hand over a task to an assistant: reading materials, drafting content, viewing progress, and modifying files in the workspace when needed. Models and files remain in the user's own connections and directories.
 
-Comparable products can already start execution from a single sentence, but when users return, they often struggle to distinguish four things: whether files are still there, whether drafts are saved, what the latest requirements are, and which stage execution has reached. Permission descriptions and whether confirmations are actually prompted may also disagree. When costs are unknown, displaying them as zero leads to mistaken conclusions.
+When users return to a task, they need to distinguish four things: whether files are still available, whether drafts were saved, which requirements are current, and how far execution has progressed. Permission descriptions and whether confirmations are actually prompted may also disagree. When costs are unknown, displaying them as zero leads to mistaken conclusions.
 
 This workbench aims to turn these differences into visible states, rather than adding yet another layer of automatic continuation.
 
@@ -88,8 +88,8 @@ This workbench aims to turn these differences into visible states, rather than a
 
 | Number | Goal | How It Is Considered Achieved |
 |---|---|---|
-| G1 | A task can be started in one step | After writing requirements and selecting materials, a single confirmation creates the task, adds materials, and submits. If any step fails, tell the user where it stopped, and completed portions remain intact |
-| G2 | Check upon returning rather than being automatically continued | After reopening, the user can see the task, unsent draft, deliverable edits, latest deliverable version, and whether the run is in progress, completed, or unknown. Does not automatically resend unknown results |
+| G1 | Start a task with one action | After writing requirements and selecting materials, a single confirmation creates the task, adds materials, and submits. If any step fails, tell the user where it stopped, and completed portions remain intact |
+| G2 | Show task state on return; resume only on request | After reopening, the user can see the task, unsent draft, deliverable edits, latest deliverable version, and whether the run is in progress, completed, or unknown. Does not automatically resend unknown results |
 | G3 | Deliverables and original files are separate items | Saving versions, saving copies, exporting, and writing back to original files each produce distinct results, with consequences explicitly stated in the interface |
 | G4 | Files can be inspected before write-back, and write failures do not overwrite others' edits | Inspect diffs and target paths first. If the file was modified after the preview, halt write-back and preserve external content. Enter "Needs Review" when confirmation is impossible, without automatic re-execution |
 | G5 | Truthful usage metrics | Display input, output, and cache read tokens when available for this turn. Display not yet provided when unavailable. Do not estimate monetary costs |
@@ -103,7 +103,7 @@ This workbench aims to turn these differences into visible states, rather than a
 - No account quotas, billing, or spending caps are provided.
 - Legacy office documents are not disguised as previewing successfully when local conversion capabilities are missing.
 - Writing back to the original file is not supported on Windows.
-- The application does not provide its own internet access capabilities. See Section 4.3 for scope. The only retained external entry point is the mobile app link.
+- The proposed local-only edition excludes the navigation entries in Section 4.3. This is a future scope boundary, not a statement that current network capabilities have been removed.
 
 ---
 
@@ -113,11 +113,11 @@ This workbench aims to turn these differences into visible states, rather than a
 
 | User | Goal | Prerequisite Skills Not Required |
 |---|---|---|
-| Personal knowledge worker | Bring materials, draft or revise a document, and leave behind an openable version | Does not require command-line or version control experience |
+| Personal knowledge worker | Bring materials, draft or revise a document, and save a version they can reopen | Does not require command-line or version control experience |
 | Individual needing to edit local files | Clearly see which file will be changed, write only after consent, and know whether the original file is intact upon failure | Does not require understanding internal execution processes |
 | Returning user with existing tasks | Retrieve previous input, deliverables, and exact stopping points | Does not require remembering specialized object names |
 
-Scheduled tasks can still be accessed via the main navigation and run on this machine at the designated time. Message channels are no longer used as an entry point for this module.
+Scheduled tasks can still be accessed via the main navigation and run on this machine at the designated time. Removing message-channel entry points is part of the Section 4.3 proposal; the current application still exposes Messaging in Settings.
 
 ### 3.2 Pain Points
 
@@ -147,21 +147,21 @@ Scheduled tasks can still be accessed via the main navigation and run on this ma
 | P1 | Optimize prompts | Only modifies text in the input box without submitting the task |
 | P1 | Open and read files | Read supported formats directly; explain reasons and provide downloads for unreadable formats |
 | P1 | Write saved version back to single text file | Committed only for macOS in this release. Preview first, decide by permissions; preview undo independently |
-| P2 | Scheduled tasks, concurrency limits, charts, mobile app link | Scheduled tasks run locally on schedule. Default concurrency is 2, adjustable from 1 to 8; queue limit is 32. Mobile app is link-only, see Section 4.3 |
+| P2 | Scheduled tasks, concurrency limits, and charts | Scheduled tasks run locally on schedule. Default concurrency is 2, adjustable from 1 to 8; the queue limit is 32. The mobile app link is a separate proposal in Section 4.3 |
 
 ### 4.2 Explicitly Out of Scope for This Release
 
 - Team workflows.
-- Full pagination beyond 200 items.
+- Pagination beyond the first 200 projects, materials, or deliverables, and full-text search across unloaded tasks.
 - Automatically summarizing the "latest active goal" into a new task specification. Currently shows the initial goal and the latest addendum without claiming they are merged.
 - Cross-assistant project sharing or using projects to restrict file permissions.
-- Windows write-back to original files; Linux write-back is not accepted and not advertised as available.
+- Windows write-back to original files. Linux guarded writes exist in the core, but physical-machine desktop acceptance is still pending.
 - Billing, quotas, automatic outbound transmission, or cloud continuation after computer sleep.
 - Internet capabilities listed in Section 4.3.
 
-### 4.3 Localization: Removing Internet Capabilities and Retaining Only Mobile App Link
+### 4.3 Proposed Local-Only Navigation and Mobile App Link
 
-This module is a local open-source workbench. The following will no longer appear on the start page, task page, projects, or settings, nor will they be offered as selectable entry points:
+This proposal would remove the following entry points from the start page, task page, projects, and settings. It has not been implemented. Existing capabilities remain available until a separately reviewed change defines migration and compatibility behaviour:
 
 | Removed Capability | User-Facing Result |
 |---|---|
@@ -171,10 +171,10 @@ This module is a local open-source workbench. The following will no longer appea
 | Connector marketplace, skill marketplace | Skills use only what is already installed on this machine |
 | Web page fetching, automatic outbound messaging | Workbench provides no entry points to "fetch content online" or "send messages on your behalf" |
 
-The only retained external entry point is the "Mobile App":
+The proposed edition would retain a "Mobile App" link:
 
 - Located in Settings under About, or as a single line in the start page footer, labeled "Mobile App".
-- Clicking opens the release notes URL in the system browser. It does not open in-app and requires no login.
+- Clicking would open the verified download or store URL in the system browser. It does not open in-app and requires no login.
 - This link does not upload tasks, drafts, deliverables, or files, nor does it pull mobile content back to the computer.
 - The official URL is not yet provided (Q-5). Before the URL is finalized, hide this line; do not place empty buttons or placeholder store links.
 
@@ -200,11 +200,11 @@ If message channels still have their own pages in other modules, this module wil
 | F10 | Materials | Unchecked by default after adding to a project. Checking only indicates inclusion in this message; unchecking does not delete files |
 | F11 | Deliverable Versions | Save first draft, edit, automatically retain working draft, save new version, view history, and save another version using historical content |
 | F12 | Copies and Export | Leaves a copy in the workspace attachments directory, or exports one. Does not overwrite original files |
-| F13 | Optimize Prompt | Preview candidates: editable, adjustable based on feedback, replaceable in input, and undoable. Original text and attachments remain intact |
+| F13 | Optimize Prompt | Apply an enhanced prompt directly to the input. Restore returns to the original; an optional Adjust dialog accepts feedback. The action does not send a task message or change attachments |
 | F14 | File Preview | Read documents, spreadsheets, presentations, text, images, audio/video, and archive directories. Does not continue holding this content after closing |
 | F15 | File Modification | Generate diffs for a single text target. Wait for results after application. Applied creations can be previewed again as deletions; applied replacements can be previewed again as reverts |
-| F16 | Settings | Preferences, features, data, and security. Excludes message connections and online services. Returns to original tasks and deliverables upon going back |
-| F19 | Mobile App | Contains only one link to open an external address. Hidden when no address is configured. No synchronization occurs |
+| F16 | Settings | Preferences, features, data, and security. Back navigation returns to the original task and deliverable. Removal of messaging and online-service entries belongs to the Section 4.3 proposal |
+| F19 | Mobile App | Proposed: one link to a verified external address, hidden until configured. No synchronization is planned |
 | F17 | Concurrency | View running and queued counts. After lowering, actively executing items finish first |
 | F18 | Charts | Data in messages meeting specifications can be viewed as bar or line charts with an accompanying data table. Invalid data still displays as raw text |
 
@@ -216,17 +216,17 @@ All personas are fictional, used solely to anchor workflows, and do not represen
 
 ### 6.1 Stories
 
-**Story A: Lin Lan writes a briefing**
+**Story A: the product lead writes a briefing**
 
-Lin Lan opens Gogosling, where a Document Assistant already exists. On the start page, she drags in two documents and enters "Write an internal memo based on these two documents, listing the questions to be confirmed first." She clicks "Start Task." After the task opens, the input area displays the assistant, working directory, and 2 documents. If a confirmation prompt appears before the assistant reads the documents, she verifies the object and approves it once. Once the reply is generated, she clicks "Save First Draft and Edit", finishes editing in the output area, sees that the draft is saved, and then clicks "Save New Version". Opening the same task the next day, the versions are still present, and any unsent additions confirmed as saved by the service will also be there.
+The product lead opens Gogosling, where a Document Assistant already exists. On the start page, she drags in two documents and enters "Write an internal memo based on these two documents, listing the questions to be confirmed first." She clicks "Start Task." After the task opens, the input area displays the assistant, working directory, and 2 documents. If a confirmation prompt appears before the assistant reads the documents, she verifies the object and approves it once. Once the reply is generated, she clicks "Save First Draft and Edit", finishes editing in the output area, sees that the draft is saved, and then clicks "Save New Version". Opening the same task the next day, the versions are still present, and any unsent additions confirmed as saved by the service will also be there.
 
-**Story B: Zhou Yu modifies only one file**
+**Story B: the team administrator modifies only one file**
 
-Zhou Yu already has a saved text deliverable. He opens "File Modification," enters the relative path within the workspace, selects replacement, and generates a preview. He sees added and deleted lines alongside "Not Yet Written." When the confirmation dialog appears, he approves only this preview. The target file updates to the new content only after the status changes to "Applied." If the file was modified by someone else before his approval, the status changes to "File Changed," and external content is retained.
+The team administrator already has a saved text deliverable. He opens "File Modification," enters the relative path within the workspace, selects replacement, and generates a preview. He sees added and deleted lines alongside "Not Yet Written." When the confirmation dialog appears, he approves only this preview. The target file updates to the new content only after the status changes to "Applied." If the file was modified by someone else before his approval, the status changes to "File Changed," and external content is retained.
 
-**Story C: Su Qing optimizes a sentence before deciding whether to send**
+**Story C: the operations member optimizes a sentence before deciding whether to send**
 
-Su Qing writes a very short requirement and clicks "Optimize Prompt." The dialog explains that no task will be sent. She can keep the original, shorten it according to suggestions, or replace the input. After replacement, focus returns to the input box. If dissatisfied, she clicks "Undo Optimization." The entire process generates no new task messages.
+The operations member writes a short request and clicks "Optimize Prompt." The enhanced text replaces the input without sending a task message. She can edit it, choose "Restore" to return to the original, or open "Adjust" to provide feedback and select "Apply feedback." Closing Adjust leaves the current input intact; canceling an in-progress enhancement prevents its result from replacing the input. Attachments remain unchanged.
 
 ### 6.2 Main Workflow: From Idea to Reopenable Deliverable
 
@@ -234,7 +234,7 @@ Su Qing writes a very short requirement and clicks "Optimize Prompt." The dialog
 2. Write goals on the start page, optionally adding materials. Materials appear under "Current Reference."
 3. Click "Start Task." The sequence is fixed as: create task → add selected materials → submit requirements. Blank content creates only an empty task.
 4. Failure at any step: stays at the completed stage, with text preserved. If a task was already created, retrying reuses that task instead of creating another.
-5. If results cannot be temporarily confirmed: prompt to verify in the existing task first, without automatically resubmitting.
+5. If the submission outcome is unknown, ask the user to check the existing task before resubmitting.
 6. While running, one can view steps, stop, or write the next supplement.
 7. When confirmation is required, review the task name, action, and target first, then choose approve once, allow for this session, or deny. File modifications do not use "allow for all future instances in this session."
 8. After the reply finishes, the user actively selects "Save First Draft and Edit." If not selected, no formal deliverable is created.
@@ -246,7 +246,7 @@ Su Qing writes a very short requirement and clicks "Optimize Prompt." The dialog
 1. A saved formal version must exist first. A write-back preview cannot be generated directly while viewing historical versions.
 2. Fill in a relative path within the assistant's workspace and select Create New or Replace.
 3. Generate a preview. At this point, the target file remains unchanged, with the status "Previewed · Not Written."
-4. The user applies to execute. If denied or canceled, the file remains unchanged.
+4. The user requests Apply and approves that preview once. Rejection or cancellation before writing leaves the target unchanged. If execution has started and its outcome is unknown, verify the recorded operation before retrying.
 5. Only when the status becomes "Applied" does it indicate this preview has been written to the target.
 6. To revert later, a separate revert preview must be generated. Reverting a creation equals deleting the file, requiring separate confirmation based on deletion risk. Reverts execute only if the file still matches the last applied result.
 
@@ -273,8 +273,8 @@ Su Qing writes a very short requirement and clicks "Optimize Prompt." The dialog
 | Completed | This round finished with results | Save first draft, continue supplements |
 | Failed | This round failed | View failure details, resend requirements. Does not rerun automatically |
 | Stopped | The user stopped this round | Completed steps are preserved; requirements can be resent |
-| Recovering | Reading previous state | Wait for read to finish. Not described as completed or generating during this period |
-| Unknown State | Temporarily undetermined | Verify first; does not resend automatically |
+| Recovering | Reading previous state | Wait for the status check. Do not label the run as completed or generating until its state is known |
+| Unknown State | The current state cannot be confirmed | Verify first; does not resend automatically |
 
 Rules:
 
@@ -306,7 +306,7 @@ Rules:
 
 ### 7.3 Deliverable Versions
 
-- Official deliverables must originate from genuine replies and be initiated by the user clicking "Save Initial Draft and Edit" or through corresponding code saving.
+- Saved deliverables must originate from actual replies and be initiated by the user clicking "Save Initial Draft and Edit" or through corresponding code saving.
 - Once a version is saved, it is not rewritten. Subsequent saves create new versions.
 - Viewing history does not alter the current draft being edited.
 - When restoring using historical content, require confirmation first, then create a new version upon saving without deleting old versions.
@@ -329,7 +329,7 @@ Rules:
 
 Rules:
 
-- A preview applies to only one target file with content derived from the version saved at that time; if the deliverable changes subsequently, repreview is required.
+- A preview applies to only one target file with content derived from the version saved at that time; the preview remains bound to that saved version. To apply newer content, generate a new preview.
 - This version of write-back accepts only plain text, with a maximum size of 512 KiB.
 - Creation and replacement are supported. Deletion appears in previews that undo new creations, not as an entry point for arbitrary workspace cleanup.
 - When a workspace has an active runtime, file write operations are not started, and a prompt to retry later is shown.
@@ -381,12 +381,12 @@ When issues arise, first determine which stage failed according to Section 15, t
 | Power outage before auto-save is confirmed | Only guarantee content that previously displayed "Saved". Do not promise that the last character has been written |
 | Editing the same deliverable concurrently in two places | The person saving later sees a conflict, both copies of content are present, and a human chooses |
 | Target has changed when approving file modifications | Stop and mark as file modified; external bytes are retained |
-| Unable to confirm halfway through applying | Mark as requiring verification. Do not automatically rewrite, and do not delete originals of unknown source |
+| Outcome cannot be confirmed during Apply | Mark as requiring verification. Do not automatically rewrite, and do not delete originals of unknown source |
 | File is no longer the result of the last apply when undoing | Do not execute undo |
 | Refinement result is empty, clearly unfinished, or contains internal notes that should not appear | Do not adopt this candidate; retain original text; retry allowed |
-| Ongoing tasks full during refinement | Explicitly prompt busy; do not start another queue to dispatch tasks |
+| No execution slot available for refinement | Explicitly prompt busy; do not start another queue to dispatch tasks |
 | Legacy local service lacks projects, drafts, versions, file modifications, preview, or refinement | Hide corresponding entry points; existing tasks, attachments, and copy saving remain available |
-| List exceeds 200 items | This version cannot guarantee seeing all items. Do not describe "not displayed" as "no longer exists" |
+| Project, material, or deliverable list exceeds 200 items | These lists expose only the first 200 items. Task history can load additional pages. Do not describe an item that is not displayed as deleted |
 | Search tasks | Search only tasks that have already been loaded; interface keeps this statement |
 | Chart data invalid or exceeds 50 valid values | Do not render chart; retain original text |
 | Missing local office conversion capability | Legacy office files indicate preview unavailable, download allowed. Do not upload to online services for conversion |
@@ -396,11 +396,11 @@ When issues arise, first determine which stage failed according to Section 15, t
 | Two files with the same name added concurrently | Each file is retained individually; the latter does not overwrite the former |
 | View deliverable or preview after task has ended | Still accessible. Cannot refuse reading just because the assistant is not running |
 | Two tasks awaiting confirmation simultaneously | Kept independent. Processing one will not modify the other, nor will it be recorded onto the currently open task |
-| Close page or minimize to tray | Accepted runs do not stop because of this. Status is unknown when only prompt exists without body; do not automatically start another round |
+| Close page or minimize to tray | Accepted runs do not stop because of this. If the final reply is missing and the run status cannot be confirmed, show an unknown outcome; do not automatically start another run |
 | Messages remain after reopening | Only indicates records remain. Does not indicate assistant has resumed with all earlier content, nor does it automatically resume |
 | Connection failed | Stay on connecting or preparing. Do not describe as quota exhausted without evidence. Do not treat old failures as the result of this recent attempt |
-| Leaving while unconfirmed failure body exists | Does not disappear due to leaving the page |
-| Deliverable versions, originals before write-back, operation logs | Not automatically deleted by days |
+| Navigate away after a draft save fails | Preserve the unsaved text in memory and warn before an action that could discard it |
+| Deliverable versions, originals before write-back, operation logs | Not automatically deleted based on age |
 
 When assistant names, model names, or directory names are truncated, users must be able to view full names. When a human is reading earlier messages, new content must not forcibly scroll the reading position to the bottom. These two items are not yet represented as completed in the current version and are first recorded in the module issue list.
 
@@ -418,16 +418,16 @@ Each assistant has one tier, affecting whether to ask a human when the assistant
 
 | Tier | Rules User Should Understand |
 |---|---|
-| Approve All | Every operation that modifies the outside world must ask first |
+| Approve All | Every operation with side effects requires approval |
 | High-Risk Approval | Executing commands, accessing network, sending messages, deleting, etc. must ask first |
 | Automatic in Sandbox | Can complete autonomously within permitted scope; must still ask beyond that scope |
 
 Rules:
 
 - "Read-only" and "write, execute, network, delete" are not the same risk. The interface must label them with text, not just colors.
-- An approval covers only that single instance and does not alter the assistant's long-term tier.
+- An "Approve once" decision covers only that operation and does not change the assistant's long-term tier.
 - "Allow within this session" exists only for confirmations during task execution, not for file modifications. The approval copy for file modification is "Approve current preview of this file only".
-- If rules determine rejection, the operation is not executed.
+- If rules deny an operation, it is not executed. User-initiated file apply and undo otherwise require their own once-only approval, even in Automatic in Sandbox mode.
 - Selecting materials only determines which references this message carries; it neither grants new directories nor revokes workspaces the assistant originally had access to.
 - Project descriptions must retain this statement: Projects use the workspace of the same assistant; attribution does not expand or isolate file permissions.
 
@@ -439,13 +439,13 @@ Rules:
 - Preview does not send files to external conversion websites.
 - Usage numbers come from model service responses; this product does not construct a separate bill.
 
-This module does not open messaging channels. Mobile app links do not carry access tokens, tasks, or files.
+The proposed local-only edition would omit messaging entry points. Any future mobile app link must not carry access tokens, tasks, or files.
 
 ---
 
 ## 10. Acceptance Criteria
 
-The following items must all be actionable by a human on the interface and display the specified results. Practice models and practice files can be used. Response quality of real providers is outside this checklist.
+The following items must all be actionable by a human on the interface and display the specified results. Use a test model and sample files. Response quality of real providers is outside this checklist.
 
 | Number | Scenario | Passing Criteria |
 |---|---|---|
@@ -463,13 +463,13 @@ The following items must all be actionable by a human on the interface and displ
 | AC12 | Replace a text file on macOS | The file remains unchanged during preview; after approval, the status is applied and the content matches the preview; the file remains unchanged upon rejection |
 | AC13 | External modification after preview before approval | Status is file changed; external content remains unchanged |
 | AC14 | Undo file creation | Preview separately and confirm again via delete; the file remains intact before confirmation |
-| AC15 | Optimize prompt | Message count does not increase during preview; original text remains after cancellation or closing; can be reverted to original text after replacement |
+| AC15 | Optimize prompt | Enhancement fills the input without adding a message. Canceling an in-progress request retains the input; Restore returns to the original after replacement. Closing Adjust does not discard the current text |
 | AC16 | Unsupported preview | Reason and download provided; other tasks and files remain usable |
 | AC17 | Narrow window | Conversations and artifacts can be toggled; save and stop remain clickable; toggling does not lose edits |
 | AC18 | Legacy service lacking new capabilities | New entry point does not appear; existing send, attachment, and save copy actions remain usable |
 | AC19 | Usage | If numbers exist, break down into input, output, and cache; if not, display not yet provided without showing an amount of 0 |
 
-This version does not mark the following scenarios as passed: Linux physical-machine write-back, Windows write-back, formal installer packages, multi-monitor hot-plugging, full browsing of more than 200 items, and real-world model quality.
+This version does not mark the following scenarios as passed: Linux physical-machine write-back, Windows write-back, formal installer packages, multi-monitor hot-plugging, complete browsing of project, material, and deliverable lists beyond 200 items, and real-world model quality.
 
 ---
 
@@ -477,7 +477,7 @@ This version does not mark the following scenarios as passed: Linux physical-mac
 
 ### 11.1 Current Phase
 
-Local capabilities can now be accepted per Section 10. There is no formal installer package yet, so launch cannot be announced to existing users.
+The implemented local capabilities can be evaluated against Section 10. This draft does not establish that all acceptance criteria have passed. A packaged desktop release requires separate installer and platform validation.
 
 ### 11.2 Recommended Release Sequence
 
@@ -498,11 +498,11 @@ The sequence is ordered by "eliminating one misjudgment upon return." The full i
 | 1 | Current Goal (Section 12.2) | Treating the first message as the ongoing task to do now |
 | 2 | Continue Browsing, Separated from Full-Text Search (Section 12.3) | Equating not displayed with non-existent; calling the loaded list the full set |
 | 3 | Usage Explanation, Still Without Estimating Amounts (Section 12.4) | Treating current-turn tokens, optimized prompts, and provider bills as the same figure |
-| 4 | System Scope for File Write-back (Section 12.5) | Exposing write-back on unverified systems, or hitchhiking multi-file writes into a release |
+| 4 | System Scope for File Write-back (Section 12.5) | Exposing write-back on unverified systems, or adding multi-file writes without separate review |
 | 5 | Single Click Generates Only One Message (Section 12.6) | Clicking again while the result is unknown emits a second message |
 | 6 | Integration with Team Capabilities (Section 12.7) | Personal drafts and projects being transferred or exposed immediately upon joining a team |
 
-Whether human-initiated write-back prompts under every confirmation level is currently accepted per Q-1. Section 12.5 tightens this into rules for the next version; before that tightening is released, the current state should not be described using that rule.
+The once-only approval rule for user-initiated write-back is already implemented (Q-1). Section 12.5 carries that existing rule into future platform acceptance.
 
 ---
 
@@ -553,9 +553,9 @@ When not yet confirmed, Current Goal displays "Not yet organized" and must not d
 
 ### 12.3 Continue Browsing, and Full-Text Search
 
-These two items were originally phrased as "pagination beyond 200 items." They must be separated, because offering only pagination still leads users to assume the search box has queried the entire dataset.
+Task history already supports loading additional pages of 200; its search still covers only loaded tasks. The remaining work is pagination for project, material, and deliverable lists, plus full-text task search. These must be separate requirements: pagination does not mean a search covers the entire dataset.
 
-**Continue Browsing:** Projects, materials, tasks, and artifacts display "Count displayed" and "More available" when exceeding the current page. Loading more will not replace already viewed items with a new batch and cause previously viewed items to be lost. Upon load failure, the currently displayed list remains intact. If the count cannot be determined temporarily, display "Total count unknown" instead of 0.
+**Continue Browsing:** Extend the task-history pattern to projects, materials, and deliverables. These lists should display "Count displayed" and "More available" when exceeding the current page. Loading more will not replace already viewed items with a new batch and cause previously viewed items to be lost. Upon load failure, the currently displayed list remains intact. If the count cannot be determined temporarily, display "Total count unknown" instead of 0.
 
 **Full-Text Search:** Released separately from Continue Browsing. The search box clearly states "Search across all tasks." Results must be able to open tasks not yet loaded into the current list. Search failure must not describe an empty result as "Task not found," but rather "Search incomplete this time." Before this capability is released, the search box continues to state "Search loaded tasks only."
 
@@ -583,21 +583,21 @@ This product still does not sell plans, maintain account balances, or support "s
 
 ### 12.5 Expanding File Write-back to More Systems
 
-**Tighten rules first, then expand systems:** For user-initiated file modifications, regardless of whether the assistant is set to "Approve all", "High-risk approval", or "Automatic in sandbox", "Approve current preview of this file only" must appear. Assistant tiers affect only assistant-initiated operations. Rejection rules still take precedence; files remain unchanged when a rejection occurs.
+**Preserve the existing approval rule when expanding platform coverage:** For user-initiated file modifications, regardless of whether the assistant is set to "Approve all", "High-risk approval", or "Automatic in sandbox", "Approve current preview of this file only" must appear. Assistant tiers affect only assistant-initiated operations. Rejection rules still take precedence; files remain unchanged when a rejection occurs.
 
-Before this tightening is released, user instructions still follow Section 9 and Q-1: determined by whether a confirmation modal was present and whether the status changed to "Applied" at the time.
+This approval rule is already enforced by the permission service for operations with an `OperationID`. Section 9 and Q-1 describe the same current behaviour.
 
 **Maintain today's status table when expanding scope.** Previewed, Pending approval, Applying, Applied, Rejected, Expired, File changed, Apply failed, Canceled, Verification required, and Unknown result retain their meanings.
 
 | System | When write-back may appear | Before that time |
 |---|---|---|
 | macOS | Text files already accepted according to Section 10 AC12–AC14 | — |
-| Linux | After the same set of scenarios passes in a real Linux environment | Retain only duplicates and exports; do not show apply requests |
-| Windows | After the same set of scenarios passes in a real Windows environment | Same as above |
+| Linux | The core implementation supports guarded writes; desktop release acceptance still requires the same scenarios in a real Linux environment | Do not describe CI coverage as completed physical-machine acceptance |
+| Windows | After guarded writes are implemented and pass the same scenarios in a real Windows environment | Preview, copies, and export remain available; Apply is unsupported |
 
 The same release does not add these capabilities: modifying multiple files at once, modifying folders, renaming, modifying binaries, modifying permissions, or framing undo as reverting all actions the assistant ever performed. Undoing creation is still deletion and must be previewed separately and confirmed again.
 
-**Acceptance:** Assistants set to Automatic in sandbox still trigger current preview confirmation when writing back files. Before Linux or Windows passes verification, the corresponding system shows no apply requests. After passing, external modifications still result in "File changed" while retaining original content.
+**Acceptance:** Assistants set to Automatic in sandbox still trigger current preview confirmation when writing back files. Do not advertise unverified desktop platform acceptance. Unsupported systems, including Windows, must not offer Apply. After passing, external modifications still result in "File changed" while retaining original content.
 
 ### 12.6 A Single Click Produces Only One Message
 
@@ -695,7 +695,7 @@ Prompt optimization and file previews are side-channel flows: they can fail, but
 | Target text, selected assistant, checked reference materials | One task, or paused at a segment among creation/adding materials/submission; text remains |
 | Stop, approve once, allow within session, reject | Running status updates accordingly; the operation is not executed after rejection |
 | Deliverable edits, save new version, save copy, export | The corresponding single result. The four actions cannot substitute for one another |
-| Target and saved version for file modification | One preview and the subsequent file status. A status other than "Applied" indicates the target file has not been modified according to this preview |
+| Target and saved version for file modification | One preview and the subsequent file status. Only "Applied" confirms the preview was written. Unknown or verification-required states need a status check and must not be treated as proof that the file is unchanged |
 | Optimize prompt | One candidate, or failure details. The task message count remains unchanged |
 | Open preview | Readable content, or failure with reason and download option |
 
@@ -715,7 +715,7 @@ Arrows indicate handoffs, not that this module can modify the counterparty.
 | Workspace | Reference materials, copy destination, writeback target | Whether file still matches the preview | If inconsistent, show "File has changed" and do not overwrite |
 | Scheduled tasks | No direct content. Only shares execution quota | Whether quota is occupied by scheduled tasks | Queue notice must specify whether scheduled tasks occupy it or the current task is waiting |
 | Mobile app | A browser link | No data returned | When unable to open, only indicate the link did not open; workbench tasks remain unchanged |
-| Messaging connection | No handoff | No reception | No entry in settings and navigation. Channel failures do not appear in workbench notices |
+| Messaging connection | No handoff | No reception | The proposed local-only edition would omit these entries; current Messaging settings are unchanged by this draft |
 | Team | None. No such handoff before Section 12.7 takes effect | None | No team entry point appears |
 
 ### 13.6 Potential Failure Points
@@ -737,7 +737,7 @@ Arrows indicate handoffs, not that this module can modify the counterparty.
 | Optimization | Result empty, incomplete, or service busy | Original text remains, message count unchanged |
 | Capabilities | Legacy service lacks a capability | Entry point hidden. Existing send and save copy operations remain available |
 | Quotas | Execution quota occupied by other tasks or scheduled tasks | Clarify where occupancy originates. Do not state that this task is already processing |
-| List | Exceeds 200 items or only loaded tasks searched | Clarify that display is incomplete. Do not state that no more exist |
+| List | Project/material/deliverable list exceeds 200 items, or task search covers only loaded pages | Clarify that display is incomplete. Do not state that no more exist |
 
 ---
 
@@ -747,20 +747,20 @@ The following issues are all within the scope of this module's display and descr
 
 | Number | Issue | Impact | This Module's Handling |
 |---|---|---|---|
-| K1 | Failure notices are scattered; some only state failure without explaining what was preserved | Users will repeatedly start or write back | To be added. Standardize all failure notices into four sentences: which stage stopped, what has been preserved, what did not occur, and only one action for the next step |
+| K1 | Failure notices are scattered; some only state failure without explaining what was preserved | Users will repeatedly start or write back | To be added. Standardize failure notices around four facts: which stage stopped, what has been preserved, what did not occur, and only one action for the next step |
 | K2 | Multiple notices for the same operation do not match the task name | Cannot tell which issue it is across modules | To be added. Notices for the same operation carry the same task name, stage, status, and timestamp. Show "Not yet created" when no task exists. Do not log body text, secret keys, or full file contents |
 | K3 | Confirmation dialog displays as unnamed before the task name is read | Users may approve the wrong task | When the name is not read or reading fails, approval is blocked. Rejection remains available. Approval appears only after reading the name |
 | K4 | Queuing is easily mistaken for active processing | Users will send another message | When queuing, explain that processing has not started and is waiting for execution quota. When single-occupancy source is unknown, do not fabricate whether it is a scheduled task or another task |
 | K5 | Save version, copy, export, and writeback share the vague "Save failed" | Users assume original file was changed or lost | Failure sentences must include the action name. Writeback failure is not labeled copy failure |
 | K6 | When results are unknown, users may still click again | May send a duplicate identical message | Currently require verification first. Completely preventing duplicates belongs to Section 12.6 and is not in the current release |
-| K7 | Whether writeback always prompts under three confirmation levels | Cannot judge whether files changed based on level name | Maintain Q-1. Troubleshooting only checks if a confirmation dialog appeared and status is "Applied". Stricter rules are in Section 12.5; current release does not describe current status by that rule |
-| K8 | Scope of list and search is easily mistaken for "All" | Users assume old tasks are lost | Retain the two phrases "Up to 200 items" and "Searches only loaded tasks". Section 12.3 resolves this separately; current release does not alter copy in advance |
+| K7 | Whether writeback always prompts under three confirmation levels | Cannot judge whether files changed based on level name | Resolved in Q-1: each permitted manual file apply or undo requires once-only approval. Troubleshooting checks the operation status independently; an unknown outcome must be verified before retrying |
+| K8 | Scope of list and search is easily mistaken for "All" | Users assume old tasks are lost | Describe each list accurately: task history supports more pages, while projects, materials, and deliverables currently expose their first 200 items. Task search covers loaded tasks only; full-text search is planned in Section 12.3 |
 | K9 | "Needs verification" does not clarify preview, confirmation, writing, or verification itself | File issues lead to repeated guesswork | To be added. Include a sub-step in file stage notices: preview, confirmation, writing, verification |
 | K10 | Optimization failure and task failure appear to be the same thing | Users search within the task for a nonexistent message | Optimization notices form a separate stage and state explicitly that message count is unchanged |
 | K11 | Assistant names are truncated on the start page | Users may select the wrong assistant | Selection box uses the full name as hover tooltip |
 | K12 | Pulled to the newest message while reading earlier messages | Users lose their reading position | Stop following once scrolled away from the bottom. Resume from the newest content when reopening a task |
 
-K1, K2, and K9 remain presentations to be supplemented in the next step. K4 only explains that it is still waiting, without inventing an occupant. Do not add buttons before completion, nor add descriptions in other modules to substitute for it.
+K1, K2, and K9 remain planned improvements to status messages. K4 only explains that it is still waiting, without inventing an occupant. Do not add buttons before completion, nor add descriptions in other modules to substitute for it.
 
 ---
 
@@ -770,7 +770,7 @@ Documentation and rules of other modules remain as they are. When troubleshootin
 
 ### 15.1 Error Messages
 
-Every failure prompt issued by this module must use these four sentences, and the facts in the sentences must align with Section 8.
+Planned failure messages should cover the following four facts, using as few sentences as clarity allows. Each fact must agree with Section 8; do not claim this format is already applied throughout the interface.
 
 1. Which stage it stopped at: Connection, Preparation, Start, Running, Confirmation, Draft, Outcome, File, Optimization, Capability, Quota.
 2. What has been preserved: for example, the text is still intact, the task has been created, edits are still preserved, external files are still intact.
@@ -806,7 +806,7 @@ Proceed from top to bottom, stopping at the first matching row.
 | 9 | Only optimization prompt failed | Stopped at Optimization | Check if original text is still intact and if message count increased. Do not return to the running stage to re-check |
 | 10 | Entry point itself does not exist | Stopped at Capability | Confirm whether legacy services hide the capability or the current system does not provide write-back in the first place |
 
-Workbench has no message connection entry point. When mobile links cannot be opened, tasks, drafts, and files still remain on this computer, and contents are not deleted as connection failures.
+Under the proposed local-only navigation, messaging entries would be omitted. Failure to open a future mobile app link must not affect local tasks, drafts, or files.
 
 ### 15.4 Verification Methods
 

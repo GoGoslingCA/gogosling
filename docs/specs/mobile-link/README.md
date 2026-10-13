@@ -6,7 +6,7 @@
 | Date | 2026-10-12 |
 | Module | Mobile app link |
 
-The local open-source edition retains this one external entry. It is a link, not synchronization or another workbench.
+This draft proposes a link to the official mobile-app page. It does not provide synchronization or a second workbench, and it does not remove existing connection settings.
 
 ---
 
@@ -25,7 +25,7 @@ The local open-source edition retains this one external entry. It is a link, not
 
 ## 1. Goal
 
-After an official URL is published, open the mobile-app acquisition page from desktop. Desktop tasks, drafts, results, and files stay on this computer.
+After an official URL is published, open the mobile-app download page from desktop. Desktop tasks, drafts, results, and files stay on this computer.
 
 ## 2. Responsibilities
 
@@ -85,5 +85,5 @@ Messaging connections, cloud synchronization, and sharing links are not substitu
 
 | ID | Detail |
 |---|---|
-| A7 | Link only acquires or opens the mobile app |
+| A7 | Link opens the official mobile-app page only |
 | Q-5 | Official URL not supplied; hide the link and do not assume a store address |

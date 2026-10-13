@@ -2,7 +2,7 @@
 
 [Gogosling.ca](https://gogosling.ca) is developing this project in Canada, and contributions are welcome from everywhere. **Small, focused PRs are especially welcome.** Help us advance Canada's open-source AI ecosystem together.
 
-English is the primary public repository language. Chinese and French reports are welcome too. Existing code comments and commit conventions follow [AGENTS.md](AGENTS.md).
+English is the primary language for repository documentation and commit summaries. Bug reports and discussions in Chinese or French are also welcome. Code comments follow [AGENTS.md](AGENTS.md).
 
 ## Good places to start
 
@@ -48,4 +48,4 @@ Maintainers grant ongoing permissions after discussion; a contribution does not 
 
 Be respectful and specific. Critique code and evidence, not people. Harassment, discrimination, personal attacks, and publishing private information are unacceptable; maintainers may moderate disruptive contributions. Report vulnerabilities through [SECURITY.md](SECURITY.md). Contributions use the existing [MIT license](LICENSE).
 
-Contributions in Chinese or French are welcome. For your first contribution, you do not need to take on an entire module; a clear, verifiable small change is very helpful.
+You do not need to take on an entire module to contribute. A small change with clear verification is a useful starting point.

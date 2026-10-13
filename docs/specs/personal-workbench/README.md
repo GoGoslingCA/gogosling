@@ -54,7 +54,7 @@ Make every step from input to result visible. When work stops, explain where, wh
 
 Deleting a task/assistant removes messages, drafts, and result versions while retaining workspace files.
 
-This module provides no messaging, cloud synchronization, online conversion, sharing links, skill market, or web retrieval. Mobile only links to [the mobile app](../mobile-link/README.md).
+This draft proposes no messaging, cloud synchronization, online conversion, sharing links, skill marketplace, or web-retrieval entry points. Those exclusions are planning scope, not a claim that existing connection or tool capabilities have been removed. Mobile only links to [the mobile app](../mobile-link/README.md).
 
 ## 3. Key workflow
 
@@ -62,7 +62,7 @@ This module provides no messaging, cloud synchronization, online conversion, sha
 2. **Start:** create, add materials, submit; blank input creates only an empty task.
 3. **Process:** show real run state; users may stop, draft a follow-up, or handle approval.
 4. **Retain:** a formal result exists after Save draft and edit; subsequent saves create versions; copies/exports are separate.
-5. **Write back:** only when available on the current system, preview, request, approve, and wait for Applied. Preview itself does not write. This version's commitment covers one text file on macOS. Windows retains copy/export; Linux write-back is not offered before acceptance.
+5. **Write back:** only when available on the current system, preview, request, approve, and wait for Applied. Preview itself does not write. Guarded write-back is implemented for one text file on Linux/macOS. The recorded manual workflow was verified on macOS; broader platform acceptance remains separate. Windows retains copy/export.
 
 Enhancement and preview are side paths. Their failures do not send the task or write the file.
 
@@ -73,7 +73,7 @@ Enhancement and preview are side paths. Their failures do not send the task or w
 | Goal, assistant, selected materials | Task or a specific creation/material/submission stop; text retained |
 | Stop, approve once, allow this session, deny | Corresponding run state; denied operation not executed |
 | Edit/save version/save copy/export | Only the selected result |
-| File target and saved version | Preview and file state; until Applied, target has not changed according to this preview |
+| File target and saved version | Preview and file state; previewing does not write, and Applied confirms success. Unknown outcomes require inspection before retry |
 | Enhance prompt | Candidate or failure; task-message count unchanged |
 | Open preview | Readable content or reason/download |
 
@@ -113,7 +113,7 @@ Projects share their assistant's workspace. Material selection controls message 
 | Enhancement | Empty/incomplete result or no slot | Original retained; message count unchanged |
 | Capability | Older service lacks feature | Hide entry; legacy sending/copy remains |
 | Capacity | Other task/job occupies slots | Do not call this task processing |
-| List | Over 200 entries/search limited to loaded tasks | Explain incompleteness, not absence |
+| List | A list is capped at 200, or title search covers only loaded tasks | Explain the limit; task history can load more, while other lists need pagination |
 | Start | Switch assistant | That assistant's own unsent draft |
 | Start | Late response | Content stays with original task; current page retained |
 | Material | Concurrent same-name files | Each retained with its own correct content |
@@ -137,6 +137,6 @@ The three start examples populate drafts without sending. Assistant, model, work
 | A2 | One computer/user; no multiuser editing |
 | A7 | Mobile link is the sole external entry, without synchronization |
 | A8 | User-supplied model endpoints communicate; this is not the app's cloud |
-| Q-1 | Whether every mode always asks for write-back is unresolved; inspect actual prompt and Applied state |
-| Q-3 | Current lists cannot paginate beyond 200; browsing and full-text search are separate future work |
+| Q-1 | Resolved in the current implementation: user-requested apply/undo always requires one-time approval for its preview, including Auto inside sandbox; protective deny rules still take precedence |
+| Q-3 | Task history supports Load more. Project/material/result lists still stop at 200; pagination for those lists and full-text search remain future work |
 | Q-5 | No official mobile URL; hide the link until supplied |

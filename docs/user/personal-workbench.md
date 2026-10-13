@@ -2,16 +2,16 @@
 
 For people completing documents, spreadsheets, or file changes on their own computer. No internal architecture knowledge is needed.
 
-Product terms are assistant, task, material, project, result, version, copy, and file change. An agent in Settings is the same object as an assistant.
+The guide uses assistant, task, material, project, result, version, copy, and file change. An agent in Settings is the same object as an assistant in the workbench.
 
-Sections 1–6 describe the local workbench flow recorded on 2026-10-12, before a signed installer release. Section 7 describes future design, not currently available buttons. Module-specific local-edition plans remain drafts; they do not remove existing capabilities by themselves.
+Sections 1–6 describe the local workbench flow recorded on 2026-10-12, before a signed installer release. Section 7 separates planned additions from current limits. Module-specific local-edition plans remain drafts; they do not remove existing capabilities by themselves.
 
 ---
 
 ## Outline
 
 1. Before starting
-2. Your first task in ten minutes
+2. Your first task
 3. Interface areas
 4. Core capabilities
 5. Step-by-step operations
@@ -22,21 +22,21 @@ Sections 1–6 describe the local workbench flow recorded on 2026-10-12, before 
 
 ## 1. Before starting
 
-You need a computer running gogosling; your own model endpoint/name and any required credential; a goal and optional reference files. A task can start without files.
+You need gogosling running on your computer, a model endpoint and model name, any required credential, and a goal. Reference files are optional.
 
 Three distinct actions matter:
 
 1. **Save version** keeps the result inside gogosling for reopening, without changing the original file.
 2. **Save copy/export** creates another file, without overwriting the original.
-3. **File change** targets one workspace file after preview. Until Applied, the target has not changed according to that preview.
+3. **File change** applies a saved version to one workspace file after preview and approval. Previewing does not change the file. Wait for Applied to confirm success; if the outcome is unknown, inspect the file and operation status before retrying.
 
-Windows supports versions and copies/exports; guarded original-file write-back is unavailable. The instructions below are verified for macOS. Linux availability depends on the kernel capability and platform acceptance; use copy/export when unavailable.
+Guarded file changes are implemented for Linux and macOS; the workflow below was manually verified on macOS. Windows supports versions and copies/exports. If your service does not advertise file-change support, use copy/export.
 
-If a connection screen appears, enter the local endpoint/token supplied with your setup instructions and connect. This is separate from desktop automatic attachment; the token stays in page memory only.
+If a connection screen appears, follow your setup instructions to enter the local service address and access token. The desktop app normally connects automatically. The browser keeps the token in memory only.
 
 ---
 
-## 2. Your first task in ten minutes
+## 2. Your first task
 
 Follow the sequence; use the wording actually present in your build if a label differs.
 
@@ -51,8 +51,8 @@ Follow the sequence; use the wording actually present in your build if a label d
 
 1. In Settings → Agents, create an agent.
 2. Enter a name and select the saved provider/model.
-3. Select an approval mode: ask for everything before external changes; ask for risky command/network/message/deletion actions; or automatic operation within the allowed sandbox, with approval outside it.
-4. Save. If uncertain, choose Ask for everything; changing the mode affects all tasks using that assistant.
+3. Select an approval mode. Ask for everything requests approval for tool calls, including reads, unless an existing rule or grant applies. Ask for risky actions allows ordinary workspace reads and writes but asks for commands, network access, messaging, and deletion. Auto inside sandbox allows eligible operations within the permitted boundary; execution and network access still require approval without OS isolation. Protective rules remain in force in every mode.
+4. Save. If uncertain, choose Ask for everything; changing the mode affects all tasks using that assistant. Applying or undoing a file change from Results always needs separate approval for that preview.
 
 ### Step three: Start work
 
@@ -68,8 +68,8 @@ Inspect the owning task, action, and target. Approve once permits this operation
 
 ### Step five: Keep a result
 
-1. After a substantive reply, choose Save draft and edit. Short clarifying replies do not automatically become formal results.
-2. Edit in Results. Saved confirms that edit draft was persisted.
+1. Choose Save draft and edit on a reply you want to keep. A chat reply becomes a saved result only when you choose this action.
+2. Edit in Results. Saved confirms that the current draft has been stored.
 3. Save a new version when ready.
 4. Reopen the task to inspect it later.
 
@@ -77,11 +77,11 @@ Inspect the owning task, action, and target. Approve once permits this operation
 
 ## 3. Interface areas
 
-The sidebar provides New task, Find a task (loaded tasks only), Projects, Jobs, Recent tasks, and Settings. Recent tasks support continuation, pinning, renaming, and archiving. Settings groups appearance, models, assistants, skills/extensions, records, and resource controls. Draft local-edition plans specify their own networking exclusions; they are separate from existing connection capabilities.
+The sidebar provides New task, Find a task (loaded tasks only), Projects, Jobs, Recent tasks, and Settings. Recent tasks support continuation, pinning, renaming, and archiving. Settings groups appearance, model connections, agents, skills and extensions, messaging, file access, activity records, and resource controls. Draft local-edition plans describe proposed boundaries, not the removal of existing features.
 
-The planned Mobile app entry opens a published URL in the system browser without login/synchronization or sending desktop files. It stays hidden until an official URL is supplied.
+A planned Mobile app entry would open the official download page in the system browser, without signing in, synchronizing, or sending desktop files. It is not available until an official URL is supplied.
 
-The center contains the goal/progress above and input below. Results open on the right. A narrow window uses Conversation/progress and Results tabs sharing one edit state. Enter sends; Shift+Enter inserts a new line.
+The center shows the conversation and progress above the input. Results open on the right. A narrow window uses Conversation/progress and Results tabs sharing one edit state. Enter sends; Shift+Enter inserts a new line.
 
 ---
 
@@ -89,7 +89,7 @@ The center contains the goal/progress above and input below. Results open on the
 
 ### 4.1 Tasks
 
-A task is ongoing work that can receive follow-ups, stop, archive, and restore. States include not started, queued, processing, awaiting approval, completed, incomplete, and stopped. For Recovering or Unknown, wait or inspect history before resending.
+You can add follow-ups to a task, stop its current run, archive it, and restore it later. States include not started, queued, processing, awaiting approval, completed, incomplete, and stopped. For Recovering or Unknown, wait or inspect history before resending.
 
 An unfinished run prevents concurrent sending in the same task. Draft the next message while waiting.
 
@@ -109,29 +109,29 @@ A project groups one assistant's materials, tasks, and results and retains its o
 | Save new version | Another immutable revision; earlier ones remain readable |
 | Save copy | Another file in the workspace attachment directory |
 | Export | Download/save to the selected location |
-| Request file application | Change one workspace target according to its preview |
+| Request apply | Request approval to change one workspace file according to its preview |
 
-Reading history retains current edits. Restoring historical content creates a new saved version without deleting the old one.
+Viewing version history preserves your current edits. Restoring historical content creates a new saved version without deleting the old one.
 
 ### 4.5 Enhance prompt
 
-With input text, Enhance prompt rewrites only the unsent text using the current assistant's model. It does not read attachments or send a task. The current interaction fills the input directly, offers Undo, and opens a feedback field only when you choose to refine. You can edit the draft yourself.
+With input text, Enhance prompt rewrites only the unsent text using the current assistant's model. It does not read attachments or send a task. The enhanced text replaces the input directly. Restore brings back the original text; Adjust opens an optional feedback field. You can also edit the draft yourself.
 
-Enhancement uses provider resources, but its usage is separate from the current task round.
+Enhancement calls the selected provider and may incur charges. Its usage is separate from the current task run.
 
 ### 4.6 File preview
 
-Open an attachment, material, or workspace file to read it; closing releases that preview. Readers cover text/code, static web content, modern Office, OpenDocument, PDF, images, supported audio/video, and archive member listings.
+Open an attachment, material, or workspace file to read it. Closing the viewer releases its preview resources. Readers cover text/code, static web content, modern Office, OpenDocument, PDF, images, supported audio/video, and archive member listings.
 
-- Spreadsheet values/formula text are cached in the file, not recalculated.
+- Spreadsheets show stored values and formula text; formulas are not recalculated.
 - Complex layouts, animations, and macros may be omitted.
-- Legacy Office needs a local converter; when unavailable, download rather than online conversion.
+- Legacy Office and full-layout conversion require a separately installed local converter on macOS. When unavailable, download the file and open it in your usual software.
 - Decrypt protected PDFs in the original software first.
 - Long content may be truncated; download retains the complete original.
 
 ### 4.7 Usage
 
-Inspect input, output, and cache-read tokens for the current round. Missing data is Not provided, not free usage. Provider bills determine charges; the app does not estimate money.
+Inspect input, output, and cache-read tokens for the current run. Missing data appears as Not provided; it does not mean the request was free. Provider bills determine charges; the app does not estimate money.
 
 ---
 
@@ -151,31 +151,31 @@ Remove unavailable material selections before starting; typed requirements remai
 
 1. Write the original request and click Enhance prompt.
 2. Review the text filled into the input.
-3. Use Refine for a shorter response or a specific format; enter feedback and apply that refinement.
+3. Choose Adjust to request a shorter prompt or a specific format, then enter your feedback and choose Apply feedback.
 4. Inspect the final draft before Enter/Send.
-5. Undo restores the original if needed. Cancellation/failure retains the original; editing, switching tasks, or sending prevents late results from overwriting newer work.
+5. Restore brings back the original text if needed. Cancellation or failure keeps the text you had before that request. Editing, switching tasks, or sending prevents late results from overwriting newer work.
 
 ### 5.3 Edit and version a result
 
 1. Open a saved result and edit it.
 2. Wait for Saving → Saved, then Save new version.
-3. Version history preserves your current edit.
-4. Explicit restoration of old content saves a new revision.
+3. Viewing version history preserves your current edit.
+4. Restoring an earlier version saves a new revision.
 
-A newer-version conflict retains edits. Load latest adopts that content; retain edits and continue explicitly uses the newest baseline to save another revision.
+If another version was saved meanwhile, your edits are retained. You can load the latest version, or keep your edits and explicitly use the latest version as the baseline for a new save.
 
-### 5.4 Write one text file on macOS
+### 5.4 Apply a change to one text file
 
-Use copy/export on unsupported platforms.
+The flow below was manually verified on macOS; Linux uses the same guarded operation. Use copy/export if file changes are unavailable on your platform.
 
 1. Save a formal version first.
 2. Open File changes and enter a workspace-relative target, such as `notes/description.txt`, never an absolute computer path.
 3. Select Create or Replace and generate a preview.
 4. Read added/deleted lines; the file is still unchanged.
-5. Request application and approve this preview when asked.
+5. Choose Request apply and approve this specific preview.
 6. Wait for Applied before inspecting the target in your file browser.
 
-To undo, preview undo on the applied record, inspect it, then separately confirm. Undoing creation deletes the file and is approved as deletion. A file changed afterward cannot be undone using the old preview.
+To undo, choose Preview undo on the applied record, inspect the preview, then approve it separately. Undoing creation deletes the file and is approved as deletion. A file changed afterward cannot be undone using the old preview.
 
 ### 5.5 Pin, archive, and find tasks
 
@@ -183,11 +183,11 @@ Use task actions under Recent tasks. Pin keeps a convenient sidebar entry; unpin
 
 ### 5.6 Adjust concurrent work
 
-In Settings → Resources, select parallelism from 1 to 8 (default 2) and save. In-flight work finishes rather than being killed. Queue capacity is 32; waiting does not call the model. Immediate user work precedes jobs, same-workspace work is serial, and awaiting approval occupies a slot.
+In Settings → Resources, choose 1–8 concurrent tasks (default 2). The selection saves automatically. Lowering the limit lets running tasks finish. Up to 32 tasks can wait in the queue without calling the model. Interactive work has priority, with a priority boost for long waits. Tasks in the same workspace run in sequence, and a run awaiting approval keeps its slot.
 
 ### 5.7 Leave and exit
 
-Unsent text, uploads, or unfinished result saves trigger confirmation before leaving. Desktop window closure hides to tray while accepted work continues. Actual exit handles unsaved content before stopping the local service. Unuploaded local files require reselection; confirmed text and uploaded references do not.
+Unsent text, uploads, or unfinished result saves trigger confirmation before leaving. Closing the desktop window hides it to the tray while accepted work continues. Exit checks unsaved content, then stops the local service only if the desktop app started it. A service started separately keeps running. After reopening, reselect files whose uploads never finished; confirmed drafts and uploaded references remain available.
 
 ---
 
@@ -208,9 +208,7 @@ Act on the stopping stage once, inspect the result, and avoid repeated sending, 
 | Module not loaded/enhancing/busy | Enhancement | Original retained; retry after capacity frees |
 | Unsupported connection | Capability | Keep legacy sending/copy; hidden entries are not faults |
 
-Failure notices should identify stage, retained work, what did not happen, and one next action. Include task/stage/state/time when reporting rather than only Failed. The table takes priority over the examples below.
-
-Expected behavior includes separate assistant drafts, late results staying with their original tasks, independent same-name files, readable results after Stop, independent approvals, continued tray execution, and connectivity failures not being labeled quota exhaustion without evidence.
+Failure notices should identify stage, retained work, what did not happen, and one next action. Include task/stage/state/time when reporting rather than only Failed. Use the examples below to choose the next step.
 
 ### Start does nothing or requests assistant configuration
 
@@ -218,19 +216,19 @@ Check the saved/tested provider under Settings → Model connections, then the e
 
 ### Connectivity test fails
 
-Verify the full provider endpoint and credential. Blank retains an existing credential, not a missing first credential. Save before testing; model discovery uses saved settings. If failure remains, inspect the provider's own account/service status. This guide cannot inspect its bill or outage.
+Verify the full provider endpoint and credential. Leaving the credential field blank keeps a previously saved credential; it cannot supply one that was never saved. Save before testing; model discovery uses saved settings. If failure remains, inspect the provider's own account/service status. The app cannot determine billing or outage status from a generic connection failure.
 
 ### Unsure whether Start created the task
 
-Do not click again. Inspect creation/material/submission stage and existing task/history for the requirement. Decide about retry only after checking duplicates.
+Do not click again immediately. Check the reported stage—task creation, material upload, or submission—and inspect the existing task for your message. Retry only after checking whether it was already accepted.
 
 ### Session already has an unfinished run
 
-Wait for Completed/Incomplete/Stopped or Stop that round. Stop does not delete the task.
+Wait for the current run to finish, fail, or stop, or choose Stop yourself. Stopping a run does not delete the task.
 
 ### Draft save failed
 
-Keep the window open, Retry, and leave after Saved. If another draft exists, inspect it before retaining yours or adopting the other.
+Keep the window open, choose Retry, and wait for Saved before leaving. If another saved draft conflicts with yours, inspect both before choosing which to keep.
 
 ### Selected files disappeared after reopening
 
@@ -238,11 +236,11 @@ Unfinished uploads do not survive restart. Reselect them; uploaded references al
 
 ### Result text differs from the original file
 
-Expected: Save version changes only the result in gogosling. Follow section 5.4 and wait for Applied to change the workspace file.
+This is expected: Save version updates only the result stored in gogosling. Follow section 5.4 and wait for Applied to change the workspace file.
 
 ### File stays Previewed, not written
 
-Request application and approve when prompted. An active workspace run requires waiting and retrying afterward.
+Choose Request apply, then approve the preview. If a task is running in that workspace, wait for it to finish before retrying.
 
 ### File changed
 
@@ -250,7 +248,7 @@ The target changed after preview. External content was not overwritten. Inspect 
 
 ### Needs review
 
-The write could not be confirmed. Query status instead of repeatedly requesting. The system neither automatically rewrites nor overwrites with an unidentified file. Retain preserved originals until you can identify the correct copy.
+The write could not be confirmed. Refresh its status instead of repeatedly requesting the change. Automatic retries stop in this state. Keep the preserved original and inspect the files before deciding how to recover.
 
 ### Application outcome unknown
 
@@ -258,15 +256,15 @@ Query/refresh first; do not submit again or assume either success or no change b
 
 ### Enhancement failed or takes too long
 
-Original text/message count remain intact. Retry busy work after capacity frees; reload after module-load failure; request another enhancement if needed. Empty/incomplete candidates never replace the original.
+Your text is retained and no task message is sent. If the service is busy, retry when capacity is available. If the enhancement module failed to load, refresh the page. Empty or incomplete suggestions do not replace your input.
 
 ### Preview unavailable
 
-Inspect unsupported/oversized/encrypted/corrupt/converter-unavailable cause. Download for your usual software or refresh. File changed means modification occurred during reading. One failed preview does not break other tasks.
+Check the reported reason: unsupported format, file too large, encryption, corruption, or an unavailable converter. Download the file to open it in your usual software, or refresh after resolving the problem. File changed means the file was modified during reading. One failed preview does not affect other tasks.
 
 ### Earlier task missing
 
-Check archives, load more before searching, and remember the current 200-item limit. Not displayed does not mean deleted.
+Check archived tasks and use Load more in task history before searching again. Search covers only loaded task titles; project, material, and result lists currently show at most 200 items. A missing search result does not mean the task was deleted.
 
 ### Empty usage: was it free?
 
@@ -278,38 +276,38 @@ Desktop close hides to tray with work continuing. Actual tray exit first checks 
 
 ### Does task deletion delete my files?
 
-No workspace-file deletion. Messages, drafts, and result versions are removed; save/discard unfinished result edits first. Assistant deletion similarly removes its tasks/projects/drafts/versions while retaining files.
+Deleting a task removes its messages, drafts, and result versions, but leaves workspace files intact. Export anything you need to keep before deleting the task. Deleting an assistant similarly removes its tasks, projects, drafts, and versions while retaining workspace files.
 
 ---
 
 ## 7. Future capabilities
 
-These designs are not current buttons. Each becomes available only after its own delivery.
+The items below distinguish planned additions from current limits. Planned controls become available only after implementation and validation.
 
 ### Current goal
 
-Current tasks expose the original requirement/latest follow-up. A future Current goal row counts only after user confirmation. Organizing it produces a draft without sending/resuming. Cancel retains Not organized or the last confirmed goal; later follow-ups mark that confirmation as older rather than silently rewriting it. Until this row exists, the first request does not imply all later changes were merged.
+Tasks currently show the original request and later messages. A planned Current goal summary would become authoritative only after you confirm it. Generating the summary would not send a message or resume work. Cancelling would preserve the previous state; later follow-ups would mark the confirmed summary as needing review. Until this feature exists, the original request is not a summary of all subsequent changes.
 
 ### Lists and search
 
-Tasks/projects/materials/results currently expose at most 200 items. Future More results enables browsing; full-text search is separate. Until then, search remains loaded-task-only, and incomplete searching must not claim absence.
+Task history already supports Load more, and search matches loaded task titles only. Project, material, and result lists currently show at most 200 items; pagination for those lists and full-text search remain future work. A partial search cannot establish that an item does not exist.
 
 ### Usage and charges
 
-Current counts cover the returned round. Future displays separate task, enhancement, and provider-returned charges. Missing charges are not zero; no editable unit price, balance, or money-based auto-stop is provided.
+Current counts cover the usage returned for a run. A future display would distinguish task usage, prompt-enhancement usage, and charges returned by the provider. Missing charges would not be shown as zero. Editable unit prices, account balances, and spending-based automatic stops are not available.
 
-### Original files on Linux/Windows
+### Platform validation
 
-Platform acceptance is separate. Equivalent future write-back still previews one text file, approves this preview, and requires Applied. A new OS does not grant multifile writes. A future rule will require separate manual preview approval even under Automatic in sandbox; until delivered, inspect the actual prompt/state rather than assuming the stricter rule exists.
+Linux and macOS have guarded write-back implementations, but packaged-app and filesystem validation remain separate work. Windows currently uses preview/export. Any future platform support must preserve the one-file preview, approval, and Applied confirmation; it does not imply multi-file writes. Separate approval for the current preview is already required in every mode, including Auto inside sandbox. A deny rule can still block the operation.
 
 ### Clicking an unknown outcome again
 
-Inspect existing tasks first. A future control prevents the same click from creating another send before review completes; changed text/materials make a new request.
+Inspect the existing task before retrying an uncertain submission. A planned safeguard would prevent the same request from being sent again until its outcome has been checked. Changed text or materials would count as a new request.
 
 ### Teams
 
-Joining a team does not automatically publish or move personal projects, drafts, or results. File changes still require local confirmation. Without a team entry, use sections 1–6.
+The team workflow is a separate draft. It requires explicit choices before personal projects, drafts, or results become shared, and preserves local confirmation for file changes. Team controls are not part of the current personal-workbench flow.
 
 ### Excluded buttons
 
-No automatic resume on opening, selection-based restriction of all file access, multiple assistants per project, cloud continuation after lid closure, assistant delegation, Office editing in preview, calculated plan balances, messaging, online conversion, sharing links, or web retrieval is promised by this local module plan. Phone/computer synchronization is absent; a future mobile entry only opens the acquisition page.
+The local-edition plan adds no automatic resume, multiple assistants per project, cloud continuation, assistant delegation, Office editing in preview, or calculated account balances. Selecting materials does not redefine file permissions. Messaging and web-retrieval shortcuts, online conversion, and sharing links are outside that draft's scope; this does not disable existing connections or tools. Phone/computer synchronization is unavailable, and the proposed mobile entry would open only the official download page.

@@ -2,7 +2,7 @@
 
 The Python inference worker runs as a child of the Go `gogoslingd` daemon, not as an independent public service. It exchanges line-delimited JSON-RPC 2.0 over stdin/stdout; see [the worker protocol](../api/worker-rpc/protocol.md), version `1`.
 
-Python retains the model-client, document, and retrieval ecosystem. Process separation lets the daemon supervise, restart, and replace the engine. The worker **does not access the data directory, listen on ports, or persist credentials**. File, command, and network side effects are requested through `host.tool.call` and executed by the daemon after permissions and sandboxing.
+Python retains the model-client, document, and retrieval ecosystem. Process separation lets the daemon supervise, restart, and replace the engine. The worker **does not access the data directory, listen on ports, or persist credentials**. File, command, and network tools are requested through `host.tool.call`; the daemon applies permissions and the relevant workspace and sandbox constraints before execution. The worker makes provider inference requests directly.
 
 ## Directory
 
@@ -57,7 +57,7 @@ Explicit HTTP 429 and temporary 5xx retry at most twice (not 501/505), normally 
 
 OpenAI requires `[DONE]` or valid `finish_reason`; Anthropic requires `message_stop` or valid `stop_reason`. EOF without completion is interrupted. Nonstreaming JSON requires its message structure. Tool-result `truncated` passes unchanged through progress, final output, and history.
 
-The daemon allowlists proxy and certificate variables: `HTTP(S)_PROXY`, `NO_PROXY`, `ALL_PROXY` and lowercase variants; `SSL_CERT_FILE`, `SSL_CERT_DIR`, and `REQUESTS_CA_BUNDLE`. HTTPX uses them for proxying/certificate verification.
+The daemon forwards allowlisted proxy and certificate variables: `HTTP(S)_PROXY`, `NO_PROXY`, `ALL_PROXY` and lowercase variants; `SSL_CERT_FILE`, `SSL_CERT_DIR`, and `REQUESTS_CA_BUNDLE`. HTTPX uses them for proxying/certificate verification.
 
 Message conversion orders interleaved calls/results, drops orphan results, fills missing results with errors, substitutes empty-user placeholders, and represents attachments with structured text.
 

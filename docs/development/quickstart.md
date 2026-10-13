@@ -31,7 +31,7 @@ npm run dev -w @gogosling/web -- --strictPort
 
 Open **http://127.0.0.1:5173**. Leave the connection address empty and enter the `token` from local `~/.gogosling-dev/daemon.json`. Do not share that file. Browser credentials are in memory only, so a fresh visit may require reconnecting.
 
-In **Settings → Models**, add a compatible endpoint/model, then configure an agent and start a task. Select only the files needed for context. Remote requests follow your provider's pricing and data handling.
+In **Settings → Model connections**, save and test a provider, then create an agent under **Settings → Agents**, select its model, and start a task. Select only the files needed for context. Remote requests follow your provider's pricing and data handling.
 
 ## Open the desktop shell
 
@@ -58,7 +58,7 @@ Stop Vite with Ctrl-C. If you customize `DEV_HOME`, use that same path for `GOGO
 
 ## Troubleshooting
 
-- **Missing command:** check versions and PATH. The machine-specific PATH in `AGENTS.md` is not an installation command for your computer.
+- **Missing command:** check versions and PATH. The optional PATH example in `AGENTS.md` assumes tools are already installed in those locations.
 - **Port occupied:** stop the conflicting process, or configure daemon address, Vite proxy, and allowed origins consistently. Keep authentication and Origin checks enabled.
 - **Worker unavailable:** rerun `uv sync --project worker --frozen --python 3.12` and inspect startup output. Redact secrets/private data before sharing logs.
 - **Connected but no response:** check provider URL/model and agent configuration. UI connection does not prove model connectivity.

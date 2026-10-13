@@ -4,7 +4,7 @@ gogosling separates clients, a Go daemon, and a Python inference worker. Busines
 
 ## Find your module
 
-- **UI:** `apps/web/src`, React/TypeScript shared by browser and desktop. HTTP goes through `api/`; React Query manages remote state.
+- **UI:** `apps/web/src`, React/TypeScript shared by browser and desktop. HTTP goes through `apps/web/src/api/`; React Query manages remote state.
 - **Desktop:** `apps/desktop/src`, Electron windows, tray, startup, and daemon discovery. Preserve renderer isolation and narrow IPC.
 - **API:** `internal/server`, with contracts in `api/openapi`. Local requests require authentication and Host/Origin checks.
 - **Execution:** `internal/session`, provider configuration in `internal/provider`, schedules in `internal/scheduler`.
@@ -15,7 +15,7 @@ gogosling separates clients, a Go daemon, and a Python inference worker. Busines
 
 ## Preserve the boundaries
 
-Clients use the API, not SQLite or direct workspace access. The worker requests tools; the daemon checks permissions and executes effects. Credentials must not enter logs, events, database rows, or fixtures.
+Clients use the API, not SQLite or direct workspace access. The worker makes inference requests to the configured provider and submits tool calls to the daemon, which checks permissions and executes their effects. Credentials must not enter logs, events, database rows, or fixtures.
 
 Domain code uses interfaces rather than importing persistence or transport. `internal/archcheck` enforces the import rules. Read the [authoritative architecture](../architecture.md) before changing a boundary.
 

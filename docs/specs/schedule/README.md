@@ -6,7 +6,7 @@
 | Date | 2026-10-12 |
 | Module | Scheduled jobs |
 
-Jobs run on this computer at the planned time. They do not post to other software or represent an ordinary workbench chat.
+This draft focuses on jobs that run on the local computer at a scheduled time and deliver results to a local task. It does not add messaging delivery or change existing scheduler contracts.
 
 ---
 
@@ -45,7 +45,7 @@ Push text inserts text into a local target task without invoking a model or leav
 2. Select assistant execution or text-only push.
 3. Select skip or catch up once after recovery.
 4. Saving exposes the next execution time.
-5. Due work shares normal execution capacity; immediate user tasks have priority, and the same workspace runs serially.
+5. Due work shares normal execution capacity; interactive tasks have priority, long-waiting jobs gain priority, and tasks in the same workspace run in sequence.
 6. Run now triggers once without changing the next scheduled time.
 7. For a disabled assistant, prompt reselection, enablement, or text-only push.
 
@@ -68,7 +68,7 @@ Reject oversized content and retain the existing job; use the current UI limit n
 | Assistant | Uses that assistant's model and approval mode |
 | Approval | Required decisions still appear; unattended waiting is never approval |
 | Workbench | Shares slots; workbench does not edit schedule times |
-| Desktop | May run while hidden in tray; do not pretend jobs continue after actual exit |
+| Desktop | Jobs require a running local service. Hiding to the tray keeps it running; Exit stops it only when the desktop app owns the service |
 
 ## 6. Potential failures
 

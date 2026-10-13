@@ -1,10 +1,10 @@
-# Workbench Refactoring Implementation Delivery Record
+# P3A workbench implementation record
 
-This document records the delivery point of P3A; the user has subsequently authorized and advanced P3B. For the latest status, see [P3B and Style Unification Delivery](2026-10-12-p3b-delivery.md).
+This historical record covers P3A on 2026-10-12. File apply and undo were implemented later in [P3B](2026-10-12-p3b-delivery.md); see the [current roadmap](../../ROADMAP.md) for the published development preview.
 
-Date: 2026-10-12. Status: Local implementation and verification completed, uncommitted, unpushed, and no installation package published. The baseline is `b8bbd0d`, preserving the original two uncommitted team-workflow document modifications in the repository.
+The changes had passed local validation when this record was written, before publication. The test counts and deferred work below describe that stage, not the current branch. No installer was released at that point.
 
-In this session, the user explicitly authorized workbench P3A shared model, repository interface, OpenAPI, and architecture document changes. File overwriting, atomic application, and disk undo are deferred to P3B, with no uncompleted interfaces or placeholder buttons enabled.
+P3A added shared workbench models, repository interfaces, HTTP contracts, and architecture documentation. File replacement and disk undo were deferred to P3B; unfinished capabilities were not exposed.
 
 ## Completed End-to-End Workflows
 
@@ -17,7 +17,7 @@ In this session, the user explicitly authorized workbench P3A shared model, repo
 7. Formal deliverable versions are immutable, and saving edits appends a new version. Previewing history does not modify the current draft; restoring using historical content also generates a new version. Concurrent version conflicts require explicit choice and are not silently overwritten.
 8. Input and deliverable drafts are persisted by the daemon, isolated by subject and scope. Auto-save indicates completion only after successful service confirmation; conflicts preserve both local and remote content. Sending completion cleans up only the draft version at the time of sending.
 9. The task initiation phase saves checkpoints for created sessions and uploaded materials; resuming after failure avoids duplicate creation. When creation/sending response status is unknown, history is checked first instead of automatically retransmitting. Late callbacks do not hijack the user's current page.
-10. Desktop window size, maximized state, deliverable pane width, theme, pinned tasks, and last opened location are restorable. The client stores only UI preferences and resource IDs; content body, attachment data, and credentials are not written to browser persistent storage. Upon exit, un-saved confirmations are completed before stopping the daemon.
+10. Desktop window size, maximized state, deliverable pane width, theme, pinned tasks, and last opened location are restorable. The client stores only UI preferences and resource IDs; content body, attachment data, and credentials are not written to browser persistent storage. On exit, the shell checks for unsaved work before stopping a daemon it owns; an externally started daemon remains running.
 
 ## Data and Protocols
 
@@ -36,7 +36,7 @@ In this session, the user explicitly authorized workbench P3A shared model, repo
 workbench.New(store model.WorkbenchStore, files workbench.Files, bus *event.Bus) (*workbench.Service, error)
 ```
 
-For complete shared resource/repository signatures, see `internal/model/workbench.go` and `internal/model/repository.go`. For new HTTP paths and input constraints, see `api/openapi/openapi.yaml`: project/materials, session-project associations, drafts, deliverables and versions, version body, and downloading. No worker RPC, go.mod, Makefile, or AGENTS.md modifications.
+For complete shared resource/repository signatures, see `internal/model/workbench.go` and `internal/model/repository.go`. For new HTTP paths and input constraints, see `api/openapi/openapi.yaml`: project/materials, session-project associations, drafts, deliverables and versions, version body, and downloading. This phase did not change worker RPC, `go.mod`, `Makefile`, or `AGENTS.md`.
 
 ```ts
 workbenchApi(client: ApiClient): WorkbenchApi
@@ -66,7 +66,7 @@ git diff --check -- apps internal api docs/architecture.md docs/design/workbench
 - Go formatting, vet, and full repository tests passed; store race passed.
 - Python ruff, formatting, and mypy passed; 176 tests passed.
 - Web and desktop TypeScript type checks passed.
-- Final frontend tests: 231 desktop items, 275 Web items, total 506 items passed.
+- Final frontend tests: 231 desktop tests and 275 Web tests, for a total of 506.
 - Go binary and Web/Electron builds passed. Existing locked dependencies were reused, with no new dependencies added or go mod tidy executed.
 - `make e2e` passed fully without skips, using real Python worker, local mock model, approval, and tool calls.
 - OpenAPI verified using the existing parser: 44 paths, 48 schemas, all references resolvable.
@@ -83,7 +83,7 @@ git diff --check -- apps internal api docs/architecture.md docs/design/workbench
 
 The complete tasks above used a local mock model and cannot serve as conclusions on real model quality. A minimal text request for `auto:fast` via the user-provided gateway independently returned HTTP 200; no claim is made that the complete tool loop or all protocols on the real gateway have been verified. Keys were not written to the repository, tests, config files, or logs.
 
-## Design and Research Deliverables
+## Related design
 
 - [Phase-three contract proposal](../design/workbench-contract-proposal.md): preserves the authorized scope and deferred P3B design.
 
@@ -93,7 +93,7 @@ The complete tasks above used a local mock model and cannot serve as conclusions
 - Local Files that have not been started or uploaded cannot be restored across restarts; UI instructions require re-selection. Content text and uploaded references can be restored.
 - A project is not an isolated file sandbox: projects under the same Agent share its workspace, and selecting materials does not revoke access to other authorized files.
 - Text/code deliverables are supported, excluding Office format conversion platforms. Saving versions, saving copies, exporting, and modifying original files are distinct actions.
-- Original file overwriting, atomic application, and disk undo remain unimplemented, with corresponding capabilities not enabled.
+- At the P3A checkpoint, file replacement and disk undo were not yet implemented. They are covered by the later P3B record linked above.
 - No cross-process exactly-once sending guarantee; unknown results must be verified rather than automatically retransmitted.
 - No formal account quota, cost accounting, or spending limit dashboard; currently displays token usage actually provided by the service.
 - Electron native exit confirmation, multi-monitor hot-plugging, and Windows/Linux installation packages have not been verified on actual physical devices.

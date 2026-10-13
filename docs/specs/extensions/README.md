@@ -6,7 +6,7 @@
 | Date | 2026-10-12 |
 | Module | Skills and extensions |
 
-Manage skills, local services, and plugins already on this computer. No market or one-click online installation is provided.
+This draft focuses on skills, local services, and plugins already on the computer. It proposes no marketplace or one-click online installation. Existing remote MCP connection support is a separate capability.
 
 ---
 
@@ -62,7 +62,7 @@ Install, enable, or remove local skills/extensions, showing enabled state and to
 | Approval | External side effects still require normal approval; this module grants no separate bypass |
 | Workbench | Do not advertise nonexistent shortcuts in start-page placeholders |
 
-Whether user-registered remote service addresses count as excluded networking remains open. This plan neither recommends nor bans them.
+The current extension manager supports user-registered remote MCP services. Whether to include them in the proposed local-edition navigation remains a planning question; this draft does not disable them.
 
 ## 6. Potential failures
 
@@ -86,4 +86,4 @@ Whether user-registered remote service addresses count as excluded networking re
 
 | ID | Detail |
 |---|---|
-| Q-EX1 | Whether a user-registered remote extension is application networking remains unresolved. No workbench entry or new allow/deny rule is added |
+| Q-EX1 | Whether the proposed local-edition navigation includes remote MCP services remains unresolved. Existing connection support and permission rules are unchanged |

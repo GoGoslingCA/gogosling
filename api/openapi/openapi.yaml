@@ -933,7 +933,7 @@ paths:
     post:
       tags:
         - agents
-      summary: Enhance input text and return a candidate for the user to apply
+      summary: Return enhanced input text without sending a chat message
       description: >-
         Requires prompt.enhance. Use the current agent model with input text only: no tools, history, or persisted
         messages. Share the concurrency budget and allow at most one enhancement request globally. Disconnect/cancel
@@ -966,7 +966,7 @@ paths:
                   description: Optional revision feedback, maximum 4000 bytes
       responses:
         "200":
-          description: Enhanced text, not applied or sent; excludes internal instructions
+          description: Enhanced text for the client to display in the input; no chat message is sent; excludes internal instructions
           content:
             application/json:
               schema:
@@ -1760,7 +1760,7 @@ paths:
     post:
       tags:
         - workbench
-      summary: apply
+      summary: Request application of a frozen file change
       requestBody:
         required: true
         content:
@@ -1790,7 +1790,7 @@ paths:
     post:
       tags:
         - workbench
-      summary: undo-preview
+      summary: Prepare an independent undo preview
       requestBody:
         required: true
         content:
@@ -1812,7 +1812,7 @@ paths:
     post:
       tags:
         - workbench
-      summary: cancel
+      summary: Cancel a pending file change
       requestBody:
         required: true
         content:
@@ -1834,7 +1834,7 @@ paths:
     post:
       tags:
         - workbench
-      summary: reconcile
+      summary: Verify and recover an uncertain file change
       requestBody:
         required: true
         content:
@@ -1944,7 +1944,7 @@ paths:
     get:
       tags:
         - agents
-      summary: Optional sandboxed local Office to PDF, one process, 30 second timeout
+      summary: Convert an Office file to PDF in an optional local sandbox, with one process and a 30-second timeout
       parameters:
         - name: path
           in: query
@@ -2162,7 +2162,7 @@ components:
                 type: boolean
     ChangeSet:
       type: object
-      description: Metadata only; file identities, before-images and proposed text stay in protected kernel storage.
+      description: Metadata only; file identities, before-images and proposed text stay in protected daemon storage.
       required:
         - id
         - owner_id
@@ -3732,11 +3732,11 @@ components:
             - en
             - fr
           readOnly: true
-          description: "Active kernel language: setting, then system environment, then default"
+          description: "Active daemon language: setting, then system environment, then default"
         effective_timezone:
           type: string
           readOnly: true
-          description: Active kernel timezone
+          description: Active daemon timezone
         allowed_origins:
           type: array
           items:

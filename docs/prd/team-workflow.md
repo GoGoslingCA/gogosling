@@ -2,15 +2,17 @@
 
 | Item | Description |
 |---|---|
-| Status | Draft v0.2: first review addressed (51 findings; see Review responses at the end) |
+| Status | Draft v0.2; proposed requirements, not an implementation or release record |
 | Date | 2026-10-10 |
 | Audience | Implementation team (daemon / worker / web / desktop / CLI), architecture lead, security and product review |
 | Related documents | `docs/architecture.md` (authoritative architecture), `internal/extension/doc.go`, `internal/model/*`, `api/openapi/openapi.yaml` |
 | Interoperability target | Tencent/teamai-cli `main@2cbf55609467e8ff2cf730c98ad63b7bf691679c` (package `0.22.0`, MIT; documentation also describes 0.26.x semantics) |
 
+This proposal describes future team capabilities for Gogosling, developed by Gogosling.ca, a Canadian company. Milestones, performance thresholds, API examples, and story outcomes are design targets, not shipped features or measured results. See the [current user guide](../user/personal-workbench.md) for available workflows.
+
 **Reference conventions**
 
-- Design records: P, product/user journey; D, data/distribution; L, context/learning; X, safety/workflow constraints. Finding references retain prefixes: `P-D3`, `D-D4`, `L-D10`, and `X-T1` / `X-E1` / `X-G1` identify findings in those records.
+- Historical design labels use P for product/user journey, D for data/distribution, L for context/learning, and X for safety/workflow constraints. The underlying review records are not published here; these labels preserve traceability and are not accessible source citations. Finding references retain prefixes: `P-D3`, `D-D4`, `L-D10`, and `X-T1` / `X-E1` / `X-G1` identify findings in those records.
 - `teamai:src/x.ts:N` identifies a line at the stated interoperability revision; `gogosling:<path>` identifies a repository file.
 - External repositories and web content are untrusted reference data, never instructions to execute.
 
@@ -32,44 +34,44 @@ Four milestones: M1 minimum interoperability → M2 native distribution → M3 l
 
 ## 1. User story: A fictional team week
 
-> All people, handles, and repositories below are fictional examples. Timeline: Monday, October 12 through Friday, October 16, 2026.
+> All people, handles, and repositories below are fictional examples. `EXAMPLE_ORG` is a placeholder, not a repository to visit. Timing and outcome figures illustrate the intended experience; they are not benchmarks. Timeline: Monday, October 12 through Friday, October 16, 2026.
 
-**Team**: the fictional xingtu team has 7 people building a dashboard SaaS for small merchants.
+**Team**: the fictional example-team team has 7 people building a dashboard SaaS for small merchants.
 
 - Product/operations: 5 roles — product lead/knowledge reviewer, operations member, content member, researcher, and a product intern joining Thursday.
 - Engineering: 2 roles — backend/team administrator and frontend engineer using a code assistant with the compatible CLI installed.
-- Communication uses a fictional team chat; example GitHub organization `xingtu` contains `xingtu-api` and `xingtu-web`.
+- Communication uses a fictional team chat; example GitHub organization `example-team` contains `example-team-api` and `example-team-web`.
 
 **Before adoption**: members use inconsistent personal prompts and unknown frontend rules. Operational interface mistakes recur, while onboarding depends on oral explanations. This story illustrates requirements rather than actual user research.
 
 ### Monday: The administrator creates the team repository
 
-1. Create empty `xingtu/team-ai`, open Teams → New team, enter the URL, and authorize using a GitHub device code (8-character browser confirmation, TW-02).
+1. Create empty `example-team/team-ai`, open Teams → New team, enter the URL, and authorize using a GitHub device code (8-character browser confirmation, TW-02).
 2. The empty-repository wizard offers a prefilled skeleton for confirmation:
-   - `teamai.yaml`: `team: xingtu`, `provider: github` inferred from the URL rather than default `tgit` (P-D17), and illustrative `reviewers: [linlan, zhouyu]`.
+   - `teamai.yaml`: `team: example-team`, `provider: github` inferred from the URL rather than default `tgit` (P-D17), and illustrative `reviewers: [reviewer, maintainer]`.
    - `manifest/roles.yaml`: `ops`, `product`, and `eng`.
-   - `manifest/projects.yaml`: `xingtu-api` and `xingtu-web`.
+   - `manifest/projects.yaml`: `example-team-api` and `example-team-web`.
    - `.gogosling/team.yaml`: project preferences; learnings require review, knowledge language is automatic, and friction uses compatible defaults.
    
    The wizard explains that the initial empty-repository commit goes directly to main, then changes use PRs. Protect main and teamai-learnings with at least 1 approval before merge, preferably readable rulesets. Until verified, mark rules Review unverified and knowledge Unreviewed. After Create, the administrator configures both rulesets; direct `teamai contribute` pushes must then use PRs (R-05).
-3. Select two skills and two rules, Share to team, and create PR #1 on `gogosling/push/zhouyu/20261012-1015`:
+3. Select two skills and two rules, Share to team, and create PR #1 on `gogosling/push/maintainer/20261012-1015`:
    - Skills `ops/weekly-report` and `ops/feedback-triage`.
    - Rules `rules/brand-voice.md` and `rules/data-privacy.md`.
    
-   Add MCP, credential declarations, and culture in Team settings, creating PR #2 on `gogosling/manifest/zhouyu/20261012-1030`:
+   Add MCP, credential declarations, and culture in Team settings, creating PR #2 on `gogosling/manifest/maintainer/20261012-1030`:
    - `culture.md`: communicate honestly without exaggerating merchant data.
    - HTTP MCP service `feishu-docs`; declare `FEISHU_APP_TOKEN` in `env/secrets.yaml` without its value.
 4. The local team bot announces 2 asset-change PRs: #1 has 2 skills/2 rules; #2 has culture, 1 MCP service, and 1 credential declaration. The reviewer inspects GitHub diffs, approves, and merges.
-5. A member runs `teamai init https://github.com/xingtu/team-ai --role eng --project xingtu-web`; the same repository supplies their other code client without migration.
+5. A member runs `teamai init https://github.com/EXAMPLE_ORG/team-ai --role eng --project example-team-web`; the same repository supplies their other code client without migration.
 
 ### Tuesday: Members join
 
-1. The operations member opens Teams → Join, enters the repository URL, uses device authorization, and selects `ops` and `xingtu-web` for merchant-facing work.
+1. The operations member opens Teams → Join, enters the repository URL, uses device authorization, and selects `ops` and `example-team-web` for merchant-facing work.
 2. Before joining, show five categories:
    - Incoming content: 2 skills, 2 rules, and culture.
    - Executable content: 1 HTTP MCP service `feishu-docs`, accessing `open.feishu.cn` and requiring 1 credential; consent now or later.
    - Enabled agents: preselect the existing operations assistant.
-   - Membership registration, selected by default: `members/suqing.yaml` in reports records an illustrative username/role/project visible to repository readers. Opting out removes the member from administrator impact previews.
+   - Membership registration, selected by default: `members/member-ops.yaml` in reports records an illustrative username/role/project visible to repository readers. Opting out removes the member from administrator impact previews.
    - Three sharing controls, all off: knowledge feedback/votes, usage statistics, and session summaries. Explain uploads/exclusions separately; the example member opts into knowledge feedback.
 3. The illustrative sync takes about 3 seconds. Credential guidance uses `env/secrets.yaml` description/url; store the copied token only in macOS keychain, retaining `secret:team:<id>:FEISHU_APP_TOKEN` in configuration. Verify the service address before consenting.
 4. Request a weekly operations report. The assistant lists/loads `weekly-report`, applies the team template and brand-voice rules. Other fictional members join; the example takes under 5 minutes.
@@ -82,55 +84,55 @@ Four milestones: M1 minimum interoperability → M2 native distribution → M3 l
    - The member cancels a run and corrects the workflow: submit the promotion for review before publishing.
    
    Following review before publication completes the activity configuration.
-2. After the run completes, a card appears below the conversation: "This session hit sharing-worthy pitfalls: Rejected 1 time · Corrected after interruption 1 time · Tool error 5 times. Task: Configure Double Eleven coupon thresholds." (The follow-up message she sent after canceling began with the correction phrase "No,", which counts as one correction; it and that interruption stem from the same cancellation, treated as the same class of signal during gating, TW-60.) The card displays two buttons: [Generate Experience Draft] and [Skip This Time]. This card is shown only to Su Qing, does not enter model context, and appears at most once in 24 hours for the same session.
-3. Su Qing clicks "Generate Experience Draft". gogoslingd initiates an internal inference pass using the built-in `team-share` prompt (creating no session and excluded from stats, TW-45), reads the sanitized summary of this session, and drafts a Chinese learning following the teamai template, structured into four sections: Context / Solution / Lessons / Related Skills.
+2. After the run completes, a card appears below the conversation: "This session hit sharing-worthy pitfalls: Rejected 1 time · Corrected after interruption 1 time · Tool error 5 times. Task: Configure Double Eleven coupon thresholds." (The follow-up message she sent after canceling began with the correction phrase "No,", which counts as one correction; it and that interruption stem from the same cancellation, treated as the same class of signal during gating, TW-60.) The card displays two buttons: [Draft a Lesson] and [Skip This Time]. This card is shown only to the operations member, does not enter model context, and appears at most once in 24 hours for the same session.
+3. The operations member clicks "Draft a Lesson". gogoslingd initiates an internal inference pass using the built-in `team-share` prompt (creating no session and excluded from stats, TW-45), reads the sanitized summary of this session, and drafts a Chinese learning following the teamai template, structured into four sections: Context / Solution / Lessons / Related Skills.
 4. Pre-publish checks yield three results:
    - Secret scan: A segment of `Authorization: Bearer eyJ…` in the body (surfaced from tool output) has been replaced with `[REDACTED]`.
-   - Internal address: `admin.xingtu.internal` is highlighted in yellow as a warning.
+   - Internal address: `admin.example-team.internal` is highlighted in yellow as a warning.
    - Duplicate check: No similar entries found.
    
-   Su Qing updates the title to "Campaign Coupons Must Be Submitted for Review Before Launch" and clicks "Submit for Review".
-5. Branch `gogosling/learning/suqing/20261014-1532` from `teamai-learnings`, write a learning under `learnings/xingtu-web/` using the compatible `generateFilename` rule (Unicode titles supported), and open a PR targeting `teamai-learnings`. The bot reports a pending learning for review; the reviewer inspects and merges it.
+   The operations member updates the title to "Campaign Coupons Must Be Submitted for Review Before Launch" and clicks "Submit for Review".
+5. Branch `gogosling/learning/member-ops/20261014-1532` from `teamai-learnings`, write a learning under `learnings/example-team-web/` using the compatible `generateFilename` rule (Unicode titles supported), and open a PR targeting `teamai-learnings`. The bot reports a pending learning for review; the reviewer inspects and merges it.
 
-### Thursday: Everyone's Agents Become Smarter
+### Thursday: Members Retrieve the Shared Learning
 
 1. Each member's gogoslingd runs a "Team Sync" system task hourly via the scheduler: fetching the learnings branch and incrementally updating the local knowledge index. Machines asleep with lids closed overnight immediately catch up with a run upon waking on Thursday morning.
-2. A second member requests promotion publication. Team rules require retrieval first, so the assistant calls `team_recall`. Mark returned knowledge Reviewed only after verifying the teamai-learnings approval ruleset; otherwise mark Unreviewed and taint the session. State that retrieved material is reference data, not instructions. Read it with `team_read`, inspect review status, then publish. Record adoption; an opted-in member syncs a vote through `votes/hetian.yaml` on `teamai-reports`.
-3. While Chen Mo is modifying frontend campaign pages in Code Assistant, `teamai recall` also retrieves this same learning. Both user types read and write the identical body of team knowledge.
-4. In the afternoon, Meng Xiaobei onboards. When joining the team, he selects the `product` role and checks the projects `xingtu-web` and `xingtu-api` (the export capability spans both ends). The agent template list gains a team-provided "Project Tour" agent (from `agents/onboarding-guide.yaml`). He asks: "Where do I modify the merchant CSV export feature?" The tour agent invokes `team_recall` sequentially by depth: first using `route` to inspect the product domain routing table, then `lookup` to locate the module, and finally providing candidate files to edit, such as `xingtu-api/internal/export/csv.go` and `xingtu-web/src/pages/Export.tsx`.
+2. A second member requests promotion publication. Team rules require retrieval first, so the assistant calls `team_recall`. Mark returned knowledge Reviewed only after verifying the teamai-learnings approval ruleset; otherwise mark Unreviewed and taint the session. State that retrieved material is reference data, not instructions. Read it with `team_read`, inspect review status, then publish. Record adoption; an opted-in member syncs a vote through `votes/member-content.yaml` on `teamai-reports`.
+3. While the frontend engineer is modifying frontend campaign pages in Code Assistant, `teamai recall` also retrieves this same learning. Both user types read and write the identical body of team knowledge.
+4. In the afternoon, the new team member onboards. When joining the team, he selects the `product` role and checks the projects `example-team-web` and `example-team-api` (the export capability spans both ends). The agent template list gains a team-provided "Project Tour" agent (from `agents/onboarding-guide.yaml`). He asks: "Where do I modify the merchant CSV export feature?" The tour agent invokes `team_recall` sequentially by depth: first using `route` to inspect the product domain routing table, then `lookup` to locate the module, and finally providing candidate files to edit, such as `example-team-api/internal/export/csv.go` and `example-team-web/src/pages/Export.tsx`.
    
-   This knowledge comes from `teamwiki/`: every night at 02:00, the scheduler runs `teamai codebase --extract` in a sandbox on Zhou Yu's gogoslingd across both code repositories, merges them into a global graph and routing page, and merges them into the team repository via **one** PR reviewed by Chen Mo (TW-49). When configuring the wiki source, Zhou Yu confirmed that "readers of the team repository can read both code repositories". In "Team → Knowledge → Code Map", Meng Xiaobei can also view the module dependency graph. If the graph is truncated due to file count limits, the top of the page clearly indicates which directories were not covered.
-5. An operations colleague @mentions Xingtu Assistant in the Feishu group: "What was the conversion rate for newly registered merchants last week?" Zhou Yu explicitly enabled "Allow team knowledge and team MCP in IM channels" for this bot's team association (disabled by default; enabling prompts that group members might lack read access to the team repo, TW-40). The bot queries via the team MCP service and responds. Because IM input is an untrusted source, team MCP outputs are also treated as external content; when it requires network access, the approval request pops up on Zhou Yu's desktop and cannot be approved within the group (`gogosling:internal/gateway/doc.go`).
+   This knowledge comes from `teamwiki/`: every night at 02:00, the scheduler runs `teamai codebase --extract` in a sandbox on the team administrator's gogoslingd across both code repositories, merges them into a global graph and routing page, and merges them into the team repository via **one** PR reviewed by the frontend engineer (TW-49). When configuring the wiki source, the team administrator confirmed that "readers of the team repository can read both code repositories". In "Team → Knowledge → Code Map", the new team member can also view the module dependency graph. If the graph is truncated due to file count limits, the top of the page clearly indicates which directories were not covered.
+5. An operations colleague @mentions Example Team Assistant in the Feishu group: "What was the conversion rate for newly registered merchants last week?" the team administrator explicitly enabled "Allow team knowledge and team MCP in IM channels" for this bot's team association (disabled by default; enabling prompts that group members might lack read access to the team repo, TW-40). The bot queries via the team MCP service and responds. Because IM input is an untrusted source, team MCP outputs are also treated as external content; when it requires network access, the approval request pops up on the team administrator's desktop and cannot be approved within the group (`gogosling:internal/gateway/doc.go`).
 
 ### Friday: Weekly Digest and Improvement
 
-1. At 17:00, the "Team Weekly Digest" system task on Zhou Yu's machine generates this week's digest and pushes it to the Feishu group:
+1. At 17:00, the "Team Weekly Digest" system task on the team administrator's machine generates this week's digest and pushes it to the Feishu group:
    - 3 new learnings; adopted 9 times, topped by "Campaign Coupons Must Be Submitted for Review Before Launch" with 5 adoptions.
    - Most used skill is `weekly-report`, used 14 times.
    - Friction hotspots (aggregated by skill, including only members who agreed to usage metrics): sessions loading no team skills had the highest friction score, followed by `ops/feedback-triage`.
-   - 1 knowledge gap nomination: "Refund Process". Zhao Yinuo saw in her personal view that all 4 searches for "refund" returned no results, so she proactively nominated it.
+   - 1 knowledge gap nomination: "Refund Process". The researcher saw in her personal view that all 4 searches for "refund" returned no results, so she proactively nominated it.
    - Kudos to this week's contributors.
    
    The weekly digest includes only aggregated data and information already public in the repository, with no rankings for individual usage, cost, or correction frequency.
-2. Lin Lan opens "Team → Improvement". The top of the page indicates "Data from 5/7 members who consented to sharing; generated at 17:00", showing success rate trends, knowledge coverage, and maintenance candidates: a three-month-old learning marked as "outdated" by two people, recommended for archiving. She clicks "Generate Archive PR" and submits it to Zhou Yu for review.
-3. Lin Lan assigns "Refund Process" to Zhao Yinuo. Next Monday, Zhao Yinuo adds a `docs/refund-flow.md`, which merges via PR, closing the gap.
+2. The product lead opens "Team → Improvement". The top of the page indicates "Data from 5/7 members who consented to sharing; generated at 17:00", showing success rate trends, knowledge coverage, and maintenance candidates: a three-month-old learning marked as "outdated" by two people, recommended for archiving. She clicks "Generate Archive PR" and submits it to the team administrator for review.
+3. The product lead assigns "Refund Process" to the researcher. Next Monday, the researcher adds a `docs/refund-flow.md`, which merges via PR, closing the gap.
 
-**One week later**: The team repository holds 6 skills, 5 rules, 7 learnings, and 1 code wiki. New hires can locate code modification entry points on their first day. The same pitfall is never hit twice, because the next person's agent already knows before taking action.
+**One week later**: The team repository holds 6 skills, 5 rules, 7 learnings, and 1 code wiki. New hires can locate code modification entry points on their first day. The intended outcome is that members can retrieve a reviewed lesson before repeating the same mistake; this story does not establish a measured reduction in errors.
 
 ### 1.1 User Journeys (Extracted from Narrative)
 
 | No. | Journey | Persona | Corresponding Use Case / Requirement |
 |---|---|---|---|
-| J1 | Initialize team on an empty repo (skeleton, roles, projects; all via PR after initial direct push) | Admin Zhou Yu | UC-01; TW-02, TW-03, TW-10 |
-| J2 | Share local assets to the team and open a PR; IM notification; reviewer merges on Git platform | Admin → Reviewer Lin Lan | UC-06, UC-10; TW-22, TW-66 |
-| J3 | teamai-cli users onboard with zero migration using the same repo | Engineer Chen Mo | UC-14; TW-10, TW-11, TW-30 |
-| J4 | One-click member join: select role → confirm content, roster registration, and data sharing → sync → enter secrets | Member Su Qing | UC-03, UC-04; TW-04, TW-16, TW-63 |
-| J5 | Automatically leverage team skills and rules in sessions | Member | UC-05; TW-12, TW-13, TW-20 |
-| J6 | Friction → suggestion card → draft → pre-check → submit review → merge | Member Su Qing, Reviewer Lin Lan | UC-09, UC-10; TW-60, TW-61, TW-45, TW-46, TW-47 |
-| J7 | Following next-day sync, other agents retrieve and adopt the learning, then write back votes | Members He Tian, Chen Mo | UC-11; TW-20, TW-40, TW-41, TW-43 |
-| J8 | New hire gets up to speed using team tour agent and code map | New hire Meng Xiaobei | UC-12; TW-14, TW-49, TW-50, TW-51 |
-| J9 | Team bots in IM channels leverage team assets (team knowledge and team MCP must be explicitly enabled by owner); sensitive actions still approved on desktop | Operations colleague, Bot owner Zhou Yu | UC-05; TW-40, TW-41, TW-66 |
-| J10 | Weekly digest pushed to Feishu group; knowledge gap nomination; maintenance candidates archived via PR | Reviewer Lin Lan, Member Zhao Yinuo | UC-13; TW-48, TW-64, TW-65, TW-67 |
+| J1 | Initialize team on an empty repo (skeleton, roles, projects; all via PR after initial direct push) | Admin the team administrator | UC-01; TW-02, TW-03, TW-10 |
+| J2 | Share local assets to the team and open a PR; IM notification; reviewer merges on Git platform | Admin → Reviewer the product lead | UC-06, UC-10; TW-22, TW-66 |
+| J3 | teamai-cli users onboard with zero migration using the same repo | Engineer the frontend engineer | UC-14; TW-10, TW-11, TW-30 |
+| J4 | One-click member join: select role → confirm content, roster registration, and data sharing → sync → enter secrets | Member the operations member | UC-03, UC-04; TW-04, TW-16, TW-63 |
+| J5 | Automatically use team skills and rules in sessions | Member | UC-05; TW-12, TW-13, TW-20 |
+| J6 | Friction → suggestion card → draft → pre-check → submit review → merge | Member the operations member, Reviewer the product lead | UC-09, UC-10; TW-60, TW-61, TW-45, TW-46, TW-47 |
+| J7 | Following next-day sync, other agents retrieve and adopt the learning, then write back votes | Members the content member, the frontend engineer | UC-11; TW-20, TW-40, TW-41, TW-43 |
+| J8 | New hire gets up to speed using team tour agent and code map | New hire the new team member | UC-12; TW-14, TW-49, TW-50, TW-51 |
+| J9 | Team bots in IM channels use team assets (team knowledge and team MCP must be explicitly enabled by owner); sensitive actions still approved on desktop | Operations colleague, Bot owner the team administrator | UC-05; TW-40, TW-41, TW-66 |
+| J10 | Weekly digest pushed to Feishu group; knowledge gap nomination; maintenance candidates archived via PR | Reviewer the product lead, Member the researcher | UC-13; TW-48, TW-64, TW-65, TW-67 |
 
 ---
 
@@ -139,31 +141,23 @@ Four milestones: M1 minimum interoperability → M2 native distribution → M3 l
 ### 2.1 Background
 
 - **Current State of gogosling**: gogosling is a desktop-first open-source agent. `gogoslingd` handles the control plane, permissions, sandboxing, extensions (skills / plugins / MCP), IM gateway, and scheduling, while the Python worker process runs solely the inference loop (`gogosling:docs/architecture.md` §1–§2). Extensions already possess a unified record `model.Extension{Source, Digest}`, can be selected per agent (`Agent.Extensions`), and MCP tools have digest pinning in place (`gogosling:internal/extension/doc.go`). However, all assets currently operate under "one person, one machine": lacking team sources, origin verification, and marketplace protocols (`doc.go` pending items), while the worker's memory and knowledge modules remain stubs (`gogosling:worker/src/gogosling_worker/{memory,knowledge}/__init__.py`).
-- **Capabilities Represented by TeamAI** [P §1] [X §1]. teamai-cli fans out team assets across 19 agent types using a single Git repository alongside agent lifecycle hooks, featuring two layers of beta capabilities on top:
-  - Team Context: learnings, recall, code knowledge graph, teamwiki.
-  - Team Improvement: friction-signal-driven experience sharing, sessions, stats, dashboard, digest.
-  
-  Its distribution dimensions of "Role × Project × Tag × Subscription Feed" have no equivalent in mainstream vendor plugin marketplaces [X §5].
-- **Industry Landscape** (as of 2026-10-10) [X §1]:
-  - Asset formats have converged on Agent Skills (SKILL.md), AGENTS.md, and MCP.
-  - Distribution has converged into three tiers: "Plugin + Marketplace + Managed Policies".
-  - Trust and team learning remain weak links: ClawHavoc found 341 malicious skills out of 2,857 (X-E1); Snyk scanned 3,984 skills with 13.4% exhibiting critical issues; arXiv 2601.10338 reported 26.1% vulnerabilities across 31,132 skills.
-  - Unreviewed self-authored skills and memories correspond to OWASP ASI06 Memory Poisoning (X-E7).
+- **Interoperability scope**: the proposed adapter reads the pinned team repository format, including role/project/tag filters, learning documents, reports, and code-wiki indexes. These are compatibility requirements, not a promise that the team module is available today.
+- **Security requirements**: imported scripts, configuration, and knowledge are untrusted. The design must bind executable consent to a digest, keep credentials out of repository files, preserve source information, and require explicit consent before sharing usage data.
 
 ### 2.2 Problems to Solve
 
 | # | Problem | Symptoms / Evidence |
 |---|---|---|
 | Q1 | Fragmented team AI assets operating in silos | Each person maintains separate prompts and skills for identical tasks; newcomers have no way to access them. gogosling supports only single-machine extension installation |
-| Q2 | Experience cannot be reused, causing pitfalls to be repeated | Paths corrected, rejected, or found only after repeated errors in a session disappear once it ends. teamai captures such sessions using friction signals [L §2.1], while gogosling does not yet have a corresponding mechanism |
+| Q2 | Experience cannot be reused, causing pitfalls to be repeated | Corrections and rejected approaches remain in individual session history; Gogosling does not yet turn them into reviewed, reusable team knowledge |
 | Q3 | Teams already using TeamAI cannot onboard gogosling | When teamai integrates new tools purely via configuration, agents and MCP are silently skipped (D-D2, D-D3); once `toolPaths` is declared, the entire table is replaced (D-D1, P-D5) |
-| Q4 | Team distribution magnifies supply-chain and poisoning risks | teamai's team hooks and MCP are automatically applied by default, and `postPull` executes on all members' machines (P-D13, D-D6); subscription feeds track the latest remote commits (X-T1); learnings are pushed directly without review, entering context upon recall without provenance framing (L-D1, X-T5); secrets are parsed into plaintext and written to each tool configuration (D-D4, X-T4) |
-| Q5 | Teams cannot see whether AI is being used well, nor should they see individual specifics | teamai reports personal usage, costs, and interventions to team repositories by default (P-D3); dashboard sets `ACAO: *`, allowing any web page to read sessions cross-origin (P-D9); session summaries and webhooks leak absolute cwd externally (L-D12, P-D10) |
-| Q6 | Non-engineering members cannot use Git workflows | teamai still leaks Git concepts in multiple places (P §3.9-2, P-D6), with documentation exceeding 1,400 lines in total (P-D19). gogosling's target users include product and operations |
+| Q4 | Team distribution magnifies supply-chain and poisoning risks | Imported hooks, MCP configuration, and post-pull scripts may execute code. Unpinned sources, unreviewed knowledge, and plaintext credential substitution require explicit controls at the import boundary |
+| Q5 | Teams cannot see whether AI is being used well, nor should they see individual specifics | Team reporting must not expose individual prompts, tool output, or local paths. Aggregation alone is insufficient if raw records are also uploaded; consent and payload restrictions must apply before transmission |
+| Q6 | Non-engineering members cannot use Git workflows | Gogosling targets product and operations roles as well as developers. Joining, sharing, and opening a review must not require local git commands |
 
 ### 2.3 Opportunities
 
-gogosling is itself an Agent host, possessing three structural advantages that CLI fan-outs cannot achieve [L §6.1] [X §7]:
+The proposal builds on three existing parts of Gogosling:
 
 1. Precise friction and adoption signals exist on the event bus: `approval.resolved(denied)`, `run.cancelled`, `tool.call.completed(is_error)`, `usage` (`gogosling:internal/model/run.go`).
 2. There is only a single security boundary, and all side effects pass through it: `permission → tools → sandbox`.
@@ -179,9 +173,10 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 |---|---|---|
 | G1 | Members acquire team assets immediately upon one-click joining | When a team repository exists, the p50 time for non-engineering members from pasting the URL to utilizing team skills in their first session is ≤ 5 minutes (GitHub device code authorization path, excluding waiting for platform invites). Measurement methodology: moderated usability testing with ≥5 non-engineering users timed via screen recordings; PAT paths are logged separately and excluded from this goal (OQ-4) |
 | G2 | Bidirectional interoperability with teamai-cli | Given the same fixture team repository and member configuration, gogosling's expected set equals "teamai `resolveDesired*` export results + logged intentional deviations list" (Appendix C Item 4, deviations asserted separately). Learnings and votes produced by gogosling can be read by teamai `recall` |
-| G3 | Functional closed-loop experience reflux | The funnel from friction suggestions to PR merges is measurable (§11 provides data sources); searches by all online members hit within one sync interval (default 1 hour) after merging |
+| G3 | Turn session lessons into reviewed, reusable knowledge | The funnel from friction suggestions to PR merges is measurable (§11 provides data sources); searches by all online members hit within one sync interval (default 1 hour) after merging |
 | G4 | Trust enforced by daemon | Executable team assets run without local consent 0 times; plaintext team secrets appear in databases, logs, or events 0 times (automated tests) |
-| G5 | Privacy secure by default | Data leaving the local machine has category-specific constraints (after table below); no category leaks cwd, prompts, tool parameters, or tool outputs externally |
+| G5 | Privacy by default | Outbound data follows the category-specific constraints below; no category includes cwd, prompts, tool parameters, or tool outputs |
+| G6 | Non-engineering members can complete all operations | Joining, sharing, and management are available in the desktop UI; review opens on the Git platform without requiring local git commands |
 
 **Outbound categories for G5** (§8.6 provides per-file details; §6.3 TW-63 specifies formatting for files on the reports branch):
 
@@ -190,13 +185,12 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 3. **Consented count telemetry** (votes, stats, sessions): Disabled by default, item-by-item consent; contains only counts and document identifiers.
 4. **IM notifications**: Configured locally by the bot owner; contains only title, author's platform username, preflight counts, and PR links.
 5. **Exceptions (truthfully disclosed, not governed by gogosling toggles)**: Under Mode A/B, recall and pull executed by teamai-cli directly report votes and usage collected by teamai according to team `usageReport` settings (TW-33, TW-40). G5's "zero reporting by default" acceptance criteria applies solely to native mode (C).
-| G6 | Non-engineering members can complete all operations | Management, joining, sharing, and review redirection can all be completed within the desktop UI without running git commands |
 
 ### 3.2 Non-Goals
 
-- **No fan-out support for 19 external Agents**. gogosling is merely a host; teams requiring distribution to other coding tools should continue using teamai-cli (D-D19, P-D19).
+- **No distribution to other applications**. Gogosling consumes compatible team assets for its own agents; managing other clients is outside this proposal.
 - **No proprietary team repository formats**. gogosling-specific preferences reside only under `.gogosling/team.yaml` in the team repository and the `x-gogosling/` prefix on the reports branch (Appendix B).
-- **Do not execute `scripts.postPull`**, do not auto-install `packages` (npm / Claude plugins), do not silently auto-upgrade, and do not trigger teamai auto-upgrades (P-D12, P-D13).
+- **Do not execute `scripts.postPull`**, do not auto-install `packages` (including npm packages or external plugins), do not silently auto-upgrade, and do not trigger teamai auto-upgrades (P-D12, P-D13).
 - **Do not accept approvals or review decisions inside IM**. The gateway only notifies and provides links (`gogosling:internal/gateway/doc.go`: "Approvals can only be completed on the desktop client"). Reviews are completed on the Git platform.
 - **Do not provide member-level rankings for usage, costs, or corrections**; team views offer aggregate data only (P-D3, P-D15).
 - **Do not build a team server / multi-tenant backend** (the form factor proposed by teamai `management-backend`). Implementing a server adhering to the teamai HTTP contract is deferred; see §14 OQ-12.
@@ -300,7 +294,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
   3. The member reviews the command, arguments, accessible hosts, referenced secrets, and diff, and chooses to consent or reject.
 - Result: The consent record is bound to the content digest; consent is requested again if the digest changes.
 
-**UC-09 Friction Prompt -> Experience Draft -> Preflight -> Submit** (TW-60, TW-61, TW-45, TW-46, TW-47)
+**UC-09 Friction Prompt -> Lesson Draft -> Preflight -> Submit** (TW-60, TW-61, TW-45, TW-46, TW-47)
 
 - Precondition: The team enabled recall (`sharing.recall.enabled` or member override), and the session reached the friction threshold.
 - Steps:
@@ -346,7 +340,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 
 - Preconditions:
   - Team side: Configured `toolPaths.gogosling`, or used a teamai version containing the upstream patch.
-  - **Member side (required, one-time)**: teamai installs to project scope by default and only writes to tools within the `enabledAgents` whitelist (`init --scope` for `teamai:src/index.ts`, `isAgentExcluded` for `teamai:src/types.ts`). Members need to execute `teamai init <url> --scope user --agent gogosling`; members who have already initialized execute `teamai init --agent gogosling` additionally once. The "Already Using TeamAI?" onboarding page provides this command with one click (copyable) based on local machine detection results, and doctor checks whether it has taken effect (TW-21).
+  - **Member side (required, one-time)**: teamai installs to project scope by default and only writes to tools within the `enabledAgents` allowlist (`init --scope` for `teamai:src/index.ts`, `isAgentExcluded` for `teamai:src/types.ts`). Members need to execute `teamai init <url> --scope user --agent gogosling`; members who have already initialized execute `teamai init --agent gogosling` additionally once. The "Already Using TeamAI?" onboarding page provides this command with one click (copyable) based on local machine detection results, and doctor checks whether it has taken effect (TW-21).
 - Steps:
   1. The member executes `teamai pull` in the terminal. In M1, gogosling does not execute pull on their behalf (TW-33); manual UI sync and scheduled sync will only be opened after upstream `--no-post-pull` is merged.
   2. teamai writes skills, rules, and instruction blocks to the delivery drop zone.
@@ -416,7 +410,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
   
   If OQ-4 is not approved, device code flow is downgraded to P1, "device code flow" in user stories changes to the PAT path, and G1 changes to reporting elapsed times for the two paths separately.
 - Tokens are passed to git exclusively via the child process environment (`GIT_CONFIG_COUNT/KEY/VALUE` injecting `http.extraHeader`). They must not appear in command-line arguments, `.git/config`, logs, or events.
-- All git child processes execute via `sandbox.Runner`: the only writable directory is `<dataDir>/teams/<binding-id>/`; networking is enabled only during fetch / push; environment variables follow a whitelist.
+- All git child processes execute via `sandbox.Runner`: the only writable directory is `<dataDir>/teams/<binding-id>/`; networking is enabled only during fetch / push; environment variables follow an allowlist.
 - PRs / MRs go through the platform REST: M2 supports GitHub and GitLab (including self-hosted). Other platforms degrade to "branch pushed" along with a link to create a PR manually (consistent with teamai `--provider git`, P §3.2-3).
 
 **Acceptance Criteria**
@@ -525,7 +519,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 
 - Install each desired skill using `extension.InstallSkill` validation: SKILL.md frontmatter requires `name`/`description`; reject symlinks, cap size, write temporarily, then rename atomically.
 - Set `Source` to `team:<binding-id>/<repo-path>@<commit>` and `Digest` to the content digest.
-- Resolve display-name conflicts with `<team>/<name>` and show origin in the system skill list, such as team xingtu.
+- Resolve display-name conflicts with `<team>/<name>` and show origin in the system skill list, such as team example-team.
 - Verify disk digests at both enablement and `LoadSkill` (X-G1, X-G2), distinguishing ownership:
   - **Managed skills** (`team:`, `teamai-drop:`): mismatch means tampering; deny loading, mark `held(digest_mismatch)`, and offer Restore team version by resync. Never accept it as a local edit through `AcceptTools`; derive a copy through TW-19.
   - **Personal skills** (`Source=local`, `local:forked-from:`, etc.): preserve current behavior. Direct user edits warn, repin the digest, and publish `extension.tools_changed`; application-editor writes through `/api/v1/extensions/{id}/files` update the digest.
@@ -586,14 +580,14 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 - **Managed MCP results are external content**: apply `external` trust and taint before returning (TW-41). Team configuration may tighten a service, never loosen it. Personal MCP remains unchanged and requires separate work.
 - Skip/report missing PATH executables in `requires`; skip nonempty `tools:` that excludes gogosling.
 - `transport: sse` services: gogosling currently only supports stdio and http (`gogosling:internal/model/extension.go`); skip them and prompt in doctor (OQ-11).
-- `sharing.mcp.allowedCommands` / `allowedHosts` maps to narrowing-only filtering: services whose commands or hosts are not in the whitelist are directly skipped and cannot be consented to.
+- `sharing.mcp.allowedCommands` / `allowedHosts` maps to narrowing-only filtering: services whose commands or hosts are not in the allowlist are directly skipped and cannot be consented to.
 - **All MCP services belong to the executable class** (stdio and http, regardless of whether keys are referenced) and must pass through TW-18. Http services that do not require authentication still send tool parameters to the host designated by the team, acting as a data exfiltration channel; the URL origin is written into the consent summary and must be re-consented to when changed.
 
 **Acceptance**
 
 1. The `MCP.Env` and `MCP.Headers` values in the extension record only match `secret:` references or env.yaml literals with this binding prefix (unit test).
 2. After deleting the corresponding key, the service enters the `missing_secret` state and does not connect.
-3. Commands outside the whitelist cannot be consented to via API and return `denied`.
+3. Commands outside the allowlist cannot be consented to via API and return `denied`.
 4. Http MCPs that do not reference any keys do not appear in `ToolsFor` prior to consent (unit test).
 5. Services with literal `secret:provider:x:api_key` in mcp.yaml are marked as `held(forbidden_ref)` and do not appear in the consent list (unit test).
 6. After invoking team MCP tools, `fetch_url` in the same session (even if an explicit allow rule exists) enters approval, `Verdict.Source == untrusted_input` (integration test).
@@ -624,8 +618,8 @@ gogosling is itself an Agent host, possessing three structural advantages that C
   - `PreToolUse` / `PostToolUse` → Before and after tool execution; can use `matcher` to filter by tool name
   - `Stop` → Terminal run state
   - Other events → Ignore and prompt in doctor
-- Hook commands belong to the executable class: they must be consented to via TW-18 and executed in `sandbox.Runner` (network disabled by default, writable directory set to agent workspace), with timeout taking `timeout` (default 10 seconds, upper bound 60 seconds). stdin is a Claude-compatible JSON subset: `hook_event_name`, `session_id`, `cwd` (workspace relative root), `tool_name`, `tool_input`; excludes transcript paths.
-- **Non-isolated platforms** (`sandbox` mechanism is none: current Windows, and Linux prior to bwrap landing): neither writable directories nor network blocking can be enforced; hooks can read all local files (including local API Bearer tokens) and access the network. Therefore:
+- Hook commands belong to the executable class: they must be consented to via TW-18 and executed in `sandbox.Runner` (network disabled by default, writable directory set to agent workspace), with timeout taking `timeout` (default 10 seconds, upper bound 60 seconds). stdin is the compatible hook JSON subset: `hook_event_name`, `session_id`, `cwd` (workspace relative root), `tool_name`, `tool_input`; excludes transcript paths.
+- **Non-isolated platforms** (`sandbox` mechanism is none: current Windows, and Linux before bwrap support): neither writable directories nor network blocking can be enforced; hooks can read all local files (including local API Bearer tokens) and access the network. Therefore:
   - Team hooks are disabled by default, doctor reports `warn`;
   - When members explicitly need to enable them, the consent dialog clearly states "This platform lacks isolation; hook can read all local files and access the network", and consent records are bound to the platform (invalidated upon changing platform or mechanism change);
   - On such platforms, stdin for hooks does not contain `tool_input`;
@@ -704,10 +698,10 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 **Requirements**
 
 - `GET /api/v1/teams/{id}/doctor` returns JSON: `[{check, status: ok|warn|fail, detail, fix}]`. The UI and `gogosling team doctor [--json]` share the exact same data.
-- Check items: git version; platform authentication; repository reachability; readability of `teamai.yaml` and manifest; compatibility level and unknown fields; diff between desired set and actual landing (**inspect payloads rather than pipelines**: whether skills can genuinely be discovered by `SkillsFor`, whether MCP can connect, whether the team layer appears in associated agents, [P §5-5]); pending consent items; missing secrets; held assets; offline queue backlog; whether learnings and votes are published; whether the team layer exceeds limits; prompt regarding teamai fields ignored by gogosling (postPull, packages, submodules, sse).
+- Check items: git version; platform authentication; repository reachability; readability of `teamai.yaml` and manifest; compatibility level and unknown fields; diff between the desired set and installed assets (**verify usable results, not just completed sync steps**: whether skills can genuinely be discovered by `SkillsFor`, whether MCP can connect, whether the team layer appears in associated agents, [P §5-5]); pending consent items; missing secrets; held assets; offline queue backlog; whether learnings and votes are published; whether the team layer exceeds limits; prompt regarding teamai fields ignored by gogosling (postPull, packages, submodules, sse).
 - **M1 subset** (Modes A/B): whether teamai is installed, path, and version; drop zone status; and three member-side configuration checks, where `fix` provides copyable commands when unsatisfied:
   1. The scope of local teamai installation: reports `fail` when only project-scope installation (`~/.teamai/projects/*/config.yaml`) is discovered, prompting `teamai init <url> --scope user --agent gogosling` (starting from M2, agents can also be linked to this project root in the UI, TW-30);
-  2. Whether `enabledAgents` includes `gogosling` (reports `fail` when whitelist exists and does not include it, prompting `teamai init --agent gogosling`); likewise `fail` when `disabledAgents` contains gogosling;
+  2. Whether `enabledAgents` includes `gogosling` (reports `fail` when allowlist exists and does not include it, prompting `teamai init --agent gogosling`); likewise `fail` when `disabledAgents` contains gogosling;
   3. Whether the user-scope configuration `~/.teamai/config.yaml` exists.
   
   Additionally check `RepoTrust` of default branch and learnings branch (native mode), and whether team hooks are disabled on unisolated platforms.
@@ -802,7 +796,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 **Requirements**
 
 - Implement the pending item "Enterprise Policy File" (`gogosling:internal/permission/doc.go`) in the `permission` package: system-level `policy.json`. The macOS path is `/Library/Application Support/gogosling/policy.json`, and Linux is `/etc/gogosling/policy.json`.
-- Policy contents: team source whitelists and blacklists (supporting hostPattern, matched after Git URL normalization), prohibition of sideloading, allowing managed hooks only, and MCP registry whitelist.
+- Policy contents: team source allowlists and denylists (supporting hostPattern, matched after Git URL normalization), prohibition of sideloading, allowing managed hooks only, and MCP registry allowlist.
 - User level cannot override policies; on conflict, fall back to compatible values and emit events.
 
 **Acceptance Criteria**: Team sources prohibited by policy cannot be bound and return `denied`.
@@ -841,7 +835,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
   - `team_recall` / `team_read` returning `team-unreviewed`, `team-unverified`, or `external` content;
   - Returns from team-managed MCP tools (TW-15);
   - Feed source (`external`) skills loaded via `load_skill` (TW-24).
-- **Tainting in `fetch_url` is a behavioral change for all users**, decoupled from team features: recorded separately as design document ADR-T19, controlled by feature flag `security.taint_fetch_url`, disabled by default in M1; approval frequency after enabling will be measured during M1 (voluntary export by internal test users) before deciding whether to enable by default (OQ-15). When enabled, write to the change description in Architecture §6.
+- **Tainting in `fetch_url` is a behavioral change for all users**, decoupled from team features: recorded separately in the architecture proposal as ADR-T19, controlled by feature flag `security.taint_fetch_url`, disabled by default in M1; approval frequency after enabling will be measured during M1 (voluntary export by internal test users) before deciding whether to enable by default (OQ-15). When enabled, write to the change description in Architecture §6.
 - **Scope and decay**: Taint is recorded on the session (persisted, remains effective after restart) and does not decay automatically. Users can select "I have reviewed these contents, clear taint for this session" on the session header badge; after secondary confirmation, it is cleared and logged to audit `session.taint.clear`; reading taint sources again thereafter will re-apply the taint.
 - `team-reviewed` content (docs and teamwiki merged under verified branch protection) is still wrapped, but does not trigger taint. Whether it also triggers taint is covered in OQ-7.
 
@@ -873,7 +867,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 
 - Add two new tables: `recall_runs(run_id, session_id, at, doc_keys[], positions[])` and `recall_evidence(recall_run_id, doc_key, tool_call_id, at)`.
 - Determination rule: Within a single session, calling `team_read` on a document within 24 hours after `team_recall` returns that document counts as one adoption. Maximum of one vote per document per session. Reads from sub-agents or internal executions (TW-62 internal flag) are excluded (consistent with teamai, [L §2.5]).
-- Write-back: When a member enables "Knowledge Feedback", incremental updates are merged into `votes/<user>.yaml` on the reports branch during sync using v2 format: `recalled_count`, `upvoted_count`, and `last_*_at`, maintaining binary compatibility with teamai ([L §3.2]). For syntax details, see the TW-63 rules table (shared file, append-only increments). Under M1 Mode A, this is changed to executing `teamai recall feedback --positive <id>` via the bridge (writing only teamai local votes; upload timing is determined by teamai, and TW-40 notification rules also apply).
+- Write-back: When a member enables "Knowledge Feedback", incremental updates are merged into `votes/<user>.yaml` on the reports branch during sync using v2 format: `recalled_count`, `upvoted_count`, and `last_*_at`, maintaining file-format compatibility with teamai ([L §3.2]). For syntax details, see the TW-63 rules table (shared file, append-only increments). Under M1 Mode A, this is changed to executing `teamai recall feedback --positive <id>` via the bridge (writing only teamai local votes; upload timing is determined by teamai, and TW-40 notification rules also apply).
 - Use teamai's prefix-free doc ID format during write-back (for compatibility); use type-prefixed keys for local computations.
 
 **Acceptance Criteria** (Item 3 applies only to Native Mode C)
@@ -896,7 +890,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 2. Entries flagged as outdated by 2 users appear in maintenance candidates.
 3. Property test: Confidence remains within [0, 1] across arbitrary impression positions and adoption sequences (including inputs of `upvoted_count > recalled_count` from teamai).
 
-#### TW-45 Experience Draft Generation (share) (P0, M3)
+#### TW-45 Lesson Draft Generation (share) (P0, M3)
 
 **Requirements**
 
@@ -1056,7 +1050,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 
 **Acceptance Criteria**
 
-1. Test by replaying event sequences: Su Qing's sequence in the story (1 rejection, 1 interrupt immediately followed by a correction starting with "No,", 5 errors, 23 tool calls) triggers the prompt; a single correction plus 30 successful tool calls does not trigger it.
+1. Test by replaying event sequences: the operations member's sequence in the story (1 rejection, 1 interrupt immediately followed by a correction starting with "No,", 5 errors, 23 tool calls) triggers the prompt; a single correction plus 30 successful tool calls does not trigger it.
 2. Single interrupt + one ordinary follow-up message ("continue") + 20 successful tool calls does not trigger; single interrupt + one restatement starting with a corrective phrase + 20 successful tool calls also does not trigger (both belong to the same category).
 3. Event processing uses asynchronous subscriptions; slow subscribers do not block the bus (benchmark: no backpressure alarms under 10k events/sec).
 4. Events from internal runs are not included in the count.
@@ -1065,7 +1059,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 
 **Requirements**
 
-- Publish event `team.contribute_suggested{session_id, run_id, signals, task_summary}` when reaching the threshold, where `task_summary` is a sanitized, single-lined summary of the first user message, capped at 80 characters. Web and Desktop render the card under the last assistant message of the session, with buttons [Generate Experience Draft] [Not This Time] [Don't Prompt This Type Again].
+- Publish event `team.contribute_suggested{session_id, run_id, signals, task_summary}` when reaching the threshold, where `task_summary` is a sanitized, single-line summary of the first user message, capped at 80 characters. Web and Desktop render the card under the last assistant message of the session, with buttons [Draft a Lesson] [Not This Time] [Don't Prompt This Type Again].
 - **The card does not enter the model context** and is not written to the message table.
 - Gating: Team `sharing.contributeHint.enabled`, member override settings, recall enabled (same gating as teamai, 〔L §2.1-6〕), and the binding is not in a read-only state. Prompt frequency aligns with TW-60: at most once per session within 24 hours.
 - Funnel counts (card impression, "Not This Time", "Don't Prompt This Type Again", draft generation) are recorded locally; when the member enables "Usage Statistics", weekly aggregated counts are reported via `x-gogosling/stats` (TW-63) for use by funnel metrics in §11.
@@ -1151,7 +1145,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
   - Most adopted entries and most frequently used skills
   - Friction hotspots (aggregated by skill) and knowledge gap nominations
   - Maintenance candidate counts and contributor acknowledgments (lists only authors of merged content)
-- Push: Sent by the member who configured the IM channel (bot owner) via `gateway.Notify` in local tasks to chats in the notification whitelist, **without going through a session** (PR and learning titles are untrusted text written by others; pushing through a session would make them assistant messages in the bot session, entering subsequent model context; design document ADR-T11).
+- Push: Sent by the member who configured the IM channel (bot owner) via `gateway.Notify` in local tasks to chats in the notification allowlist, **without going through a session** (PR and learning titles are untrusted text written by others; pushing through a session would make them assistant messages in the bot session, entering subsequent model context; design document ADR-T11).
 - Dependency: The Feishu adapter is currently in the gateway to-be-implemented list (`gogosling:internal/gateway/doc.go`); M3 must deliver the Feishu adapter, or at least support Telegram and in-desktop notifications; see R-07.
 - Does **not** include any member-level usage, cost, or remediation rankings.
 
@@ -1191,7 +1185,7 @@ gogosling is itself an Agent host, possessing three structural advantages that C
 
 **Requirements**
 
-- Sessions that complete smoothly and are liked by the user can serve as candidates for "reusable workflows" to generate skill drafts (Letta report: learning from trajectories alone increases relative performance by 21.1%, and up to 36.8% with feedback, [X §1-4]).
+- Sessions that complete successfully and receive positive user feedback may be candidates for reusable skill drafts. This is a proposed workflow, not a validated improvement in task performance.
 - Drafts go through TW-46 pre-checks and the TW-22 PR process.
 
 **Acceptance Criteria**: Candidates require explicit user triggers and are not generated automatically.
@@ -1275,7 +1269,7 @@ Payload contains no secrets, prompts, or absolute paths.
 - **Proof of provenance**: The project root is located within the user's code repository or agent workspace; anyone with write access to this repository (including agents compromised by prompt injection) can forge drop zone content. Therefore, project scope items are imported as team content only when their sha256 matches teamai's delivery ledger; the delivery ledger is `lastPullByWorkspace[*].delivered` of `state.json` in the data directory of that scope (`~/.teamai/` or `~/.teamai/projects/<slug>/`), located outside the workspace. Items not recorded in the ledger (e.g., marker blocks in AGENTS.md) are uniformly treated as `local`: they do not enter the team layer, and skill imports require item-by-item confirmation. user scope is located inside the data directory; M1 relies on permission guards, while ledger validation is also performed starting from M2.
 - **Write protection**: Built-in permission rules deny agent writes to any `**/.gogosling/teamai/**` path (`write_file` and `run_command` that can identify the target path).
 - gogosling **never rewrites the drop zone**. Otherwise, teamai's delivery ledger would treat gogosling's edits as "member edits" and retain them ([D §7.2]). When users modify imported skills in gogosling, they use the derived copy mechanism of TW-19; "Share via TeamAI" (writing the copy back to the drop zone and executing `teamai push` via the bridge) will be provided alongside `push` in M3 (TW-33).
-- Known Limitation: When `GOGOSLING_HOME` is not the default value, teamai cannot write to the correct location (`toolRoots` only supports claude and codex, D-D17). In this case, doctor prompts the user to switch to the upstream version of TW-31, or switch to native mode.
+- Known Limitation: When `GOGOSLING_HOME` is not the default value, teamai cannot write to the correct location (the upstream resolver does not support a custom Gogosling data root, D-D17). In this case, doctor prompts the user to switch to the upstream version of TW-31, or switch to native mode.
 - Zero-code integration config snippets on the team side are documented in docs ([D §7.2]) and provided in the UI's "Already using TeamAI?" onboarding guide, along with member-side commands (UC-14). Based on current teamai behavior, the team must copy the entire built-in `toolPaths` table into `teamai.yaml` (D-D1, P-D5). Even so, agents and MCP are still silently skipped (D-D2, D-D3), making upstream patches (TW-31) a prerequisite for full support.
 
 **Acceptance**
@@ -1289,11 +1283,11 @@ Payload contains no secrets, prompts, or absolute paths.
 
 **TW-31 Upstream Contribution (P1, submitted in M1, merge timing uncontrolled)**
 
-**Requirements**: Submit a PR to Tencent/teamai-cli based on the patch list compiled in [D §7.2] (~8 locations):
+**Requirements**: Propose the following compatibility changes upstream (approximately eight locations):
 
 1. Add `gogosling` entries to `src/types.ts`'s default `toolPaths`.
 2. Add `{id:'gogosling', …}` to `src/known-agents.ts`.
-3. Add gogosling to `src/resources/agent-format.ts`'s `ToolName`, `ALL_SUPPORTED_TOOLS`, and `renderForTool`, rendered using Claude Markdown.
+3. Add gogosling to `src/resources/agent-format.ts`'s `ToolName`, `ALL_SUPPORTED_TOOLS`, and `renderForTool`, rendered using the upstream Markdown agent format.
 4. Add gogosling to `src/resources/agents.ts`'s `reverseByParser`.
 5. Add gogosling format to `src/resources/mcp-format.ts`: `${VAR}` rendered as `secret:teamai/<VAR>`, `supportsEnvExpansion('gogosling')=true`.
 6. Add `GOGOSLING_HOME` to `RELOCATABLE_TOOLS`.
@@ -1339,20 +1333,20 @@ Also include fix recommendations in the PR: D-D1 (deep merging toolPaths per too
   | `recall feedback` | network (External release: teamai will upload on the next pull) | **Ask every time** | M1 |
   | `contribute` (accepts gogosling draft IDs only), `push` | network (External release) | **Ask every time** | **M3** (requires TW-45 drafts and TW-19 derived copies). In M1, execute teamai in the terminal to share experience and resources |
   | `pull` | network, and will modify configurations of other AI tools | **Not invoked by model**: Can only be manually triggered in UI or executed by system tasks, provided local teamai supports `--no-post-pull` (TW-31 Item 7); prior to this, UI guides members to run `teamai pull` in terminal themselves | After upstream patch merge |
-  | `init`, `uninstall`, `update`, `remove`, `roles/projects/tags/source write operations`, `env set`, `hooks inject`, `mcp inject`, `models switch` | — | Not in whitelist, rejected. Use native UI for these operations, or execute them in the terminal by the user | — |
+  | `init`, `uninstall`, `update`, `remove`, `roles/projects/tags/source write operations`, `env set`, `hooks inject`, `mcp inject`, `models switch` | — | Not in allowlist, rejected. Use native UI for these operations, or execute them in the terminal by the user | — |
 
-- Execution method: argv is directly executed after being constructed by the bridge from structured parameters, without shell concatenation; parameters are validated item by item. `--file` only accepts draft IDs generated by TW-45, with paths resolved by the daemon. Environment variables follow a whitelist, with `HOME` and `TEAMAI_NONINTERACTIVE=1` added.
+- Execution method: argv is directly executed after being constructed by the bridge from structured parameters, without shell concatenation; parameters are validated item by item. `--file` only accepts draft IDs generated by TW-45, with paths resolved by the daemon. Environment variables follow an allowlist, with `HOME` and `TEAMAI_NONINTERACTIVE=1` added.
 - **Subcommand dispatch risk of recall**: teamai's `recall [query...]` has six subcommands attached: `disable`, `enable`, `status`, `feedback`, `maintenance`, and `promote`; commander will still dispatch the first operand after `--` as a subcommand. Therefore, the bridge combines the entire query into **a single** argv element for passing (teamai internally concatenates with spaces anyway), and rejects queries whose first word (trimmed of whitespace, case-insensitive) equals any of the above subcommand names or `help`, returning `invalid` and asking the model to rewrite. The argv for `recall status` and `recall feedback` is constructed only by the bridge based on structured parameters.
 - **Ask every time for external publishing** cannot be bypassed by session authorization or allow rules: implemented as a permission floor similar to the "untrusted floor"—when a request matches a once rule, regardless of how explicit allow, session authorization, or always rules evaluate, it is ultimately elevated to asking for confirmation, accepting only "this time only".
 - **Prohibit bypassing the bridge**: Built-in permission rules directly reject invocations in `run_command` where the basename of argv[0] is `teamai` (including `npx teamai` and `node …/teamai-cli/dist/index.js`), prompting to use `teamai_cli` or execute manually in terminal instead. This is a best-effort interception (indirect invocations via scripts or aliases cannot be identified), with the fallback remaining execute approval of `run_command` itself.
 - Subprocesses are executed via `sandbox.Runner`; writable directories are `~/.teamai/`, drop zone, and the tool root directory corresponding to `enabledAgents` in the local teamai configuration. On platforms without sandbox (Windows, and Linux where bwrap is not yet implemented), execution degrades to Direct, and **all subcommands require confirmation**: the bridge enforces a "minimum ask" floor on every request, which neither built-in doctor allow rules nor user-written allow rules can override (see `gogosling:internal/sandbox/doc.go`).
 - Never pass variables such as `TEAMAI_UPVOTE_JUDGE` that would cause nested model invocations. Write `team.bridge.exec` audit logs for all executions.
 - Pre-session synchronization and system task `team.drop_pull`: Available only when local teamai supports `--no-post-pull`, the platform has a sandbox, and the user enables it in settings; disabled by default. Reason: teamai pull updates the clone first, then executes `scripts.postPull` (`teamai:src/pull.ts`, `teamai:src/post-pull.ts`) according to the **updated** `teamai.yaml`; reading local clones for checks prior to pull cannot block newly added scripts. In addition, pull by default uploads votes and usage collected by teamai according to team `usageReport` settings (notification in TW-40).
-- Intentional non-goals: Do **not** implement a generic teamai hook host (`teamai hook-dispatch`). Reason: teamai's `builtin.disabled` is a team-level configuration; handlers such as contribute-check and votes-sync cannot be disabled solely for gogosling, causing double counting with gogosling's native statistics; furthermore, Stop handlers rely on Claude-style transcripts ([L §3.9]). Friction, adoption, and usage in gogosling are natively implemented (TW-60, TW-43, TW-63).
+- Intentional non-goals: Do **not** implement a generic teamai hook host (`teamai hook-dispatch`). Reason: teamai's `builtin.disabled` is a team-level configuration; handlers such as contribute-check and votes-sync cannot be disabled solely for gogosling, causing double counting with gogosling's native statistics; furthermore, Stop handlers rely on the upstream transcript format ([L §3.9]). Friction, adoption, and usage in gogosling are natively implemented (TW-60, TW-43, TW-63).
 
 **Acceptance**
 
-1. Subcommands not in the whitelist return `denied` without spawning subprocesses; `pull` invoked by an agent returns `denied`.
+1. Subcommands not in the allowlist return `denied` without spawning subprocesses; `pull` invoked by an agent returns `denied`.
 2. When characters like `;`, `|`, or `$(` appear in argv, pass them as literals (tested with echo mock).
 3. Approve `teamai_cli status` (or any non-once subcommand) once with scope=session, then write an always-allow rule for `teamai_cli`; subsequent `recall feedback` (as well as `contribute` and `push` starting from M3) must still produce approvals, and `Verdict.Source` is not session or rule (unit test).
 4. recall queries for `["promote", "x"]`, `["Disable"]`, and `[" help "]` all return `invalid` without spawning child processes; querying `["coupon", "promote"]` is passed as a single argv element (echo stub asserts argv shape), and no subcommands are triggered during interoperability tests.
@@ -1371,10 +1365,10 @@ Also include fix recommendations in the PR: D-D1 (deep merging toolPaths per too
 | Friction detection, suggestion delivery | **Native** | Event bus provides precise signals, requiring no transcript or keyword guessing, and incurs no hook cold start overhead (L-D16) | M3 |
 | Adoption determination, ranking, confidence | **Native** | `team_read` invocation serves as exact evidence; simultaneously fixes L-D6, L-D7, L-D8 | M3 |
 | learnings writing and pre-check | **Native** | Adds review, sanitization, and deduplication (L-D1, L-D2, L-D3) | M3 |
-| learnings publishing | Primarily **Native**; reuses `teamai contribute` in Mode A (drafts and pre-checks remain in gogosling) | Review mode requires opening PRs, which teamai does not support; direct push mode format is binary-compatible with teamai | M3 (bridge and native); M1 executes teamai in terminal |
+| learnings publishing | Primarily **Native**; reuses `teamai contribute` in Mode A (drafts and pre-checks remain in gogosling) | Review mode requires opening PRs, which teamai does not support; direct push mode format is file-format compatible with teamai | M3 (bridge and native); M1 executes teamai in terminal |
 | Team knowledge retrieval | M1 **reuses** `teamai recall`; M3 **native** FTS5 | Pursue fastest interoperability first, then performance and body text hits | M1 → M3 |
 | Usage statistics | **Native** | `model.Usage` and terminal execution states provide exact data | M3 |
-| Code graph and teamwiki building | **Reuse** `teamai codebase` | tree-sitter WASM multi-language extraction, incremental processing, and multi-repo aggregation are heavy assets with low rewrite return ([L §6.1]) | M4 |
+| Code graph and teamwiki building | **Reuse** `teamai codebase` | tree-sitter WASM multi-language extraction, incremental processing, and multi-repo aggregation are substantial components that would be costly to reimplement ([L §6.1]) | M4 |
 | Code graph consumption and visualization | **Native** (read-only) | Daemon reads `graph-index.json`, Web renders | M4 |
 | Generic hook host | **Non-goal** | Causes double counting and relies on transcripts (see TW-33) | — |
 | `postPull`, `packages`, self-upgrade | **Non-goal** | Trust model conflicts (P-D12, P-D13, D-D6) | — |
@@ -1393,7 +1387,7 @@ Also include fix recommendations in the PR: D-D1 (deep merging toolPaths per too
 | `permission` | Rule engine, approval, audit; "enterprise policy file" and "sensitive data" dimensions to be implemented | Risk registration of new tools; taint source (TW-41); once **lower limit** of `teamai_cli` external publishing subcommands (not bypassed by session authorization and allow rules); built-in deny rules for `run_command teamai …` and writing to delivery zone; externally specified "ask at least" lower limit (team PreToolUse hook, bridge for non-sandbox platforms); subsequent implementation of managed policies (TW-28) | New built-in rules added in `rules.json` |
 | `tools` | 6 built-in tools such as read_file, and load_skill | Added `team_recall`, `team_read`, `teamai_cli`, adapted by composition root via interfaces `TeamKnowledge`, `TeamaiBridge` of this package; tool declaration `TaintsSession` | — |
 | `sandbox` | macOS seatbelt, Direct | Added execution specifications for git and teamai subprocesses (writable directories, network switch); benefits after Linux bwrap is implemented | — |
-| `scheduler` | push_text / run_agent, missed compensation | Added `system` class tasks (sync, maintenance, weekly report, wiki, delivery zone pull), handed over to composition root for distribution via Runner interface | `model.JobKind` added `system` (shared files) |
+| `scheduler` | push_text / run_agent and missed-run handling | Add the proposed `SystemTask` registry for sync, maintenance, digest, wiki, and drop-zone pull; dispatch through composition-root adapters | Separate `system_tasks` table; no `model.JobKind` change (TW-20, ADR-T04) |
 | `gateway` | console, telegram; Feishu to be implemented | **Feishu adapter** (M3 dependency); team event card template; continue to not accept IM approval | — |
 | `secret` | keychain or encrypted file | New namespace `team:<binding>:*`; batch delete when leaving team; only read known values during preflight | — |
 | `store` | SQLite repository | Added migrations by milestone, published migrations are no longer modified: M1 `002_team_core.sql` (binding, agent association, assets, consent, secret slots, session taint); M2 `003_team_sync.sql` (push records, outbox, notification destination, wiki source, system tasks); M3 `004_teamctx.sql` (drafts, knowledge index and FTS5, recall, friction, usage, etc., all with `binding_id` foreign keys or explicitly cleaned up in the transaction of deleting bindings) | See §8.6 |
@@ -1402,10 +1396,10 @@ Also include fix recommendations in the PR: D-D1 (deep merging toolPaths per too
 | `worker` memory / knowledge | Stub code | No change in M3; redesign RPC when TW-52 (P2) hybrid retrieval is implemented | — |
 | `apps/web` | Pages such as Agents / Extensions / Jobs | Added "Team" page (overview, assets, knowledge, improvements, settings), join wizard, consent dialog, suggestion cards, draft editor, code map | New key in `locales` |
 | `apps/desktop` | Shell | System notifications: pending consent, draft merged | — |
-| **New `internal/team`** | — | Team Execution: binding, git and platform API, parser, expectation set, mapping, ledger, consent, backflow, doctor, system task entry | — |
+| **New `internal/team`** | — | Team Execution: binding, git and platform API, parser, expectation set, mapping, ledger, consent, contributions, diagnostics, system task entry | — |
 | **New `internal/teamctx`** | — | Team Context and Improvement: event subscription, friction, indexing, adoption, sorting, maintenance candidates, insights and digest generation | — |
 
-### 7.2 Dependency Rules (Need to modify `docs/architecture.md` §4 first, then write code)
+### 7.2 Proposed Dependency Rules (Architecture Approval Required Before Implementation)
 
 The two new domain packages follow the existing style: only import the leaf layers (`model`, `config`, `event`, `secret`, `i18n`, `observability`), and express other domain capabilities through the **minimum interface defined by this package**, adapted by the `internal/app` composition root. This is consistent with the approach of session, tools, and channel.
 
@@ -1429,26 +1423,26 @@ According to `AGENTS.md`, shared files are modified by the architecture lead; th
    - Added types such as `TeamBinding`, `TeamAsset`, `TeamConsent`, `LearningDraft`, `RecallRun` and repository interfaces, `Store` aggregate should also be added; `TrustLevel` contains `team-unverified` (TW-13).
    - System tasks: Design document changed to scheduler's `SystemTask` registry plus `system_tasks` table, no new `JobKind=system` added (design ADR-T04, already written back to TW-20).
    - (Optional, P2) `Extension` adds `Trust` and `Origin{Commit, TreeDigest}` (X-G4). M2 uses Source string convention first, without modifying the model.
-2. `api/openapi/openapi.yaml`: Added `/api/v1/teams/*` paths, Schemas, and `Event.type` descriptions.
-3. `go.mod`: Added YAML library, candidate `gopkg.in/yaml.v3` (OQ-3).
+2. `api/openapi/openapi.yaml`: Propose `/api/v1/teams/*` paths, schemas, and `Event.type` descriptions.
+3. `go.mod`: Propose a YAML dependency; candidate `gopkg.in/yaml.v3` (OQ-3).
 4. `docs/architecture.md`: §3, §4, §7, and supplement to §6 Invariant 4: "The source of tool results is also counted towards session taint". The part of `fetch_url` taint that takes effect for all users is written separately as a change description, and is controlled by a feature switch (TW-41, OQ-15).
 
 ### 7.4 API Draft (OpenAPI first; path prefix `/api/v1`)
 
 | Method & Path | Purpose | Requirement |
 |---|---|---|
-| `GET/POST /teams` | List bindings / Create (join or init, `mode: join|init`) | TW-01, TW-03, TW-04 |
+| `GET/POST /teams` | List bindings / Create (join or init, `mode: join\|init`) | TW-01, TW-03, TW-04 |
 | `GET/PATCH/DELETE /teams/{id}` | Binding details, modify role project and sharing switch, leave | TW-01, TW-05 |
 | `POST /teams/{id}/preview-join` | Calculate confirmation page content before joining (expectation set, executables, secrets) | TW-04 |
 | `POST /teams/{id}/sync` · `GET /teams/{id}/status` | Manual sync, sync status | TW-20 |
 | `GET /teams/{id}/doctor` | Diagnostics | TW-21 |
-| `GET /teams/{id}/assets` · `POST /teams/{id}/assets/{key}/consent` · `POST /teams/{id}/assets/{key}/resolve` | Asset inventory, consent, handle local modifications (`adopt_team|keep_mine|share_mine`) | TW-18, TW-19 |
+| `GET /teams/{id}/assets` · `POST /teams/{id}/assets/{key}/consent` · `POST /teams/{id}/assets/{key}/resolve` | Asset inventory, consent, handle local modifications (`adopt_team\|keep_mine\|share_mine`) | TW-18, TW-19 |
 | `GET /teams/{id}/secrets` · `PUT /teams/{id}/secrets/{key}` (writeOnly) | Secret slots | TW-16 |
 | `POST /teams/{id}/contributions` · `GET /teams/{id}/pull-requests` | Share resources, PRs to be merged | TW-22 |
 | `POST /teams/{id}/manifest-changes:preview` · `POST /teams/{id}/manifest-changes` | Admin change preview and submission | TW-23 |
 | `GET /teams/{id}/knowledge/search` · `GET /teams/{id}/knowledge/docs/{key}` · `POST …/docs/{key}/feedback` | UI retrieval, reading, negative feedback | TW-42, TW-44 |
 | `GET/POST /teams/{id}/learnings/drafts` · `PATCH/DELETE …/drafts/{draft}` · `POST …/drafts/{draft}/precheck` · `POST …/drafts/{draft}/submit` | Draft lifecycle | TW-45 to TW-47 |
-| `GET /teams/{id}/insights?scope=me|team&range=` | Personal and team insights | TW-62 to TW-64 |
+| `GET /teams/{id}/insights?scope=me\|team&range=` | Personal and team insights | TW-62 to TW-64 |
 | `GET /teams/{id}/maintenance/candidates` · `POST …/{cand}/apply` | Maintenance candidates | TW-48 |
 | `GET /teams/{id}/wiki/graph` · `GET /teams/{id}/wiki/pages/{slug}` | Code map | TW-50 |
 | `GET /teams/{id}/digest/latest` | Weekly report preview | TW-65 |
@@ -1460,7 +1454,7 @@ According to `AGENTS.md`, shared files are modified by the architecture lead; th
 ### 8.1 Overview
 
 ```
-[Git Platform · Team Repository xingtu/team-ai]
+[Git Platform · Team Repository example-team/team-ai]
   ├─ main (PR only): teamai.yaml  manifest/  tags.yaml  skills/  rules/  agents/
   │                   mcp/  env/  hooks/  docs/  teamwiki/  culture.md  .gogosling/
   ├─ teamai-learnings (PR or direct push): learnings/[<ns>/]*.md
@@ -1518,7 +1512,7 @@ UI "Share to Team" → team: Select namespace → Pull branch gogosling/push/<us
 
 ```
  run terminal state ──► teamctx accumulates signals ──Threshold reached & gate passed──► team.contribute_suggested ──► UI card
-                                                                         │[Generate Experience Draft]
+                                                                         │[Draft a Lesson]
                                                                          ▼
   team-share runs internally (Input: Desensitized Session Summary) ──► Draft (teamai template) ──► Precheck
         (Secret Blocked / Sensitive Prompt / Near Duplicate / Suspicious Instruction) ──► User Edit Confirmation
@@ -1555,7 +1549,7 @@ UI "Share to Team" → team: Select namespace → Pull branch gogosling/push/<us
    └──► tombstoned / Removed from Desired Set ──► Uninstall (If modified, convert to personal asset)
 ```
 
-**Experience Drafts (`team_learning_drafts.status`)**
+**Lesson Drafts (`team_learning_drafts.status`)**
 
 ```
 drafted → prechecked ─(Blocking items not cleared)→ prechecked
@@ -1696,7 +1690,7 @@ Reports are readable by repository readers; the Git platform does not grant per-
 ### M1 Interoperability MVP (approx. 3 weeks)
 
 - **Scope**: TW-30 drop zone; TW-32 built-in teamai skills; TW-33 teamai CLI controlled bridge; TW-40 (team_recall / team_read via CLI); TW-41 envelopes and session taints; TW-21 doctor subset (whether teamai is installed, version, drop zone status); TW-31 submit upstream PR; skill summary checksum fix (generic part in TW-12); minimal version of the "Team" page (displaying drop zone assets and teamai status).
-- **Dependencies**: Local teamai-cli ≥ pinned version; team configures `toolPaths.gogosling` in `teamai.yaml` (full table copy) or uses a version with upstream patches; macOS seatbelt (other platforms degraded to ask-every-time).
+- **Dependencies**: Local teamai-cli at the pinned compatibility revision or a separately validated compatible version; team configures `toolPaths.gogosling` in `teamai.yaml` (full table copy) or uses a version with upstream patches; macOS seatbelt (other platforms degraded to ask-every-time).
 - **Acceptance**:
   1. After the fixture team repository passes `teamai pull`, the gogosling agent can load team skills, and the team layer appears in the system prompt.
   2. `team_recall` can retrieve fixture learning, and the results include envelopes.
@@ -1708,7 +1702,7 @@ Reports are readable by repository readers; the Git platform does not grant per-
 
 - **Scope**: TW-01 to TW-05, TW-10 to TW-23, TW-25, TW-34, TW-70 to TW-75.
 - **Dependencies**:
-  - Architecture document and shared file changes approved: new packages, dependency matrix, data directory, model types, `JobKind=system`, OpenAPI.
+  - Architecture document and shared file changes approved: new packages, dependency matrix, data directory, model types, the `SystemTask` registry, and OpenAPI.
   - YAML library approved (OQ-3).
   - git ≥ 2.31.
   - GitHub and GitLab platform APIs.
@@ -1728,7 +1722,7 @@ Reports are readable by repository readers; the Git platform does not grant per-
   - **gateway Feishu adapter** (otherwise notifications degrade to Telegram plus desktop notifications, see R-07).
   - Built-in `team-share` templates.
 - **Acceptance**:
-  1. Replay Su Qing's session events in the story to trigger cards; generated drafts pass compatibility parsing; pre-check test corpus meets standards; PR base in review mode is correct; other members can retrieve it within one synchronization interval after merging.
+  1. Replay the operations member's session events in the story to trigger cards; generated drafts pass compatibility parsing; pre-check test corpus meets standards; PR base in review mode is correct; other members can retrieve it within one synchronization interval after merging.
   2. Adoption write-back votes can be read by teamai.
   3. Weekly reports do not contain data of members who have not consented.
   4. Internal runs are not included in statistics.
@@ -1754,8 +1748,8 @@ Reports are readable by repository readers; the Git platform does not grant per-
 | R-02 | Upstream PR (TW-31) not accepted or delayed in merging | Medium / Medium | M1 uses toolPaths full table copy as a fallback and clearly documents limitations; M2 native mode does not depend on upstream |
 | R-03 | Double-write conflicts and double counting of votes and usage | Medium / Medium | Do not act as a generic hook host; write to `x-gogosling/` when stats conflict; doc id compatible format; distinguish dashboard by source |
 | R-04 | Review becomes a bottleneck, leading to a backlog of learnings | Medium / High | IM reminders; `optional` mode; attach pre-check summary to PR body to reduce review cost; dashboard displays backlog |
-| R-05 | teamai-cli users cannot directly push to contribute after branch protection is enabled in review mode | Medium / Medium | Explicitly prompt in the wizard; provide a soft mode of "review only on gogosling side, no branch protection"; OQ-1 |
-| R-06 | Non-engineering members cannot complete Git authorization or platform invitation | High / High | Device code authorization (P1); explain required permissions in the wizard; doctor provides clear copy "Please ask the administrator to invite you" |
+| R-05 | teamai-cli users cannot directly push to contribute after branch protection is enabled in review mode | Medium / Medium | Explain the compatibility impact in the wizard. A local review-only mode may remain available, but its content stays `team-unreviewed`; only verified platform protection can grant reviewed status (TW-13, TW-47) |
+| R-06 | Non-engineering members cannot complete Git authorization or platform invitation | High / High | Device code authorization (P0 in M2, subject to OQ-4 approval); explain required permissions in the wizard; doctor provides clear copy "Please ask the administrator to invite you" |
 | R-07 | Feishu adapter not ready (gateway to be implemented) | Medium / Medium | M3 lists Feishu adapter as a dependency; if not ready, degrade to Telegram plus desktop notifications, and postpone the IM part in the story |
 | R-08 | Team layer inflates system prompt, affecting effectiveness and cost | Medium / Medium | Default 8 KiB limit; truncation has priority; doctor warnings; rules with `paths:` injected on demand (P1) |
 | R-09 | Sessions of shared IM bots are stored on the owner's local machine, leading to unclear privacy expectations | Medium / Medium | Send explanatory message when the bot joins a group; document explanation; OQ-6 |
@@ -1767,14 +1761,14 @@ Reports are readable by repository readers; the Git platform does not grant per-
 
 ---
 
-## 14. Open questions
+## 14. Decisions and Open Questions
 
 | ID | Question | Proposed direction | Decision owner |
 |---|---|---|---|
-| OQ-1 | Default learnings review required or off? Require protection when direct CLI publication could be blocked? | Required by default, soft review; protection is optional hardening | Product/security |
+| OQ-1 | Default learnings review required or off? Require protection when direct CLI publication could be blocked? | Review is required by default. Verified platform protection is required for `team-reviewed`; local review without that protection remains `team-unreviewed` (TW-13, TW-47). The remaining question is onboarding and fallback policy | Product/security |
 | OQ-2 | Separate team configuration or extension keys vulnerable to stripping by compatible writers? | Separate `.gogosling/team.yaml` | Architecture |
 | OQ-3 | YAML library: comment-preserving `gopkg.in/yaml.v3` Node API or `goccy/go-yaml`? | `gopkg.in/yaml.v3` | Architecture lead |
-| OQ-4 | Register an OAuth App for distributed GitHub device authorization? Self-hosted GitLab authorization? | P1 GitHub device flow; GitLab PAT | Product/security |
+| OQ-4 | Register an OAuth App for distributed GitHub device authorization? Self-hosted GitLab authorization? | P0 in M2 if approved before implementation; otherwise use the PAT fallback and report its onboarding time separately (TW-02) | Product/security |
 | OQ-5 | Include tokens/duration in statistics? Conflicts in `stats/<user>.yaml`: prefix or source merge? | Exclude tokens by default; use `x-gogosling/` for conflicts and propose source metadata | Product/privacy |
 | OQ-6 | Include shared IM sessions in friction detection? Who receives hints and owns data? | Exclude in M3; reconsider P2 | Product |
 | OQ-7 | Taint after reviewed docs/teamwiki retrieval despite extra approvals? | Initial M1 proposal excludes it; use M3 approval-frequency evidence | Security |
@@ -1782,9 +1776,11 @@ Reports are readable by repository readers; the Git platform does not grant per-
 | OQ-9 | Embedding computation/vector storage with workers unable to access the data directory? | Daemon SQLite vectors; worker computes through RPC | Architecture |
 | OQ-10 | Lower promotion confidence from compatible 0.9 to 0.8? Two reviewers? | Lower threshold with PR review | Product |
 | OQ-11 | Add `sse` to `MCPTransport`? | Skip/report unsupported transport; revisit on demand | Architecture |
-| OQ-12 | Implement `/api/local-agent/report|sync|commands/ack` server mode? | Outside this PRD; assess after M4 | Product |
+| OQ-12 | Implement `/api/local-agent/report\|sync\|commands/ack` server mode? | Outside this PRD; assess after M4 | Product |
 | OQ-13 | Role/project selection for non-code assistants; infer from workspace? | Select on joining with per-agent overrides; no inference | Product |
 | OQ-14 | Does `<team>/<name>` make duplicate-skill selection too complex? | Ship prefixes first, collect feedback | Design |
+| OQ-15 | Should `fetch_url` tainting become the default for all users? | Keep `security.taint_fetch_url` off in M1; review approval-frequency evidence before changing the default (TW-41) | Security |
+| OQ-16 | Should unverified team prompt layers be excluded entirely? | Retain explicit Review unverified labels in the current proposal; revisit after M2 testing (TW-13) | Product/security |
 
 ---
 
@@ -1803,12 +1799,12 @@ Reports are readable by repository readers; the Git platform does not grant per-
 | Team layer | Culture/rules/instructions appended to an associated agent prompt |
 | Ownership ledger | Source, installed digest, and state used to retain local edits |
 | Drop Zone | Managed distribution directory imported read-only by gogosling, mode A |
-| Modes A / B | Distribution target / native repository consumer |
+| Modes A / B / C | Read-only distribution target / controlled CLI bridge / native repository consumer |
 | Compatibility level | Supported interoperable revision, currently `2cbf556` |
 | Learning | Frontmatter Markdown recording a session problem, solution, and lesson |
 | Friction | Weighted interruptions, denials, corrections, tool errors, and knowledge gaps |
 | Adoption | `team_read` on a recalled document within 24 hours in the same session |
-| Trust | `builtin` / `local` / `team-reviewed` (default-branch PR) / `team-unreviewed` (push) / `external` |
+| Trust | `builtin` / `local` / `team-reviewed` (verified platform review protection) / `team-unverified` (protection unknown) / `team-unreviewed` (unreviewed publication) / `external` |
 | Session taint | Untrusted history requires at least approval for network/destructive operations |
 | Internal run | Built-in draft/maintenance agent work excluded from user statistics |
 | teamwiki / graph-index | Code-knowledge root and graph index (`team-wiki.graph-index.v1`) |
@@ -1819,7 +1815,9 @@ Reports are readable by repository readers; the Git platform does not grant per-
 
 ## Appendix A: Technical references
 
-### A.2 Compatible CLI revision `2cbf55609467e8ff2cf730c98ad63b7bf691679c` (`https://github.com/Tencent/teamai-cli/blob/2cbf55609467e8ff2cf730c98ad63b7bf691679c/`)
+### A.1 Pinned Compatibility Source
+
+[Browse the pinned source tree](https://github.com/Tencent/teamai-cli/tree/2cbf55609467e8ff2cf730c98ad63b7bf691679c). The file paths below are relative to that revision.
 
 - Format/guides: `README.zh-CN.md`, `docs/product-overview.zh-CN.md`, `docs/usage-guide.zh-CN.md`, `docs/guide/zh-CN/{getting-started,admin-setup,member-guide,sharing,knowledge,team-culture,advanced,reference}.md`, and `docs/designs/{dashboard-unified,management-backend,data-directory-layout,team-secrets,model-profiles,multi-project-management,git-native-memory,team-intelligence-platform}.md`.
 - Skills: `skills/teamai/SKILL.md`, `skill-data/core/SKILL.md`, `skill-data/share/SKILL.md`, `skill-data/share/references/doc-template.md`, `skill-data/wiki/SKILL.md`, `agents/teamai-recall.md`.
@@ -1831,24 +1829,13 @@ Reports are readable by repository readers; the Git platform does not grant per-
 - License: `LICENSE` (MIT)
 - Upstream PR (TW-31): Link to be added after submission
 
-### A.3 Interface and Security Specifications
+### A.2 Interface Specifications
 
-- Agent Skills Specification: https://agentskills.io/specification
-- Anthropic, Equipping agents for the real world with Agent Skills:https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills
-- Linux Foundation Announces the Formation of AAIF: https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation
-- AGENTS.md:https://agents.md/
-- ClawHavoc(AIID 6951):https://incidentdatabase.ai/reports/6951/
-- Snyk ToxicSkills:https://snyk.io/blog/toxicskills-malicious-ai-agent-skills-clawhub
-- Agent Skills in the Wild(arXiv 2601.10338):https://arxiv.org/abs/2601.10338
-- Trend Micro, MCP Hardcoded Credentials: https://www.trendmicro.com/vinfo/us/security/news/vulnerabilities-and-exploits/beware-of-mcp-hardcoded-credentials-a-perfect-target-for-threat-actors
-- OWASP Agentic Top 10 Summary (Secondary Source): https://cycode.com/blog/owasp-top-10-agentic-applications/
-- Hermes Agent Skills: https://hermes-agent.nousresearch.com/docs/user-guide/features/skills
-- Letta skill learning:https://www.letta.com/blog/skill-learning/
-- ACE(arXiv 2510.04618):https://arxiv.org/abs/2510.04618 ;Zep / Graphiti(arXiv 2501.13956):https://arxiv.org/abs/2501.13956
-- Devin Knowledge:https://docs.devin.ai/product-guides/knowledge ;DeepWiki:https://docs.devin.ai/work-with-devin/deepwiki
-- Google Code Wiki:https://developers.googleblog.com/introducing-code-wiki-accelerating-your-code-understanding/
+- [Agent Skills specification](https://agentskills.io/specification)
+- [AGENTS.md convention](https://agents.md/)
 
-### A.4 gogosling Comparison
+
+### A.3 Related Gogosling Modules
 
 `docs/architecture.md` (§3 Layout, §4 Dependency Rules, §6 Security Invariants, §7 Data Directory), `AGENTS.md`, `internal/model/{agent,approval,audit,channel,extension,identity,job,provider,repository,run,session}.go`, `internal/extension/{doc,manager,frontmatter}.go`, `internal/session/{doc,deps,run}.go`, `internal/tools/{doc,tool_load_skill,tool_fetch_url}.go`, `internal/permission/doc.go`, `internal/scheduler/doc.go`, `internal/gateway/doc.go`, `internal/sandbox/doc.go`, `internal/secret/doc.go`, `internal/app/adapters_tools.go`, `worker/src/gogosling_worker/{memory,knowledge}/__init__.py`, `api/openapi/openapi.yaml`
 
@@ -1900,7 +1887,7 @@ teamai will ignore this file: it is located in an unknown dot directory and does
 | `sharing.contributeHint.enabled` | Default switch for suggestion cards |
 | `sharing.intervention.correctionKeywords` | Merged into the correction phrase list (matched by phrase) |
 | `sharing.hooks.autoApply` / `requireTeamScripts` | autoApply does not exempt local consent; requireTeamScripts is determined by argv and realpath |
-| `sharing.mcp.autoApply` / `allowedCommands` / `allowedHosts` | Same as above; whitelist only tightens |
+| `sharing.mcp.autoApply` / `allowedCommands` / `allowedHosts` | Same as above; allowlist only tightens |
 | `sharing.docs.localDir` / `gitExclude` / `coAuthor` / `env.injectShellProfile` | Not applicable, doctor prompts info |
 | `sharing.webhooks` | Not used; gogosling notifications go through gateway |
 | `sharing.rules.enforced` | Not implemented by teamai itself (P-D4); temporarily not implemented by gogosling, doctor prompts |

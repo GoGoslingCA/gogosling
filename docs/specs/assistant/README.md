@@ -39,9 +39,11 @@ Prepare an assistant that can start a task: a name, usable model, explicit appro
 
 | Mode | Rule |
 |---|---|
-| Ask for everything | Ask before every operation that changes the outside world |
-| Ask for risky actions | Ask before command execution, networking, sending messages, or deletion |
-| Automatic in sandbox | Act within the allowed boundary; ask outside it |
+| Ask for everything | Ask before tool calls, including reads, unless an existing rule or grant applies |
+| Ask for risky actions | Allow ordinary workspace reads/writes; ask before command execution, networking, messaging, deletion, or access outside the workspace |
+| Auto inside sandbox | Allow eligible operations within the permitted boundary; ask outside it. Execution and network access require approval without OS-level isolation |
+
+These are mode defaults; protective rules and explicit denials still apply. User-requested file changes from Results always require approval for the specific preview.
 
 Changing an assistant affects every task using it. The workbench must display this fact; this module stores the mode.
 
@@ -70,7 +72,7 @@ Switching assistants restores that assistant's own unsent draft rather than carr
 |---|---|
 | Model connection | Must reference an existing connection; reject deletion or require reselection rather than retaining an empty reference |
 | Skills and extensions | Bind installed/enabled items; mark absent items as missing rather than downloading |
-| Workbench | Selects the assistant and displays its mode without changing it inside a task |
+| Workbench | Selects the assistant and displays its mode; a mode change from the composer updates that assistant for all its tasks |
 | Scheduled jobs | Disabling an assistant prompts reselection or disabling dependent agent jobs; scheduling rules remain unchanged |
 
 ## 6. Potential failures

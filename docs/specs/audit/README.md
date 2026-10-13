@@ -4,7 +4,7 @@
 |---|---|
 | Status | Draft |
 | Date | 2026-10-12 |
-| Module | Activity records; also called operation audit in Settings |
+| Module | Activity records; shown as Activity log in Settings |
 
 Review completed operations and decisions. This module neither applies new file changes nor connects to external services.
 
@@ -42,7 +42,7 @@ Records support inspection; they are neither billing nor a second usage counter.
 1. Open the latest page by default.
 2. Filter by assistant, actor identity, operation type, task, run, or start time.
 3. Times include a timezone. Reject invalid filters and retain the current list.
-4. Show an empty result when nothing matches, not zero spending.
+4. Show an empty state when no records match. Activity records do not report spending.
 5. Inspect details without echoing keys or tokens.
 
 ## 4. Inputs and outputs

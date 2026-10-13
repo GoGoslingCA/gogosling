@@ -1,7 +1,7 @@
 # Architecture Review Conclusions and Phase Report (2026-10-10)
 
-> Scope: First-round implementation of gogosling (contracts → two waves of parallel module implementation → integration → review → fix).
-> Verification baseline: `go build ./... && go vet ./... && go test -race ./...`, `GOOS=windows/linux go vet ./...`, worker `ruff / mypy / pytest`, `npm run typecheck && npm test && npm run build`, `make e2e` (real Python worker process + fake model service) all passed; GitHub Actions three-platform matrix turned green starting from `8903381`.
+> Historical review of the first implementation on 2026-10-10. Counts, open work, and platform limits describe that checkpoint. See the [roadmap](../../ROADMAP.md) and [current architecture](../architecture.md) for the published development preview.
+> Verification baseline: `go build ./... && go vet ./... && go test -race ./...`, `GOOS=windows/linux go vet ./...`, worker `ruff / mypy / pytest`, `npm run typecheck && npm test && npm run build`, `make e2e` (real Python worker process + fake model service) all passed. The three-platform GitHub Actions matrix also passed at that checkpoint.
 
 ## 1. Review Conclusions
 
@@ -10,18 +10,18 @@ The architecture is implemented according to [docs/architecture.md](../architect
 | Invariant | Implementation Method | Verification |
 |---|---|---|
 | Daemon holds all state, frontend is just a client | `internal/app` composition root; desktop shell, Web, CLI all go through local HTTP + SSE; CLI does not open the database, only reads `daemon.json` | `internal/app` integration tests (fake worker process runs through conversation, approval, cancellation, conflict, lock, shutdown); `tests/e2e` |
-| Secrets do not enter database, logs, or events | `secret` (OS keychain / encrypted file, backend chooses persistence); provider / channel records only store references; observability desensitization Handler; server only returns `has_secret` | provider / channel / server tests assert that responses and database do not contain secrets; e2e asserts database files have no plaintext secrets |
-| Side effects must go through permissions and sandbox, third-party code is out-of-process | Worker process can only apply via `host.tool.call`; `tools.Executor` fixed sequence permission → execution; MCP / plugins are subprocesses; `archcheck` enforces dependency direction | permission hard rejection/rule/authorization/level tests; tools rejection to `is_error`; archcheck tests |
+| Secrets do not enter database, logs, or events | `secret` (OS keychain / encrypted file, backend chooses persistence); provider / channel records only store references; observability redaction handler; server only returns `has_secret` | provider / channel / server tests assert that responses and database do not contain secrets; e2e asserts database files have no plaintext secrets |
+| Side effects must go through permissions and sandbox, third-party code is out-of-process | Worker tool effects are requested through `host.tool.call`; `tools.Executor` fixed sequence permission → execution; MCP / plugins are subprocesses; `archcheck` enforces dependency direction | permission hard rejection/rule/authorization/level tests; tools rejection to `is_error`; archcheck tests |
 
 Dependency direction is enforced by `internal/archcheck` tests (cross-layer imports fail immediately), covering the rule that the transport layer must not import `store`.
 
-**Overall Assessment**: Clear layering, enforceable boundaries, and critical security paths covered by tests; ready to proceed to the next phase (TeamAI team workflow, Linux/Windows sandboxing, IM adapter extensions). Manual smoke testing has not yet been performed on real Windows/Linux machines, which is currently the largest verification gap (CI's Windows matrix can only cover automated tests).
+**Overall Assessment**: Clear layering, enforceable boundaries, and critical security paths covered by tests; ready to proceed to the next phase (team workflow, Linux/Windows sandboxing, IM adapter extensions). Manual smoke testing has not yet been performed on real Windows/Linux machines, which is currently the largest verification gap (CI's Windows matrix can only cover automated tests).
 
-## 3. Issues Found and Fixed During Review
+## 2. Issues found and fixed during review
 
-The review was completed from 6 perspectives (security invariants, concurrency and lifecycle, contract consistency, layering and duplication, cross-platform, document accuracy), with a total of 82 findings (7 high, 26 medium, 49 low). As requested by the user, filtering and verification of findings were completed by the architecture lead, without multi-agent double-check. All high and medium issues have been fixed, 29 low issues have been fixed, and the remaining 20 are listed in the backlog.
+The review covered security boundaries, concurrency and lifecycle, contract consistency, dependencies and duplication, platform compatibility, and documentation. It recorded 82 findings: 7 high, 26 medium, and 49 low priority. At this checkpoint, all high and medium findings and 29 low-priority findings were fixed; the remaining 20 were added to the backlog.
 
-### 3.1 high(7/7 fixed)
+### 2.1 High priority (7/7 fixed)
 
 | ID | Issue | Fix |
 |---|---|---|
@@ -33,28 +33,28 @@ The review was completed from 6 perspectives (security invariants, concurrency a
 | XP-01 | Windows distribution lacks timezone database | `import _ "time/tzdata"` |
 | C1 | Worker process writes empty-name tool calls into history, after which the entire session is rejected by the parser | Calls with missing names do not generate `tool_call` fragments; lenient when parsing history; add round-trip test for "output must be parseable by itself" |
 
-### 3.2 medium(26/26 fixed, selected)
+### 2.2 Medium priority (26/26 fixed; selected examples)
 
 - Running state machine: `approval.*` events now enter the state machine via `session.NoteApproval`, and `Run.status` will display `awaiting_approval` (C2/CONC-1).
 - Delete Agent: Check in-flight runs first, cascade delete sessions and publish `session.deleted`, scheduler and gateway in-memory states are cleaned up with `agent.deleted` (C5).
 - Gateway: Derive routes by session key (can still reply after restart), deliver `push_text` to push to IM (LAY-05); failure reasons are localized instead of machine constants (C13).
 - Concurrency: Engine bounded-waits for reverse request wrap-up (CONC-4); cancellation convergence of unaccepted runs (CONC-3); `ScopeAlways` decides first, then writes rules and audits (CONC-2); close step-by-step budget (CONC-5).
 - Contracts: Windows graceful shutdown endpoint `POST /api/v1/system/shutdown` (XP-07); settings return `effective_locale / effective_timezone`, do not masquerade as user preferences when unset (C3/LAY-01); `Agent.tools` tri-state semantics (C4/DOC-02/DOC-04); message pagination limit unified to 500 (LAY-02); MCP `Headers` truly takes effect (LAY-04); credential backend chooses persistence, no silent switching (XP-11).
-- Cross-platform: Subprocesses no longer pop up console windows (XP-08); kernel data directory protection covers case sensitivity and `\\?\` prefix (XP-04); proxy and certificate environment variables passed through to worker processes (XP-13); desktop shell deep link cold start, Windows autostart status, built-in extension packaging (XP-09/10/12).
+- Cross-platform: Subprocesses no longer pop up console windows (XP-08); daemon data directory protection covers case sensitivity and `\\?\` prefix (XP-04); proxy and certificate environment variables passed through to worker processes (XP-13); desktop shell deep link cold start, Windows autostart status, built-in extension packaging (XP-09/10/12).
 
-### 3.3 Issues Fixed Directly by the Architecture Lead During the Integration Phase
+### 2.3 Integration fixes
 
 - Duplicate injection of system prompts: session puts system messages into `Messages`, and the worker process injects them again according to `agent.system_prompt` (fixed on both sides with regression tests added, protocol specifies delivery only via `agent.system_prompt`).
 - `go.sum` lacks MCP SDK transitive dependencies; platform assumptions and timing races in sandbox/engine tests on Windows; macOS runner's `LC_ALL` interferes with locale tests; rule path comparison failure caused by Windows 8.3 short paths.
 - provider silently backfills `api.openai.com` for `openai_compatible` (prohibited by protocol); engine cancellation code ends as failure on the session side.
 
-## 4. Module Completion Status
+## 3. Module status at the review checkpoint
 
 | Module | Status | Description |
 |---|---|---|
 | `model` / `event` / `config` / `version` | Completed | Contract layer; event bus with replay and `gap` |
-| `store` | Completed | SQLite dual pool, embedded migrations, all repositories; Todo: upgrade snapshots, retention period cleanup |
-| `observability` / `i18n` / `secret` / `identity` | Completed | Desensitized logs, zh/en language packs, keychain + encrypted files (backend persistence), local tokens and handle files |
+| `store` | Completed | SQLite dual pool, embedded migrations, all repositories; Remaining work: upgrade snapshots, retention period cleanup |
+| `observability` / `i18n` / `secret` / `identity` | Completed | Redacted logs, zh/en language packs, keychain + encrypted files (backend persistence), local tokens and handle files |
 | `permission` / `sandbox` / `tools` / `workspace` | Completed (Sandbox macOS only) | Rule engine, approval proxy, audit; Seatbelt; 6 built-in tools + `load_skill`; Linux bwrap / Windows Job Object to be implemented |
 | `engine` + `worker` | Completed | Worker process supervision, stdio JSON-RPC, reasoning loop, openai_compatible / anthropic / ollama, reasoning.delta; worker's memory / knowledge is still a skeleton |
 | `session` / `agent` / `provider` | Completed | Running state machine (including waiting for approval), push messages, template library, provider presets and connectivity tests |
@@ -62,14 +62,14 @@ The review was completed from 6 perspectives (security invariants, concurrency a
 | `extension` / `protocol/mcp` | Completed | Skills / plugins / MCP services, tool summary pinning to prevent rug pull, built-in asset seeding; marketplace and signatures to be implemented |
 | `server` / `client` / `app` / `cmd` | Completed | 51+2 routes, SSE, composition root, complete CLI; `protocol/acp` and `update` are still package comments |
 | `apps/web` / `apps/desktop` | Completed (Not verified by packaging on real machines) | React UI; Electron shell (proxy, tray, deep link, daemon lifecycle) |
-| Documentation | Completed | Architecture, AGENTS, OpenAPI, worker-rpc, 19 reference records, this report |
+| Documentation | Completed | Architecture, contributor instructions, OpenAPI, worker RPC, and this report |
 
-## 5. Todo
+## 4. Backlog at the review checkpoint
 
 **P0 (Next Iteration)**
-1. Windows / Linux real machine smoke testing: subprocesses without windows, command quotes, timezones, `daemon stop`, `app://` proxy and SSE in desktop shell packages.
+1. Windows / Linux manual smoke tests on real devices: subprocesses without windows, command quotes, timezones, `daemon stop`, `app://` proxy and SSE in desktop shell packages.
 2. Linux bwrap sandbox and Windows Job Object; `extension.ProcessRunner` integrated into sandbox (plugin subprocesses currently lack OS-level isolation).
-3. `protocol/acp` (bidirectional) and `update` (kernel and runtime environment upgrade, pre-upgrade snapshot).
+3. `protocol/acp` (bidirectional) and `update` (daemon and runtime upgrades, pre-upgrade snapshots).
 4. Distribute Python runtime environment with installation package (`electron-builder`'s `resources/worker` is currently an empty placeholder).
 
 **P1**
@@ -84,12 +84,10 @@ The review was completed from 6 perspectives (security invariants, concurrency a
 11. Extension marketplace: source signatures, revocation lists, archive / URL installation, plugin resident processes.
 12. Multi-user mode and directory service access points.
 
-## 6. Scale
+## 5. Codebase size at the review checkpoint
 
 As of this report: Go approx. 35.7k lines of implementation + 28.9k lines of tests (707 test functions); Python worker process approx. 3.5k lines + 2.6k lines of tests; Web approx. 6.0k lines, desktop shell approx. 2.8k lines of TypeScript; 16 commits.
 
-## 7. Workflow Records
+## 6. Related documents
 
-- The first wave of 12 modules and the second wave of 2 integration layer tasks were completed by parallel coding agents; each task was implemented and self-tested according to the contract.
-- The architecture lead is responsible for contracts, integration alignment, repository-wide validation, filtering of review findings, and cross-group wrap-up; validation of review findings no longer uses multi-agent double-checking.
-- Related documents: For user stories and PRD of the TeamAI team workflow, see `docs/prd/team-workflow.md`; for architecture and process design, see `docs/design/team-workflow-architecture.md` (in progress).
+The [team workflow requirements](../prd/team-workflow.md) and [team workflow architecture](../design/team-workflow-architecture.md) are design drafts, not evidence that team features have shipped.
