@@ -374,7 +374,8 @@ class Connection:
 
     def _deliver_response(self, message: dict[str, Any]) -> None:
         raw_id = message.get("id")
-        future = self._pending.pop(raw_id, None) if isinstance(raw_id, int) else None
+        # bool 是 int 的子类，但不是 JSON-RPC 的数字 ID；True 不得命中请求 1。
+        future = self._pending.pop(raw_id, None) if type(raw_id) is int else None
         if future is None or future.done():
             self._log.warning("收到未知或已撤销请求的响应，已忽略", extra={"id": raw_id})
             return
@@ -383,7 +384,7 @@ class Connection:
             code = error.get("code")
             future.set_exception(
                 JsonRpcError(
-                    code if isinstance(code, int) else INTERNAL_ERROR,
+                    code if type(code) is int else INTERNAL_ERROR,
                     str(error.get("message") or "unknown error"),
                     error.get("data"),
                 )
@@ -427,12 +428,12 @@ class Connection:
             self._log.debug("连接已关闭，错误响应被丢弃")
 
     def _enqueue(self, payload: dict[str, Any]) -> None:
+        if self.closed:
+            raise ConnectionClosed(f"connection closed ({self._close_reason})")
         data = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
         encoded = data.encode("utf-8", errors="replace")
         if len(encoded) > self._max_line:
             raise LineTooLong(len(encoded), self._max_line)
-        if self.closed:
-            raise ConnectionClosed(f"connection closed ({self._close_reason})")
         self._outgoing.put_nowait(encoded + b"\n")
 
     async def _write_loop(self) -> None:

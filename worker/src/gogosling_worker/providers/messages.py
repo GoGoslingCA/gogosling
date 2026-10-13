@@ -115,21 +115,26 @@ def flatten(
                 turns.append(UserTurn(content))
         elif msg.role == ROLE_ASSISTANT:
             current = AssistantTurn()
+            fragments: list[str] = []
 
-            def close(current: AssistantTurn) -> AssistantTurn:
+            def close(current: AssistantTurn, fragments: list[str]) -> AssistantTurn:
+                # 一次拼接一个连续片段组，避免每个 part 都复制不断增长的正文。
+                current.text = "".join(fragments)
+                fragments.clear()
                 if current.text or current.calls:
                     turns.append(current)
                 return AssistantTurn()
 
             for part in msg.parts:
                 if part.type == PART_TEXT:
-                    current.text += part.text
+                    if part.text:
+                        fragments.append(part.text)
                 elif part.type == PART_TOOL_CALL and part.tool_call is not None:
                     current.calls.append(part.tool_call)
                 elif part.type == PART_TOOL_RESULT and part.tool_result is not None:
-                    current = close(current)
+                    current = close(current, fragments)
                     append_results([part.tool_result])
-            close(current)
+            close(current, fragments)
         elif msg.role == ROLE_TOOL:
             append_results([p.tool_result for p in msg.parts if p.tool_result is not None])
         else:

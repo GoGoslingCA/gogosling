@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from gogosling_worker.protocol import (
     PART_ATTACHMENT,
     Attachment,
@@ -208,3 +210,46 @@ def test_tool_rendering_defaults_empty_schema() -> None:
 def test_flatten_keeps_system_turn_type() -> None:
     turns = flatten([Message("system", (Part.of_text("S"),))], locale="zh")
     assert turns == [SystemTurn("S")]
+
+
+@pytest.mark.parametrize("format_name", ["openai", "anthropic"])
+def test_fragmented_text_preserves_tool_boundaries_and_exact_contents(format_name: str) -> None:
+    render = to_openai_messages if format_name == "openai" else to_anthropic_request
+    first = ToolCall("c1", "read_file", {"path": "a.md"})
+    second = ToolCall("c2", "read_file", {"path": "b.md"})
+    history = [
+        _user("begin"),
+        Message(
+            "assistant",
+            (
+                Part.of_text("  first\n你好🙂"),
+                Part.of_tool_call(first),
+                Part.of_tool_result(ToolResult("c1", "result one")),
+                Part.of_text("\nsecond é\t"),
+                Part.of_tool_call(second),
+                Part.of_tool_result(ToolResult("c2", "result two")),
+                Part.of_text("tail "),
+            ),
+        ),
+        Message("assistant", (Part.of_text("next"),)),
+    ]
+    fragmented = []
+    for message in history:
+        parts = []
+        for part in message.parts:
+            if part.type == "text":
+                parts.append(Part.of_text(""))
+                parts.extend(Part.of_text(character) for character in part.text)
+                parts.append(Part.of_text(""))
+            else:
+                parts.append(part)
+        fragmented.append(Message(message.role, tuple(parts)))
+    expected = render(history, locale="en")
+    assert render(fragmented, locale="en") == expected
+    assert render(history, locale="en") == expected
+
+
+def test_large_fragmented_assistant_text_is_not_truncated_or_retained_across_messages() -> None:
+    parts = tuple(Part.of_text(f"{index}:你好🙂\n") for index in range(4096))
+    turns = flatten([Message("assistant", parts), Message("assistant", ())], locale="en")
+    assert turns == [AssistantTurn("".join(part.text for part in parts))]

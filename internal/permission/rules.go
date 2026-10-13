@@ -250,31 +250,39 @@ func matchGlobFold(pattern, name string, fold bool) bool {
 }
 
 func matchSegments(p, n []string) bool {
-	for len(p) > 0 {
-		if p[0] == "**" {
-			for len(p) > 0 && p[0] == "**" {
-				p = p[1:]
-			}
-			if len(p) == 0 {
+	// 普通模式段恰好消耗一个路径段，因此只需回退到最近的 **；更早的 **
+	// 不必重新枚举所有分割组合。额外空间为 O(1)，段比较次数最多 O(len(p)*len(n))。
+	pi, ni, star, consumed := 0, 0, -1, 0
+	for ni < len(n) {
+		if pi < len(p) && p[pi] == "**" {
+			star, consumed = pi, ni
+			pi++
+			if pi == len(p) {
 				return true
 			}
-			for i := 0; i <= len(n); i++ {
-				if matchSegments(p, n[i:]) {
-					return true
-				}
+			continue
+		}
+		if pi < len(p) {
+			ok, err := path.Match(p[pi], n[ni])
+			if err != nil {
+				return false
 			}
+			if ok {
+				pi++
+				ni++
+				continue
+			}
+		}
+		if star < 0 {
 			return false
 		}
-		if len(n) == 0 {
-			return false
-		}
-		ok, err := path.Match(p[0], n[0])
-		if err != nil || !ok {
-			return false
-		}
-		p, n = p[1:], n[1:]
+		consumed++
+		pi, ni = star+1, consumed
 	}
-	return len(n) == 0
+	for pi < len(p) && p[pi] == "**" {
+		pi++
+	}
+	return pi == len(p)
 }
 
 // expandHome 把以 ~ 开头的模式或路径展开为主目录；home 为空时原样返回。

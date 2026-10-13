@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
-import type { Draft, DraftInput, DraftScope, DraftUpdateInput } from "../api/types";
-import { DraftController } from "./draftController";
+import type { Draft, DraftContent, DraftInput, DraftScope, DraftUpdateInput } from "../api/types";
+import { DraftController, normalizeDraft, sameDraftContent } from "./draftController";
 
 const scope: DraftScope = { kind: "composer", agent_id: "agent-a", session_id: "session-a" };
 const stamp = "2026-10-12T01:00:00Z";
@@ -29,7 +29,7 @@ function fixture(initial: Draft | null = null) {
 let controllers: DraftController[];
 beforeEach(() => { vi.useFakeTimers(); controllers = []; });
 afterEach(() => { for (const controller of controllers) controller.dispose(); vi.useRealTimers(); vi.restoreAllMocks(); });
-function create(initial = { text: "" }, customScope = scope) { const controller = new DraftController(customScope, initial); controllers.push(controller); return controller; }
+function create(initial: DraftContent = { text: "" }, customScope = scope) { const controller = new DraftController(customScope, initial); controllers.push(controller); return controller; }
 
 describe("草稿 CAS 与迟到响应", () => {
   it("旧守护进程不探测写接口，正文仅留在内存且继续标记未保存", async () => {
@@ -129,5 +129,78 @@ describe("草稿 CAS 与迟到响应", () => {
     const previousVersion = f.remote!.version;
     controller.setBaseRevision("revision-chosen"); await controller.saveNow();
     expect(f.api.updateDraft).toHaveBeenLastCalledWith("draft-a", expect.objectContaining({ base_revision_id: "revision-chosen", expected_version: previousVersion }));
+  });
+
+  it("正文回退到原稿后仍会保存尚未确认的新成果基线", async () => {
+    const artifactScope: DraftScope = { kind: "artifact", agent_id: "agent-a", artifact_id: "artifact-a", base_revision_id: "revision-old" };
+    const f = fixture(makeDraft({ ...artifactScope, text: "原稿" }));
+    const controller = create({ text: "原稿" }, artifactScope); controller.configure(f.api, true, false); await controller.hydrate();
+    controller.setBaseRevision("revision-new");
+    controller.setContent({ text: "临时编辑" }); controller.setContent({ text: "原稿" });
+    expect(controller.getSnapshot().dirty).toBe(true);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(f.api.updateDraft).toHaveBeenCalledWith("draft-a", expect.objectContaining({ text: "原稿", base_revision_id: "revision-new", expected_version: 1 }));
+    expect(controller.getSnapshot().dirty).toBe(false);
+  });
+
+  it("附件字段排列不同不会阻止已发送草稿清理，顺序和元数据修改仍视为编辑", async () => {
+    const attachment = { name: "notes.md", path: "inbound/notes.md", size: 10, mime: "text/markdown" };
+    const f = fixture(makeDraft({ text: "附件", attachments: [{ size: 10, mime: "text/markdown", path: attachment.path, name: attachment.name }] }));
+    const controller = create({ text: "附件", attachments: [attachment] }); controller.configure(f.api, true, false); await controller.hydrate();
+    const token = controller.capture();
+    await controller.clearAfterSend(token);
+    expect(f.api.deleteDraft).toHaveBeenCalledWith("draft-a", 1);
+    expect(controller.getSnapshot().content.text).toBe("");
+    const second = { ...attachment, name: "second.md" };
+    expect(sameDraftContent({ text: "", attachments: [attachment, second] }, { text: "", attachments: [second, attachment] })).toBe(false);
+    for (const change of [{ name: "new" }, { path: "new" }, { mime: "new" }, { size: 11 }]) {
+      expect(sameDraftContent({ text: "", attachments: [attachment] }, { text: "", attachments: [{ ...attachment, ...change }] })).toBe(false);
+    }
+  });
+
+  it("相同内容保持快照引用并避免重复通知，省略字段与空数组一致", () => {
+    const controller = create(); controller.configure(null, false, false);
+    const snapshot = controller.getSnapshot(), listener = vi.fn(); controller.subscribe(listener);
+    controller.setContent({ text: "", filename: "", attachments: [], material_ids: [] });
+    controller.configure(null, false, false);
+    expect(controller.getSnapshot()).toBe(snapshot); expect(listener).not.toHaveBeenCalled();
+    expect(sameDraftContent({ text: "", material_ids: ["a", "b"] }, { text: "", material_ids: ["b", "a"] })).toBe(false);
+    expect(sameDraftContent({ text: "", filename: "a" }, { text: "", filename: "b" })).toBe(false);
+  });
+
+  it("输入附件的后续修改不能悄悄改变已捕获的草稿和保存令牌", () => {
+    const attachment = { name: "old.md", path: "inbound/old.md", size: 10 };
+    const controller = create({ text: "原文", attachments: [attachment] });
+    const token = controller.capture(); attachment.name = "new.md";
+    expect(controller.getSnapshot().content.attachments?.[0]?.name).toBe("old.md");
+    expect(controller.capture().fingerprint).toBe(token.fingerprint);
+    expect(JSON.parse(token.fingerprint)).toEqual(JSON.parse(JSON.stringify(normalizeDraft({ text: "原文", attachments: [{ ...attachment, name: "old.md" }] }))));
+  });
+
+  it("销毁后迟到恢复不会翻页、替换草稿或重新启动自动保存", async () => {
+    const f = fixture(), request = deferred<Draft[]>(); f.api.listDrafts.mockReturnValue(request.promise);
+    const controller = create(); controller.configure(f.api, true, false); const hydration = controller.hydrate();
+    controller.setContent({ text: "未保存输入" }); controller.dispose();
+    const snapshot = controller.getSnapshot();
+    request.resolve(Array.from({ length: 200 }, (_, index) => makeDraft({ session_id: `other-${index}` })));
+    await expect(hydration).rejects.toMatchObject({ name: "AbortError" });
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(f.api.listDrafts).toHaveBeenCalledTimes(1); expect(f.api.createDraft).not.toHaveBeenCalled();
+    expect(controller.getSnapshot()).toBe(snapshot);
+  });
+
+  it("销毁不撤回已经提交的保存，但拒绝排队写入且不启动后继保存", async () => {
+    const f = fixture(), request = deferred<Draft>();
+    const controller = create(); controller.configure(f.api, true, false); await controller.hydrate();
+    f.api.createDraft.mockReturnValueOnce(request.promise);
+    controller.setContent({ text: "已经提交" }); const first = controller.saveNow();
+    await Promise.resolve(); expect(f.api.createDraft).toHaveBeenCalledTimes(1);
+    controller.setContent({ text: "后继输入" }); const second = controller.saveNow();
+    controller.dispose();
+    const assertions = Promise.all([expect(first).rejects.toMatchObject({ name: "AbortError" }), expect(second).rejects.toMatchObject({ name: "AbortError" })]);
+    request.resolve(makeDraft({ text: "已经提交" })); await assertions;
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(f.api.createDraft).toHaveBeenCalledTimes(1); expect(f.api.updateDraft).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().content.text).toBe("后继输入");
   });
 });

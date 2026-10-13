@@ -1,13 +1,15 @@
 // 按会话订阅实时视图；批量合并展示增量，持久化消息仍由内核负责。
 import type { ApiEvent } from "../api/types";
 import { isRunStreamEvent } from "../api/types";
-import { initialLiveRuns, isTerminal, liveRunsReducer, selectSessionRuns, type LiveRun, type LiveRunsAction } from "./liveRuns";
+import { initialLiveRuns, isTerminal, liveRunsReducer, selectSessionRuns, type LiveRun, type LiveRunsAction, type LiveRunsState } from "./liveRuns";
 
 export interface SessionLiveSnapshot { runs: LiveRun[]; active: LiveRun | null }
 const EMPTY: SessionLiveSnapshot = { runs: [], active: null };
 
 export class LiveRunStore {
-  private state = initialLiveRuns;
+  // reducer 的不可变副本只覆盖本会话；历史后台会话不参与前台增量的复制和清理。
+  private states = new Map<string, LiveRunsState>();
+  private runSessions = new Map<string, string>();
   private listeners = new Map<string, Set<() => void>>();
   private snapshots = new Map<string, SessionLiveSnapshot>();
   private persisted = new Set<string>();
@@ -23,11 +25,14 @@ export class LiveRunStore {
     if (!sessionId) return () => undefined;
     const set = this.listeners.get(sessionId) ?? new Set<() => void>();
     set.add(listener); this.listeners.set(sessionId, set);
+    let subscribed = true;
     return () => {
+      if (!subscribed) return;
+      subscribed = false;
       set.delete(listener);
       if (!set.size) {
         this.listeners.delete(sessionId);
-        for (const run of selectSessionRuns(this.state, sessionId)) this.prune(run);
+        this.prune(sessionId);
         this.snapshots.delete(sessionId);
       }
     };
@@ -37,8 +42,12 @@ export class LiveRunStore {
     if (!sessionId) return EMPTY;
     const cached = this.snapshots.get(sessionId);
     if (cached) return cached;
-    const runs = selectSessionRuns(this.state, sessionId);
-    const value = runs.length ? { runs, active: [...runs].reverse().find(run => !isTerminal(run.status)) ?? null } : EMPTY;
+    const runs = selectSessionRuns(this.states.get(sessionId) ?? initialLiveRuns, sessionId);
+    let active: LiveRun | null = null;
+    for (let i = runs.length - 1; i >= 0; i--) {
+      if (!isTerminal(runs[i]!.status)) { active = runs[i]!; break; }
+    }
+    const value = runs.length ? { runs, active } : EMPTY;
     this.snapshots.set(sessionId, value);
     return value;
   };
@@ -87,29 +96,67 @@ export class LiveRunStore {
   restart = (): void => {
     this.flush(); this.receivedSeq = 0;
     // 新内核从 Seq 1 开始，旧运行仍要能接收恢复后的失败/取消事件。
-    this.state = { ...this.state, runs: Object.fromEntries(Object.entries(this.state.runs).map(([id, run]) => [id, { ...run, lastSeq: 0 }])) };
+    for (const [id, state] of this.states) {
+      this.states.set(id, { ...state, runs: Object.fromEntries(Object.entries(state.runs).map(([runId, run]) => [runId, { ...run, lastSeq: 0 }])) });
+    }
     this.apply([{ type: "gap" }], true);
   };
 
-  private prune(run: LiveRun): void {
-    if (isTerminal(run.status) && this.persisted.has(run.runId) && !this.listeners.has(run.sessionId)) {
-      this.state = liveRunsReducer(this.state, { type: "forget", runId: run.runId });
-      this.persisted.delete(run.runId); this.snapshots.delete(run.sessionId);
+  private prune(sessionId: string): void {
+    const state = this.states.get(sessionId);
+    if (!state || this.listeners.has(sessionId)) return;
+    let runs = state.runs;
+    for (const run of Object.values(state.runs)) {
+      if (!isTerminal(run.status) || !this.persisted.has(run.runId)) continue;
+      // 多条终态一起退出时仅复制一次，未落库的失败/取消内容仍保留。
+      if (runs === state.runs) runs = { ...runs };
+      delete runs[run.runId];
+      this.runSessions.delete(run.runId); this.persisted.delete(run.runId);
+    }
+    if (runs !== state.runs) {
+      const ids = state.bySession[sessionId]!.filter(id => runs[id]);
+      if (ids.length) this.states.set(sessionId, { runs, bySession: { [sessionId]: ids } });
+      else this.states.delete(sessionId);
+      this.snapshots.delete(sessionId);
     }
   }
 
   private apply(actions: LiveRunsAction[], force = false): void {
-    const before = this.state;
-    for (const action of actions) this.state = liveRunsReducer(this.state, action);
-    for (const run of Object.values(this.state.runs)) this.prune(run);
-    if (before === this.state && !force) return;
-    for (const [id, listeners] of this.listeners) {
-      const oldRuns = selectSessionRuns(before, id); const newRuns = selectSessionRuns(this.state, id);
-      if (!force && oldRuns.length === newRuns.length && oldRuns.every((run, i) => run === newRuns[i])) continue;
-      this.snapshots.delete(id);
-      for (const listener of listeners) listener();
+    const before = new Map<string, LiveRunsState>();
+    const update = (id: string, action: LiveRunsAction) => {
+      const state = this.states.get(id) ?? initialLiveRuns;
+      if (!before.has(id)) before.set(id, state);
+      const next = liveRunsReducer(state, action);
+      if (next.bySession[id]?.length) this.states.set(id, next);
+      else this.states.delete(id);
+      if (action.type === "event" && isRunStreamEvent(action.event) && next.runs[action.event.payload.run_id]) {
+        this.runSessions.set(action.event.payload.run_id, id);
+      } else if (action.type === "forget") this.runSessions.delete(action.runId);
+    };
+    for (const action of actions) {
+      if (action.type === "reset") {
+        for (const [id, state] of this.states) if (!before.has(id)) before.set(id, state);
+        this.states.clear(); this.runSessions.clear();
+      } else if (action.type === "gap") {
+        for (const id of this.states.keys()) update(id, action);
+      } else if (action.type === "forget") {
+        const id = this.runSessions.get(action.runId);
+        if (id) update(id, action);
+      } else if (isRunStreamEvent(action.event)) {
+        const { run_id, session_id } = action.event.payload;
+        if (run_id && session_id) update(this.runSessions.get(run_id) ?? session_id, action);
+      }
     }
-    // 未订阅页面的快照仅按需创建，事件更新不能让缓存继续持有旧正文。
-    for (const id of this.snapshots.keys()) if (!this.listeners.has(id)) this.snapshots.delete(id);
+    if (force) {
+      // 实例切换会重置所有 lastSeq，也必须更新无订阅但曾被读取过的快照。
+      this.snapshots.clear();
+      for (const id of this.listeners.keys()) if (!before.has(id)) before.set(id, initialLiveRuns);
+    }
+    for (const [id, state] of before) {
+      this.prune(id);
+      if (!force && state === (this.states.get(id) ?? initialLiveRuns)) continue;
+      this.snapshots.delete(id);
+      for (const listener of this.listeners.get(id) ?? []) listener();
+    }
   }
 }

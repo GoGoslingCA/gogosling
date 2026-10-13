@@ -1,0 +1,1188 @@
+{
+  "date": "2026-10-13",
+  "baseline_commit": "0a72c299920f61315bfe5a8b7e25a30c7d5c8771",
+  "machine": {
+    "cpu": "Apple M3",
+    "memory_gib": 16,
+    "os": "macOS 27",
+    "arch": "arm64"
+  },
+  "scope": "Source optimization after the published beta; local synthetic data only. These measurements do not quantify whole-app frames, GPU utilization or energy.",
+  "changes": [
+    {
+      "area": "Draft editing",
+      "problem": "Every edit and unchanged render serialized the full content multiple times, then scanned all retained controllers.",
+      "change": "Compare exact contract fields and track dirty controllers incrementally; serialize exact save tokens only when needed.",
+      "expected": "Less synchronous input work and fewer aggregate notifications. No draft eviction or weaker save token."
+    },
+    {
+      "area": "Draft lifetime and consistency",
+      "problem": "Late responses after disposal could schedule new saves or continue pages. Baseline changes could become clean incorrectly; attachment key order could block cleanup.",
+      "change": "Guard queued and post-await work after disposal, track baseline dirty state independently, and normalize attachment fields in fixed order.",
+      "expected": "No follow-on requests from disposed scopes; required saves and completed-send cleanup remain correct. Requests already sent may still finish."
+    },
+    {
+      "area": "Live state",
+      "problem": "Each foreground flush copied all retained runs and scanned all sessions; repeated unsubscribe could remove a replacement subscription.",
+      "change": "Partition store state by session, retain global run ownership, process only affected sessions, batch eligible cleanup, and make unsubscribe idempotent.",
+      "expected": "Update work depends on the affected session, not unrelated retained drafts. Terminal unpersisted content remains available."
+    },
+    {
+      "area": "Permission matching",
+      "problem": "Recursive double-star matching repeatedly enumerated path partitions on failing suffixes.",
+      "change": "Iteratively backtrack to the latest double-star: at most O(pattern_segments * path_segments) segment comparisons and O(1) extra state.",
+      "expected": "Bounded comparison growth without changing rule results or approval decisions."
+    },
+    {
+      "area": "Provider message assembly",
+      "problem": "Repeated string concatenation copied growing assistant text prefixes.",
+      "change": "Collect adjacent text fragments and join once per tool boundary.",
+      "expected": "Linear text assembly; text, ordering and provider payloads are unchanged."
+    },
+    {
+      "area": "RPC lifetime and response identity",
+      "problem": "Closed connections still serialized discarded payloads; Python bool values could match integer request IDs or error codes.",
+      "change": "Check closed before serialization and require exact integer types for numeric responses.",
+      "expected": "Avoid unused body allocations and false errors after close; malformed responses cannot complete another request."
+    }
+  ],
+  "draft": {
+    "runtime": "v22.22.2",
+    "platform": "darwin",
+    "arch": "arm64",
+    "sampleCount": 10,
+    "warmupCount": 2,
+    "sources": [
+      {
+        "label": "before",
+        "sourceSha256": "1e6dcb666367362e06f8e547c8ecc55f136190ea4235e01753923c4ea31ad579"
+      },
+      {
+        "label": "after",
+        "sourceSha256": "37733b97a24447ac8d5379f1915aec5051291fd85961f141d955e375b58b4e46"
+      }
+    ],
+    "notes": [
+      "Synthetic controller and registry measurements only; not whole-app frame, memory, or energy measurements.",
+      "The text scenarios use 524000 ASCII characters, below the default 524288-byte draft limit.",
+      "The registry benchmark extracts the production class unchanged, excluding the React provider component.",
+      "No network or autosave timers are used; explicit save and conflict behavior are covered separately by regression tests.",
+      "P95 uses nearest rank; with 10 samples it is the observed maximum. GC runs before timing when available."
+    ],
+    "scenarios": [
+      {
+        "name": "unchanged_large_draft",
+        "textCharacters": 524000,
+        "operations": 100,
+        "results": [
+          {
+            "label": "before",
+            "elapsedMedianMs": 239.169667,
+            "elapsedP95Ms": 1255.894416,
+            "cpuMedianMs": 236.565,
+            "samples": [
+              {
+                "elapsedMs": 239.169667,
+                "cpuMs": 235.953
+              },
+              {
+                "elapsedMs": 1255.894416,
+                "cpuMs": 253.932
+              },
+              {
+                "elapsedMs": 390.9129589999998,
+                "cpuMs": 244.106
+              },
+              {
+                "elapsedMs": 239.2522909999998,
+                "cpuMs": 236.565
+              },
+              {
+                "elapsedMs": 240.97358300000042,
+                "cpuMs": 237.031
+              },
+              {
+                "elapsedMs": 240.20199999999977,
+                "cpuMs": 234.92
+              },
+              {
+                "elapsedMs": 234.001084,
+                "cpuMs": 233.037
+              },
+              {
+                "elapsedMs": 237.97699999999986,
+                "cpuMs": 238.224
+              },
+              {
+                "elapsedMs": 237.06579199999987,
+                "cpuMs": 236.115
+              },
+              {
+                "elapsedMs": 236.9850419999998,
+                "cpuMs": 236.574
+              }
+            ]
+          },
+          {
+            "label": "after",
+            "elapsedMedianMs": 0.021542000000408734,
+            "elapsedP95Ms": 0.0305000000007567,
+            "cpuMedianMs": 0.027,
+            "samples": [
+              {
+                "elapsedMs": 0.02345900000000256,
+                "cpuMs": 0.031
+              },
+              {
+                "elapsedMs": 0.021125000000211003,
+                "cpuMs": 0.025
+              },
+              {
+                "elapsedMs": 0.02266700000018318,
+                "cpuMs": 0.087
+              },
+              {
+                "elapsedMs": 0.021666999999979453,
+                "cpuMs": 0.025
+              },
+              {
+                "elapsedMs": 0.021542000000408734,
+                "cpuMs": 0.026
+              },
+              {
+                "elapsedMs": 0.013124999999490683,
+                "cpuMs": 0.03
+              },
+              {
+                "elapsedMs": 0.0305000000007567,
+                "cpuMs": 0.147
+              },
+              {
+                "elapsedMs": 0.012875000000349246,
+                "cpuMs": 0.027
+              },
+              {
+                "elapsedMs": 0.021749999999883585,
+                "cpuMs": 0.131
+              },
+              {
+                "elapsedMs": 0.012416999999913969,
+                "cpuMs": 0.016
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "edit_large_draft",
+        "textCharacters": 524000,
+        "operations": 100,
+        "results": [
+          {
+            "label": "before",
+            "elapsedMedianMs": 336.970292,
+            "elapsedP95Ms": 346.37895899999967,
+            "cpuMedianMs": 338.252,
+            "samples": [
+              {
+                "elapsedMs": 336.970292,
+                "cpuMs": 336.352
+              },
+              {
+                "elapsedMs": 346.37895899999967,
+                "cpuMs": 340.414
+              },
+              {
+                "elapsedMs": 340.7474999999995,
+                "cpuMs": 342.087
+              },
+              {
+                "elapsedMs": 340.9664160000002,
+                "cpuMs": 343.215
+              },
+              {
+                "elapsedMs": 334.83137500000066,
+                "cpuMs": 337.294
+              },
+              {
+                "elapsedMs": 338.2592080000004,
+                "cpuMs": 339.633
+              },
+              {
+                "elapsedMs": 336.2368749999996,
+                "cpuMs": 338.252
+              },
+              {
+                "elapsedMs": 333.4257090000001,
+                "cpuMs": 335.68
+              },
+              {
+                "elapsedMs": 331.7176250000002,
+                "cpuMs": 334.317
+              },
+              {
+                "elapsedMs": 339.9677500000007,
+                "cpuMs": 340.96
+              }
+            ]
+          },
+          {
+            "label": "after",
+            "elapsedMedianMs": 7.005708000000595,
+            "elapsedP95Ms": 8.406875000000582,
+            "cpuMedianMs": 10.25,
+            "samples": [
+              {
+                "elapsedMs": 8.406875000000582,
+                "cpuMs": 11.236
+              },
+              {
+                "elapsedMs": 6.929165999999896,
+                "cpuMs": 10.647
+              },
+              {
+                "elapsedMs": 7.6849160000001575,
+                "cpuMs": 10.433
+              },
+              {
+                "elapsedMs": 6.898000000001048,
+                "cpuMs": 10.203
+              },
+              {
+                "elapsedMs": 7.253166999998939,
+                "cpuMs": 10.214
+              },
+              {
+                "elapsedMs": 7.3543750000008,
+                "cpuMs": 10.25
+              },
+              {
+                "elapsedMs": 6.735833000000639,
+                "cpuMs": 9.713
+              },
+              {
+                "elapsedMs": 8.080082999998922,
+                "cpuMs": 11.406
+              },
+              {
+                "elapsedMs": 6.88550000000032,
+                "cpuMs": 9.874
+              },
+              {
+                "elapsedMs": 7.005708000000595,
+                "cpuMs": 10.452
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "many_retained_draft_scopes",
+        "draftScopes": 1000,
+        "operations": 1000,
+        "results": [
+          {
+            "label": "before",
+            "elapsedMedianMs": 9.946500000000015,
+            "elapsedP95Ms": 10.755333000000974,
+            "cpuMedianMs": 18.607,
+            "aggregateNotifications": 1000,
+            "samples": [
+              {
+                "elapsedMs": 10.048000000000684,
+                "cpuMs": 21.644
+              },
+              {
+                "elapsedMs": 10.404458000000886,
+                "cpuMs": 18.913
+              },
+              {
+                "elapsedMs": 10.755333000000974,
+                "cpuMs": 21.778
+              },
+              {
+                "elapsedMs": 9.946500000000015,
+                "cpuMs": 18.522
+              },
+              {
+                "elapsedMs": 9.86962499999936,
+                "cpuMs": 18.607
+              },
+              {
+                "elapsedMs": 10.001374999999825,
+                "cpuMs": 18.735
+              },
+              {
+                "elapsedMs": 10.35333300000093,
+                "cpuMs": 21.069
+              },
+              {
+                "elapsedMs": 9.765541999999186,
+                "cpuMs": 18.154
+              },
+              {
+                "elapsedMs": 9.8872080000001,
+                "cpuMs": 17.233
+              },
+              {
+                "elapsedMs": 9.713417000000845,
+                "cpuMs": 18.183
+              }
+            ]
+          },
+          {
+            "label": "after",
+            "elapsedMedianMs": 0.31558399999994435,
+            "elapsedP95Ms": 0.7962920000009035,
+            "cpuMedianMs": 0.763,
+            "aggregateNotifications": 1,
+            "samples": [
+              {
+                "elapsedMs": 0.47595799999908195,
+                "cpuMs": 0.959
+              },
+              {
+                "elapsedMs": 0.7962920000009035,
+                "cpuMs": 3.026
+              },
+              {
+                "elapsedMs": 0.36691699999937555,
+                "cpuMs": 0.721
+              },
+              {
+                "elapsedMs": 0.3048749999998108,
+                "cpuMs": 0.953
+              },
+              {
+                "elapsedMs": 0.31558399999994435,
+                "cpuMs": 0.733
+              },
+              {
+                "elapsedMs": 0.30395799999860174,
+                "cpuMs": 0.673
+              },
+              {
+                "elapsedMs": 0.35337500000059663,
+                "cpuMs": 0.743
+              },
+              {
+                "elapsedMs": 0.3574580000004062,
+                "cpuMs": 0.848
+              },
+              {
+                "elapsedMs": 0.29087500000059663,
+                "cpuMs": 0.763
+              },
+              {
+                "elapsedMs": 0.3041250000005675,
+                "cpuMs": 0.778
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "live_state": {
+    "runtime": "v22.22.2",
+    "platform": "darwin",
+    "arch": "arm64",
+    "sampleCount": 10,
+    "warmupCount": 2,
+    "sources": [
+      {
+        "label": "before",
+        "sourceSha256": "f211e1ea78d4a453af8895e4217b85aaddb34f368dfe10ec9aab8e225e21cd56"
+      },
+      {
+        "label": "after",
+        "sourceSha256": "de92524536edfed4eafe7e522a8d78948909fe2d26cf29513c4895f5b40e7dfb"
+      }
+    ],
+    "reducerSha256": "fffeecd4ed1fbf9a7b98f6ad99ec10390328e37d228bc4504f69166f601daa28",
+    "notes": [
+      "Synthetic store-only execution; not network, browser painting, whole-app memory, or energy measurement.",
+      "One foreground subscriber; background fixtures represent retained unsaved terminal runs, not concurrent inference workers.",
+      "Timing covers 200 flushes and their delta ingestion, not fixture seeding or snapshot hashing.",
+      "P95 uses nearest rank; with 10 samples it is the observed maximum."
+    ],
+    "scenarios": [
+      {
+        "backgroundSessions": 0,
+        "activeSessions": 1,
+        "flushes": 200,
+        "deltaEvents": 1600,
+        "equalOutputSha256": "ce7df5c425455bfeaaee28b129a1e3c306784aae2128f56151c6d3a92370c4e8",
+        "results": [
+          {
+            "label": "before",
+            "elapsedMedianMs": 0.7136659999999893,
+            "elapsedP95Ms": 1.0463330000000042,
+            "cpuMedianMs": 1.53,
+            "samples": [
+              {
+                "elapsedMs": 0.6817499999999939,
+                "cpuMs": 1.655,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.7701669999999865,
+                "cpuMs": 1.781,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.7136659999999893,
+                "cpuMs": 1.986,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.0463330000000042,
+                "cpuMs": 1.722,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.753124999999983,
+                "cpuMs": 1.526,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.7712499999999807,
+                "cpuMs": 1.847,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.7636249999999905,
+                "cpuMs": 1.525,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.546416000000022,
+                "cpuMs": 1.53,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.5897080000000017,
+                "cpuMs": 1.34,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.46075000000001864,
+                "cpuMs": 1.206,
+                "notifications": 200
+              }
+            ]
+          },
+          {
+            "label": "after",
+            "elapsedMedianMs": 0.5472919999999988,
+            "elapsedP95Ms": 0.8969590000000096,
+            "cpuMedianMs": 1.189,
+            "samples": [
+              {
+                "elapsedMs": 0.8969590000000096,
+                "cpuMs": 1.472,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.8087500000000034,
+                "cpuMs": 3.384,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.6182079999999814,
+                "cpuMs": 1.487,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.6437500000000114,
+                "cpuMs": 1.189,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.6442089999999894,
+                "cpuMs": 1.242,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.5472919999999988,
+                "cpuMs": 1.403,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.47075000000000955,
+                "cpuMs": 0.956,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.38862499999999045,
+                "cpuMs": 0.988,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.4205419999999833,
+                "cpuMs": 1.159,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.37866699999997877,
+                "cpuMs": 0.98,
+                "notifications": 200
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "backgroundSessions": 100,
+        "activeSessions": 4,
+        "flushes": 200,
+        "deltaEvents": 6400,
+        "equalOutputSha256": "bbf6f67b7581d462bcd897da30f3747c0bfdce5cde98ccac9f22f30fa09547ee",
+        "results": [
+          {
+            "label": "before",
+            "elapsedMedianMs": 3.3364579999999933,
+            "elapsedP95Ms": 4.698040999999989,
+            "cpuMedianMs": 4.742,
+            "samples": [
+              {
+                "elapsedMs": 3.7842919999999935,
+                "cpuMs": 6.882,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 4.698040999999989,
+                "cpuMs": 14.937,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 3.7105840000000114,
+                "cpuMs": 4.742,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 3.666832999999997,
+                "cpuMs": 6.618,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 3.4132920000000126,
+                "cpuMs": 9.071,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 3.0028750000000173,
+                "cpuMs": 4.313,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 3.3364579999999933,
+                "cpuMs": 4.026,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 3.2162500000000023,
+                "cpuMs": 5.972,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 3.0712919999999713,
+                "cpuMs": 4.526,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 2.8880419999999845,
+                "cpuMs": 3.64,
+                "notifications": 200
+              }
+            ]
+          },
+          {
+            "label": "after",
+            "elapsedMedianMs": 1.0836669999999913,
+            "elapsedP95Ms": 1.9783330000000205,
+            "cpuMedianMs": 2.306,
+            "samples": [
+              {
+                "elapsedMs": 1.9783330000000205,
+                "cpuMs": 8.503,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.0168329999999628,
+                "cpuMs": 2.819,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.0179170000000113,
+                "cpuMs": 1.901,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.1639999999999873,
+                "cpuMs": 3.405,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.2542910000000234,
+                "cpuMs": 2.113,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.2154579999999555,
+                "cpuMs": 1.906,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.1588330000000155,
+                "cpuMs": 2.626,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.078875000000039,
+                "cpuMs": 3.963,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.9484590000000139,
+                "cpuMs": 1.959,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.0836669999999913,
+                "cpuMs": 2.306,
+                "notifications": 200
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "backgroundSessions": 1000,
+        "activeSessions": 4,
+        "flushes": 200,
+        "deltaEvents": 6400,
+        "equalOutputSha256": "e3c7d1ac45b70b0af1a5d5049f61ec7567d024cb63cce0827ceccf31a6bcb7ac",
+        "results": [
+          {
+            "label": "before",
+            "elapsedMedianMs": 97.50866600000018,
+            "elapsedP95Ms": 103.65983299999994,
+            "cpuMedianMs": 98.677,
+            "samples": [
+              {
+                "elapsedMs": 97.50866600000018,
+                "cpuMs": 98.946,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 95.86208299999998,
+                "cpuMs": 96.266,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 89.29037500000004,
+                "cpuMs": 89.814,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 103.65983299999994,
+                "cpuMs": 98.677,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 95.052459,
+                "cpuMs": 96.152,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 91.49233300000014,
+                "cpuMs": 92.379,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 102.41029200000003,
+                "cpuMs": 101.13,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 103.05037500000026,
+                "cpuMs": 101.557,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 98.79916700000012,
+                "cpuMs": 99.081,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 100.51625000000013,
+                "cpuMs": 100.101,
+                "notifications": 200
+              }
+            ]
+          },
+          {
+            "label": "after",
+            "elapsedMedianMs": 0.9407500000002074,
+            "elapsedP95Ms": 1.248207999999977,
+            "cpuMedianMs": 2.04,
+            "samples": [
+              {
+                "elapsedMs": 1.248207999999977,
+                "cpuMs": 4.035,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.0178329999998823,
+                "cpuMs": 1.309,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.8522910000001502,
+                "cpuMs": 2.619,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.9436670000000049,
+                "cpuMs": 2.04,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.8775829999999587,
+                "cpuMs": 3.333,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 1.0515419999996993,
+                "cpuMs": 1.698,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.8376250000001164,
+                "cpuMs": 2.493,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.9847079999999551,
+                "cpuMs": 1.79,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.9313750000001164,
+                "cpuMs": 2.696,
+                "notifications": 200
+              },
+              {
+                "elapsedMs": 0.9407500000002074,
+                "cpuMs": 1.873,
+                "notifications": 200
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "message_assembly": {
+    "python": "3.12.14",
+    "machine": "arm64",
+    "samples": 9,
+    "sources": [
+      {
+        "label": "before",
+        "sha256": "5a444bf9cd710519b7ad4a17646fcdce80f959428afa261699e2ac4bfadc2968"
+      },
+      {
+        "label": "after",
+        "sha256": "2981b0a696198178c7f34e7fbb749d418d67c1e049c32475190ee8534dfa11c0"
+      }
+    ],
+    "notes": [
+      "Synthetic synchronous request-body preparation, not model latency or whole-app energy.",
+      "Time is per call; peaks exclude prebuilt fixtures. Versions alternate between samples.",
+      "The fragmented cases are supported stress inputs, not a claim about typical generated messages."
+    ],
+    "cases": [
+      {
+        "case": "single_text_part",
+        "text_parts": 1,
+        "text_characters": 128,
+        "iterations_per_sample": 500,
+        "equal_output_sha256": "0aa1e7e84d3065464a9e748a08a555f9e1f41e5d7737eea7f7affbf9396c8bb1",
+        "results": [
+          {
+            "label": "before",
+            "median_ms_per_call": 0.0012435,
+            "samples_ms_per_call": [
+              0.001234166,
+              0.001215916,
+              0.001214834,
+              0.00125825,
+              0.00124475,
+              0.0012645,
+              0.001272834,
+              0.0012435,
+              0.001220834
+            ],
+            "peak_allocated_bytes": 1032
+          },
+          {
+            "label": "after",
+            "median_ms_per_call": 0.001265834,
+            "samples_ms_per_call": [
+              0.001251916,
+              0.001239582,
+              0.0012553339999999999,
+              0.00128475,
+              0.001290084,
+              0.001265834,
+              0.0014295,
+              0.001273666,
+              0.0012245
+            ],
+            "peak_allocated_bytes": 1032
+          }
+        ]
+      },
+      {
+        "case": "32_large_parts",
+        "text_parts": 32,
+        "text_characters": 524288,
+        "iterations_per_sample": 10,
+        "equal_output_sha256": "7cbdd211e61bd10b78dcf4591a9176c11499c9d5d2cb32b6491937426fc968c7",
+        "results": [
+          {
+            "label": "before",
+            "median_ms_per_call": 0.10934170000000001,
+            "samples_ms_per_call": [
+              0.1209708,
+              0.11934579999999999,
+              0.1187208,
+              0.1109,
+              0.10782910000000001,
+              0.10814170000000001,
+              0.10863750000000001,
+              0.10934170000000001,
+              0.1061083
+            ],
+            "peak_allocated_bytes": 1032938
+          },
+          {
+            "label": "after",
+            "median_ms_per_call": 0.0087917,
+            "samples_ms_per_call": [
+              0.0092958,
+              0.0092292,
+              0.009600000000000001,
+              0.013475,
+              0.0087791,
+              0.008725,
+              0.0087917,
+              0.008725,
+              0.008783299999999999
+            ],
+            "peak_allocated_bytes": 525361
+          }
+        ]
+      },
+      {
+        "case": "4096_small_parts",
+        "text_parts": 4096,
+        "text_characters": 524288,
+        "iterations_per_sample": 1,
+        "equal_output_sha256": "7cbdd211e61bd10b78dcf4591a9176c11499c9d5d2cb32b6491937426fc968c7",
+        "results": [
+          {
+            "label": "before",
+            "median_ms_per_call": 14.417333,
+            "samples_ms_per_call": [
+              14.417333,
+              13.685084,
+              13.5145,
+              14.84525,
+              14.735625,
+              14.50025,
+              13.750459,
+              14.158083,
+              14.639041
+            ],
+            "peak_allocated_bytes": 1049194
+          },
+          {
+            "label": "after",
+            "median_ms_per_call": 0.121292,
+            "samples_ms_per_call": [
+              0.128708,
+              0.11925,
+              0.121292,
+              0.1205,
+              0.120833,
+              0.11825,
+              0.127083,
+              0.121542,
+              0.157625
+            ],
+            "peak_allocated_bytes": 557937
+          }
+        ]
+      },
+      {
+        "case": "tool_boundaries",
+        "text_parts": 64,
+        "text_characters": 16384,
+        "iterations_per_sample": 50,
+        "equal_output_sha256": "b7c62dd772fe489a42d06bbbf2f3268076200215acf53a8126e108366a121aea",
+        "results": [
+          {
+            "label": "before",
+            "median_ms_per_call": 0.033955,
+            "samples_ms_per_call": [
+              0.034235,
+              0.0350175,
+              0.033955,
+              0.034460000000000005,
+              0.0340625,
+              0.03374084,
+              0.0338475,
+              0.03369168,
+              0.0334475
+            ],
+            "peak_allocated_bytes": 23720
+          },
+          {
+            "label": "after",
+            "median_ms_per_call": 0.03311,
+            "samples_ms_per_call": [
+              0.034995,
+              0.03286168,
+              0.03311,
+              0.03327,
+              0.03310334,
+              0.03303416,
+              0.03380834,
+              0.03322666,
+              0.03298084
+            ],
+            "peak_allocated_bytes": 23720
+          }
+        ]
+      }
+    ]
+  },
+  "permission": {
+    "source_sha256_before": "02028b8d4ad140a4987a075a50a8c73b58a42532183562f0ad0bb53958893a98",
+    "source_sha256_after": "445eb7c4463f7d95b55f5b67ceb388f4211aaba9d42406b7f6d863350d680dcd",
+    "samples": [
+      {
+        "case": "BenchmarkPermissionPathSegments/common-deny/before-8",
+        "iterations": 9094387,
+        "ns_per_op": 112.1,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-deny/before-8",
+        "iterations": 10556270,
+        "ns_per_op": 112.4,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-deny/before-8",
+        "iterations": 10805914,
+        "ns_per_op": 112.9,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-deny/after-8",
+        "iterations": 11555344,
+        "ns_per_op": 109.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-deny/after-8",
+        "iterations": 10678606,
+        "ns_per_op": 104.7,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-deny/after-8",
+        "iterations": 11484429,
+        "ns_per_op": 118.8,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-match/before-8",
+        "iterations": 5031764,
+        "ns_per_op": 236.4,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-match/before-8",
+        "iterations": 5107104,
+        "ns_per_op": 234.3,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-match/before-8",
+        "iterations": 5061597,
+        "ns_per_op": 238.5,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-match/after-8",
+        "iterations": 5146635,
+        "ns_per_op": 235.1,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-match/after-8",
+        "iterations": 4899350,
+        "ns_per_op": 443.8,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/common-match/after-8",
+        "iterations": 3972008,
+        "ns_per_op": 294.6,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/trailing-glob/before-8",
+        "iterations": 61832427,
+        "ns_per_op": 18.7,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/trailing-glob/before-8",
+        "iterations": 67955460,
+        "ns_per_op": 29.5,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/trailing-glob/before-8",
+        "iterations": 56982986,
+        "ns_per_op": 35.95,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/trailing-glob/after-8",
+        "iterations": 56352690,
+        "ns_per_op": 43.69,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/trailing-glob/after-8",
+        "iterations": 45832138,
+        "ns_per_op": 24.32,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/trailing-glob/after-8",
+        "iterations": 74876962,
+        "ns_per_op": 19.08,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/repeated-glob-miss/before-8",
+        "iterations": 826,
+        "ns_per_op": 1490155.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/repeated-glob-miss/before-8",
+        "iterations": 714,
+        "ns_per_op": 1487011.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/repeated-glob-miss/before-8",
+        "iterations": 866,
+        "ns_per_op": 1500296.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/repeated-glob-miss/after-8",
+        "iterations": 3279440,
+        "ns_per_op": 385.7,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/repeated-glob-miss/after-8",
+        "iterations": 3130939,
+        "ns_per_op": 346.9,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      {
+        "case": "BenchmarkPermissionPathSegments/repeated-glob-miss/after-8",
+        "iterations": 3692798,
+        "ns_per_op": 355.2,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      }
+    ],
+    "notes": [
+      "Three repeats per variant. Ordinary short patterns are nanosecond-scale and sensitive to system noise; no universal speedup claim.",
+      "Repeated-glob stress input: six **/a groups followed by z against twenty a segments followed by b.",
+      "30000 deterministic random and 199485 exhaustive cases match the legacy algorithm; long-path tests use 100 double-stars and 10000 segments."
+    ]
+  },
+  "validation": {
+    "go": [
+      "gofmt check",
+      "go vet ./...",
+      "go test ./...",
+      "go test -race ./internal/permission"
+    ],
+    "worker": [
+      "ruff check .",
+      "ruff format --check .",
+      "mypy",
+      "pytest: 240 passed"
+    ],
+    "apps": [
+      "npm run typecheck",
+      "npm test: web 588, desktop 384, packaging 29 passed",
+      "npm run build"
+    ],
+    "integration": [
+      "make e2e: passed"
+    ],
+    "interfaces": "No public contract, dependency, storage format, permission rule or approval change."
+  },
+  "next_candidates": [
+    "Measure tool-list updates in a single long conversation before adding indexes.",
+    "Evaluate due-job filtering before scheduler sorting, preserving missed-job and priority rules.",
+    "Design cancellation for draft reads and safe release of saved, inactive controllers without dropping unsaved edits.",
+    "Profile real input-to-paint delay and resident memory under long sessions; do not extrapolate component timings to energy savings.",
+    "Evaluate RPC output backpressure separately; final states and tool approvals must not be dropped."
+  ],
+  "sources": [
+    "https://docs.python.org/3.12/library/stdtypes.html#common-sequence-operations",
+    "https://react.dev/reference/react/useSyncExternalStore",
+    "https://pkg.go.dev/path#Match",
+    "https://www.jsonrpc.org/specification"
+  ]
+}

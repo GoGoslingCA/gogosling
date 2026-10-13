@@ -2,7 +2,7 @@
 import { useContext, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { DraftContent, DraftScope } from "../api/types";
 import { DraftContext, DraftRegistry } from "./DraftProvider";
-import { draftScopeKey, normalizeDraft } from "./draftController";
+import { draftScopeKey, normalizeDraft, sameDraftContent } from "./draftController";
 
 /** scope=null 不访问 daemon；正文不会进入 localStorage 或其他客户端持久存储。 */
 export function usePersistentDraft(scope: DraftScope | null, content: DraftContent, onRestore: (content: DraftContent) => void) {
@@ -15,22 +15,21 @@ export function usePersistentDraft(scope: DraftScope | null, content: DraftConte
   const anyDirty = useSyncExternalStore(registry.subscribe, registry.getSnapshot, registry.getSnapshot);
   const restoreCallback = useRef(onRestore);
   restoreCallback.current = onRestore;
-  const previousInput = useRef<{ key: string; fingerprint: string } | null>(null);
+  const previousInput = useRef<{ key: string; content: DraftContent } | null>(null);
   const restoredEpoch = useRef<{ key: string; epoch: number } | null>(null);
-  const inputFingerprint = JSON.stringify(normalizeDraft(content));
 
   useEffect(() => {
     registry.activate(controller);
     const cached = controller.getSnapshot();
-    if (scope && provider && cached.hydrated && JSON.stringify(cached.content) !== inputFingerprint) restoreCallback.current(cached.content);
+    if (scope && provider && cached.hydrated && !sameDraftContent(cached.content, content)) restoreCallback.current(cached.content);
   }, [registry, controller]);
   useEffect(() => {
-    if (previousInput.current?.key !== key) { previousInput.current = { key, fingerprint: inputFingerprint }; return; }
-    if (previousInput.current.fingerprint !== inputFingerprint) {
-      previousInput.current = { key, fingerprint: inputFingerprint };
+    if (previousInput.current?.key !== key) { previousInput.current = { key, content: normalizeDraft(content) }; return; }
+    if (!sameDraftContent(previousInput.current.content, content)) {
+      previousInput.current = { key, content: normalizeDraft(content) };
       controller.setContent(content);
     }
-  }, [controller, key, inputFingerprint, content]);
+  }, [controller, key, content]);
   useEffect(() => {
     if (!snapshot.restoreEpoch || (restoredEpoch.current?.key === key && restoredEpoch.current.epoch === snapshot.restoreEpoch)) return;
     restoredEpoch.current = { key, epoch: snapshot.restoreEpoch };

@@ -349,6 +349,29 @@ async def test_unknown_response_id_is_ignored() -> None:
         assert (await daemon.call("worker.ping"))["result"] == "pong"
 
 
+async def test_boolean_response_id_cannot_complete_integer_request() -> None:
+    async with Daemon(_ping_dispatcher()) as daemon:
+        pending = asyncio.create_task(daemon.conn.request("host.tool.call", {}))
+        reverse = await daemon.recv()
+        assert reverse["id"] == 1
+        daemon.reply(True, {"content": "wrong request"})
+        # ping 回执证明前一条响应已处理；不依赖任意等待时长。
+        assert (await daemon.call("worker.ping"))["result"] == "pong"
+        assert not pending.done()
+        daemon.reply(1, {"content": "correct request"})
+        assert await asyncio.wait_for(pending, WAIT) == {"content": "correct request"}
+
+
+async def test_boolean_error_code_does_not_become_integer_status() -> None:
+    async with Daemon(_ping_dispatcher()) as daemon:
+        pending = asyncio.create_task(daemon.conn.request("host.tool.call", {}))
+        reverse = await daemon.recv()
+        daemon.reply_error(reverse["id"], True, "malformed status")
+        with pytest.raises(JsonRpcError) as captured:
+            await asyncio.wait_for(pending, WAIT)
+        assert captured.value.code == INTERNAL_ERROR
+
+
 async def test_notify_too_long_raises_and_closed_connection_drops() -> None:
     dispatcher = Dispatcher()
     daemon = Daemon(dispatcher, max_line_bytes=64)
@@ -357,6 +380,9 @@ async def test_notify_too_long_raises_and_closed_connection_drops() -> None:
             daemon.conn.notify("big", {"x": "z" * 100})
     # 关闭后通知静默丢弃，request 立即失败。
     daemon.conn.notify("after", {})
+    # 不再发送的正文不应继续序列化、检查大小或触发序列化异常。
+    daemon.conn.notify("after", {"large": "x" * 100_000})
+    daemon.conn.notify("after", {"not_serializable": object()})
     with pytest.raises(ConnectionClosed):
         await daemon.conn.request("after", {})
 

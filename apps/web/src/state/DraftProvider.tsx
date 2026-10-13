@@ -15,14 +15,23 @@ export class DraftRegistry {
   private supported = false;
   private checking = true;
   private dirty = false;
+  // 每次编辑只更新当前控制器，避免扫描所有曾打开的作用域。
+  private dirtyControllers = new Set<DraftController>();
   private mounts = 0;
   /** 外部状态快照只有未确认编辑是否存在，不暴露正文。 */
   getSnapshot = () => this.dirty;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
-  private changed = () => {
-    this.dirty = [...this.controllers.values()].some((controller) => controller.getSnapshot().dirty);
-    for (const listener of this.listeners) listener();
+  private changed = (controller: DraftController) => {
+    if (controller.getSnapshot().dirty) this.dirtyControllers.add(controller);
+    else this.dirtyControllers.delete(controller);
+    this.publishDirty();
   };
+  private publishDirty() {
+    const dirty = this.dirtyControllers.size > 0;
+    if (this.dirty === dirty) return;
+    this.dirty = dirty;
+    for (const listener of this.listeners) listener();
+  }
   /** 同一作用域重新挂载时继续使用其尚未确认的内存草稿。 */
   get(scope: DraftScope, content: DraftContent): DraftController {
     const key = draftScopeKey(scope);
@@ -30,7 +39,9 @@ export class DraftRegistry {
     if (!controller) {
       controller = new DraftController(scope, content);
       this.controllers.set(key, controller);
-      controller.subscribe(this.changed);
+      const created = controller;
+      if (created.getSnapshot().dirty) this.dirtyControllers.add(created);
+      created.subscribe(() => this.changed(created));
       // 在 effect 中启动网络，渲染阶段只构造本地状态。
     }
     controller.setScope(scope);
@@ -40,10 +51,10 @@ export class DraftRegistry {
   configure(api: DraftApi | null, supported: boolean, checking: boolean) {
     this.api = api; this.supported = supported; this.checking = checking;
     for (const controller of this.controllers.values()) controller.configure(api, supported, checking);
-    this.changed();
+    this.publishDirty();
   }
   /** 新挂载的作用域使用当前能力结果启动恢复。 */
-  activate(controller: DraftController) { controller.configure(this.api, this.supported, this.checking); this.changed(); }
+  activate(controller: DraftController) { controller.configure(this.api, this.supported, this.checking); this.changed(controller); }
   /** StrictMode 的同一轮卸载/重挂载不销毁控制器，真正离开后才释放。 */
   retain() {
     this.mounts += 1;
@@ -53,7 +64,7 @@ export class DraftRegistry {
     };
   }
   /** 断开连接时释放计时器和订阅，不跨主体保留草稿。 */
-  dispose() { for (const controller of this.controllers.values()) controller.dispose(); this.controllers.clear(); this.listeners.clear(); }
+  dispose() { for (const controller of this.controllers.values()) controller.dispose(); this.controllers.clear(); this.dirtyControllers.clear(); this.dirty = false; this.listeners.clear(); }
 }
 
 export const DraftContext = createContext<DraftRegistry | null>(null);
