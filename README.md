@@ -15,7 +15,7 @@
 
 **Developed by [Gogosling.ca](https://gogosling.ca), a Canadian company.** We welcome pull requests from developers everywhere. Help advance open-source AI in Canada with tools that people can inspect, run locally, and improve together.
 
-> **Development preview.** Run from source today. Signed installers and release packaging are on the [roadmap](ROADMAP.md). Expect changes as the project matures.
+> **Development preview.** Run from source or build a desktop package. Signed releases and broader device validation are on the [roadmap](ROADMAP.md). Expect changes as the project matures.
 
 ![The English start page: a focused composer, projects, and recent tasks](docs/assets/start-en.jpg)
 
@@ -81,6 +81,18 @@ Open **http://127.0.0.1:5173**. Leave the connection address empty and enter the
 In **Settings → Model connections**, connect your provider. Then choose the model in **Settings → Agents** and start a task. Starting the app and running tests do not require a paid model key; real requests may incur provider charges.
 
 [Full setup, Electron launch, and troubleshooting →](docs/development/quickstart.md)
+
+### Build a desktop package
+
+After installing the development dependencies above, run:
+
+```bash
+npm run package -w @gogosling/desktop
+```
+
+This builds for the current machine and bundles the daemon, Python runtime, worker dependencies, and Web UI. The package runs without separately installed Go, Node.js, Python, or uv. Staging checks the runtime after moving it to a new path and verifies inference with a local test model.
+
+Build outputs are unsigned development artifacts in `apps/desktop/release/`. See the [desktop build guide](apps/desktop/README.md) for prerequisites, supported build hosts, and validation limits. Model connections still need to be configured after launch.
 
 ### Current boundaries
 

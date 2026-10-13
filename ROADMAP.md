@@ -14,7 +14,9 @@ See the [README](README.md) for support boundaries. Tests do not replace release
 
 ## Make first use dependable
 
-**Open work:** reproducible release packaging, signed installers, clean-machine checks, and upgrade/rollback exercises.
+**Available:** a native desktop packaging command that stages a bundled runtime and checks relocation with a local test model. See the [desktop build guide](apps/desktop/README.md).
+
+**Open work:** automated release distribution, signed installers, clean-machine checks across supported platforms, and upgrade/rollback exercises.
 
 **First PR:** document one setup failure with OS, architecture, reproduction, and minimal fix. Start in `apps/desktop`, `internal/update`, or `docs/development`.
 

@@ -37,3 +37,8 @@ coverage.*
 Thumbs.db
 .idea/
 .vscode/
+
+# Self-contained desktop runtime staging (generated, never source-controlled)
+/apps/desktop/resources/runtime/
+/apps/desktop/resources/runtime.previous/
+/apps/desktop/resources/.runtime-stage-*/

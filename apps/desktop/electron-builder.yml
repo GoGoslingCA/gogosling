@@ -1,9 +1,8 @@
 # electron-builder 打包配置（不签名）。
 #
 # 运行 `npm run package -w @gogosling/desktop` 前需要：
-#   1. `npm run build -w @gogosling/web`   —— 产物 apps/web/dist 作为 extraResources/web 随包分发
-#   2. 把 gogoslingd[.exe] 放到 apps/desktop/resources/bin/，把 Python 运行环境放到 resources/worker/
-#      （发布流水线负责；本地开发可用 GOGOSLING_DAEMON_PATH 指向任意位置的二进制）
+# package 脚本会构建 Web/桌面代码，并暂存和验证本平台 Go/CPython 运行时。
+# 安装后不依赖全局 Go、Node、Python 或 uv；开发时仍可单独运行源码。
 appId: com.gogosling.desktop
 productName: gogosling
 copyright: gogosling contributors
@@ -22,6 +21,7 @@ files:
 asar: true
 npmRebuild: false
 forceCodeSigning: false
+beforePack: scripts/before-pack.cjs
 
 # 预留的外部资源：守护进程二进制与工作进程运行环境必须是真实文件（不能进 asar）。
 # 内置扩展放在 share/gogosling/extensions/bundled：与 internal/app/resources.go 的安装布局
@@ -29,12 +29,9 @@ forceCodeSigning: false
 extraResources:
   - from: ../web/dist
     to: web
-  - from: resources/bin
-    to: bin
-    filter: ["**/*", "!.gitkeep"]
-  - from: resources/worker
-    to: worker
-    filter: ["**/*", "!.gitkeep"]
+  - from: resources/runtime
+    to: .
+    filter: ["**/*"]
   - from: ../../extensions/bundled
     to: share/gogosling/extensions/bundled
 

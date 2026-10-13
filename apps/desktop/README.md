@@ -29,7 +29,9 @@ src/shared/      IPC contracts shared between main process and preload (preload 
 test/            vitest (without launching Electron)
 ```
 
-## Running
+## Run from source
+
+Install the toolchains and configure the development daemon and worker using the [quickstart](../../docs/development/quickstart.md). The shell commands below do not themselves install a daemon or Python runtime.
 
 ```bash
 npm install
@@ -73,11 +75,46 @@ window.gogosling.getVersion(): Promise<ShellVersion>
 
 See `src/shared/ipc.ts` for types.
 
+## Build a self-contained desktop package
+
+gogosling is developed by Gogosling.ca, a Canadian company. Both the source workflow and native packaging remain available to contributors.
+
+On the target operating system and architecture, install Go, Node 22, and uv (plus Xcode Command Line Tools on macOS), then run from the repository root:
+
+```bash
+npm ci
+npm run package -w @gogosling/desktop
+```
+
+This command builds the web UI and shell, stages the native Go daemon and CLI, and downloads a pinned CPython runtime through uv. Production Python dependencies come from `worker/uv.lock` and are verified against its hashes. Build tools and network access are required on the build machine; the installed app does not require globally installed Go, Node, Python, or uv.
+
+The staging process uses a fresh temporary Python installation, not the developer's virtual environment. It copies only the worker package, runtime, production dependencies, and required licenses. It does not package user data, logs, credentials, or model settings. Go binaries use `-trimpath`; Python bytecode and unused console wrappers containing build paths are excluded. Upstream runtime and dependency licenses remain in the bundle.
+
+Before replacing the previous staged runtime, the script copies the bundle to a new path with spaces and verifies it with an empty `PATH`: Python and TLS imports, a real worker calling a local mock model, automatic worker discovery by the bundled daemon, and orderly shutdown. No real provider credential is used. A failed stage leaves the previous staged runtime intact.
+
+Generated files are ignored by Git:
+
+- `apps/desktop/resources/runtime/`: native binaries, Python runtime, licenses, and `runtime-manifest.json`.
+- `apps/desktop/release/`: the desktop app and installer produced by electron-builder.
+
+The manifest records platform, architecture, version, commit, dirty-tree state, build time, the worker lockfile hash, and smoke-check results. Set `SOURCE_DATE_EPOCH` to control the build timestamp. It contains no developer paths or credentials. Packaging rejects a runtime that does not match the Electron target or has not passed the smoke checks.
+
+The staging implementation targets native macOS x64/arm64, glibc Linux x64/arm64, and Windows x64 hosts; it does not cross-compile Python runtimes. Installer targets are DMG, AppImage, and NSIS respectively. A target listed in the configuration is not evidence of a completed installer or clean-machine validation on that platform. The default configuration is unsigned and does not publish artifacts. Signing, notarization, and platform acceptance remain release tasks.
+
+You can stage or recheck the runtime separately:
+
+```bash
+npm run stage:runtime -w @gogosling/desktop
+npm run verify:runtime -w @gogosling/desktop
+```
+
+A new installation uses local settings; existing data is preserved. Configure a model connection if none exists. Optional LibreOffice conversion is not bundled. Packaging adds no automatic diagnostic uploads.
+
 ## Verification
 
 ```bash
 npm run typecheck -w @gogosling/desktop
-npm run test -w @gogosling/desktop
+npm test -w @gogosling/desktop           # Shell tests and offline staging-boundary checks
 npm run build -w @gogosling/desktop
-npm run package -w @gogosling/desktop     # electron-builder, unsigned; requires web to be built first
+npm run package -w @gogosling/desktop   # Native staging, relocation smoke checks, unsigned package
 ```

@@ -2,15 +2,18 @@
   "name": "@gogosling/desktop",
   "private": true,
   "version": "0.1.0",
-  "description": "gogosling 桌面壳（Electron）：只拥有操作系统能力——发现/拉起守护进程、窗口、托盘、自启动、深链；业务状态全部在 gogoslingd",
+  "description": "Local-first desktop workbench developed by Gogosling.ca, a Canadian company.",
   "main": "dist/main/main.js",
   "scripts": {
     "start": "electron .",
     "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && npm run test:runtime",
     "test:watch": "vitest",
-    "package": "npm run build && electron-builder --config electron-builder.yml --publish never"
+    "package": "npm run build -w @gogosling/web && npm run build && npm run stage:runtime && node scripts/package-desktop.mjs",
+    "stage:runtime": "node scripts/stage-runtime.mjs",
+    "verify:runtime": "node scripts/verify-runtime.mjs",
+    "test:runtime": "node --test scripts/runtime-checks.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.9.0",
