@@ -465,7 +465,12 @@
     "runningPlaceholder": "Write a follow-up to send after this step finishes",
     "runningHint": "Working · You can draft a follow-up",
     "uploading": "Adding {{count}} files. You can send when they are ready.",
-    "keyboardHint": "Enter to send · Shift + Enter for a new line"
+    "keyboardHint": "Enter to send · Shift + Enter for a new line",
+    "addMenu": "Add content",
+    "addFiles": "Add files",
+    "localFiles": "Local files",
+    "projectMaterials": "Project materials",
+    "approvalMode": "Approval mode"
   },
   "artifact": {
     "title": "Results",
@@ -942,5 +947,9 @@
       "unauthorized": "Upload authorization is unavailable. Try again later.",
       "invalid_response": "The service returned an unexpected response. You can retry."
     }
+  },
+  "profile": {
+    "menuLabel": "Preferences",
+    "version": "Version: {{version}}"
   }
 }

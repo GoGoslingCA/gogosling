@@ -1,30 +1,26 @@
 // 本次任务条件集中展示；引用附件不等于改变内核文件访问权限。
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useContext, useEffect, useId, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { Agent, Attachment, Message, Usage } from "../../api/types";
 import { Icon } from "../../components/Icon";
+import { TaskPopoverContext, useTaskPopoverController } from "./taskPopovers";
 import "../../components/compact-workbench.css";
 
 interface ContextItemProps { id: string; open: string | null; setOpen: (id: string | null) => void; label: string; title?: string; children: ReactNode; trigger: ReactNode; prefix: string }
 function ContextItem({id,open,setOpen,label,title,children,trigger,prefix}:ContextItemProps) {
-  return <details className={`context-${id}-menu`} data-context-id={id} open={open===id}>
+  return <details className={`context-${id}-menu`} data-context-id={id} data-task-popover={id} open={open===id}>
     <summary role="button" aria-label={label} title={title ?? label} aria-expanded={open===id} aria-controls={`${prefix}-${id}`} onClick={event=>{event.preventDefault();setOpen(open===id?null:id);}}>{trigger}</summary>
     <div id={`${prefix}-${id}`} className="context-popover">{children}</div>
   </details>;
 }
 export function TaskContextBar({ agent, messages, onAddMaterial, disabled, usage }: { agent: Agent; messages: Message[]; usage?: Usage | null; onAddMaterial: (attachment: Attachment) => void; disabled: boolean }) {
   const { t } = useTranslation(); const root=useRef<HTMLDivElement>(null);const prefix=useId();
-  const [open,setOpen]=useState<string | null>(null);
+  const sharedController=useContext(TaskPopoverContext);
+  const localController=useTaskPopoverController(root,agent.id,!sharedController);
+  const {open,setOpen}=sharedController ?? localController;
   // 单一状态控制顶层弹层；不改嵌套说明、审批对话框或其他组件的开关。
   useEffect(()=>{setOpen(null);},[agent.id]);
-  useEffect(()=>{
-    if(!open)return;
-    const dismiss=(event:Event)=>{const active=root.current?.querySelector(`[data-context-id="${open}"]`);if(event.target instanceof Node && !active?.contains(event.target))setOpen(null);};
-    const blur=()=>setOpen(null);
-    document.addEventListener("pointerdown",dismiss,true);document.addEventListener("focusin",dismiss,true);window.addEventListener("blur",blur);
-    return()=>{document.removeEventListener("pointerdown",dismiss,true);document.removeEventListener("focusin",dismiss,true);window.removeEventListener("blur",blur);};
-  },[open]);
   const materials = [...new Map(messages.flatMap((message) => message.parts.flatMap((part) => part.attachment ? [[part.attachment.path, part.attachment] as const] : []))).values()];
   const folder = agent.workspace_dir.replace(/[\\/]+$/, "").split(/[\\/]/).at(-1) ?? "";
   const opaqueFolder = folder === agent.id || /^[0-9A-HJKMNP-TV-Z]{26}$/i.test(folder) || /^[a-f\d]{16,}$/i.test(folder) || /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(folder);

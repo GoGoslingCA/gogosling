@@ -22,6 +22,8 @@ Sections 1–6 describe the local workbench flow recorded on 2026-10-12, before 
 
 ## 1. Before starting
 
+The avatar at the bottom of the workbench navigation opens the existing settings sections. Its default person icon is a local preferences entry, not a signed-in account. The composer’s **+** menu offers local files, available project materials, workspace details, and approval settings; it has no cloud file sources.
+
 You need gogosling running on your computer, a model endpoint and model name, any required credential, and a goal. Reference files are optional.
 
 Three distinct actions matter:

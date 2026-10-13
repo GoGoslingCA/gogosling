@@ -258,7 +258,7 @@ describe("开始页任务创建", () => {
       const [selected, setSelected] = useState<string[]>([]);
       return <><label><input type="checkbox" aria-label="需求资料" checked={selected.includes("material-a")} onChange={() => setSelected((current) => current.includes("material-a") ? current.filter((id) => id !== "material-a") : [...current, "material-a"])} />需求资料</label>
         <label><input type="checkbox" aria-label="补充资料" checked={selected.includes("material-b")} onChange={() => setSelected((current) => current.includes("material-b") ? current.filter((id) => id !== "material-b") : [...current, "material-b"])} />补充资料</label>
-        <StartPage {...props} projectId="project-a" projectMaterialIds={selected} onProjectMaterialIdsChange={(ids) => { selectionChanged(ids); setSelected(ids); }} />
+        <StartPage {...props} projectId="project-a" projectMaterials={[{ id: "material-a", name: "requirements.md" }, { id: "material-b", name: "notes.md" }]} projectMaterialIds={selected} onProjectMaterialIdsChange={(ids) => { selectionChanged(ids); setSelected(ids); }} />
       </>;
     }
     try {
@@ -268,7 +268,13 @@ describe("开始页任务创建", () => {
       expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
       expect(container.textContent).not.toContain("material-a");
       expect(container.querySelector(".start-composer .attachment-chip")).toBeNull();
-      await act(async () => container.querySelector<HTMLInputElement>('input[aria-label="补充资料"]')!.click());
+      await act(async () => container.querySelector<HTMLButtonElement>(".composer-add-menu > button")!.click());
+      await act(async () => container.querySelector<HTMLButtonElement>('[data-local-menu="root"] > button')!.click());
+      const addNotes = [...container.querySelectorAll<HTMLButtonElement>('[data-local-menu="files"] > button')].find(button => button.textContent === "notes.md")!;
+      await act(async () => addNotes.click());
+      expect(container.querySelector<HTMLInputElement>('input[aria-label="补充资料"]')!.checked).toBe(true);
+      expect(container.querySelector(".composer-add-panels")).toBeNull();
+      expect(props.onStart).not.toHaveBeenCalled();
       await act(async () => submit());
       expect(api.updateDraft).toHaveBeenCalledWith("draft-a", expect.objectContaining({ material_ids: ["material-a", "material-b"], expected_version: 1 }));
       expect(props.onStart).toHaveBeenCalledWith(agent.id, "", [], expect.objectContaining({ material_ids: ["material-a", "material-b"] }));

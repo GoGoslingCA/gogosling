@@ -8,10 +8,10 @@ import { readUiPreferences } from "../lib/uiPreferences";
 import { queryKeys } from "../state/queryKeys";
 import { NavigationSidebar } from "./NavigationSidebar";
 
-const { list, get, update, toast } = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), update: vi.fn(), toast: vi.fn() }));
-vi.mock("../state/ConnectionContext", () => ({ useApi: () => ({ sessions: { list, get, update } }) }));
+const { list, get, update, toast, version } = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), update: vi.fn(), toast: vi.fn(), version: vi.fn() }));
+vi.mock("../state/ConnectionContext", () => ({ useApi: () => ({ sessions: { list, get, update }, system: { version } }) }));
 vi.mock("../components/Toast", () => ({ useToast: () => ({ show: toast }) }));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, values?: { title?: string }) => values?.title ? `${key}: ${values.title}` : key }) }));
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, values?: { title?: string; version?: string }) => values?.title ? `${key}: ${values.title}` : values?.version ? `版本：${values.version}` : key }) }));
 
 const SESSION_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const OTHER_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
@@ -29,11 +29,11 @@ function session(id = SESSION_ID, title = "准备产品需求文档"): Session {
 
 function LocationProbe() {
   const location = useLocation();
-  return <output aria-label="测试当前路由">{location.pathname}</output>;
+  return <output aria-label="测试当前路由" data-search={location.search} data-return-to={(location.state as { returnTo?: string } | null)?.returnTo}>{location.pathname}</output>;
 }
 
-async function render(instance = 0) {
-  await act(async () => root.render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[`/chat/${SESSION_ID}`]}><NavigationSidebar key={instance} openSearch={openSearch} modifier="⌘" /><LocationProbe /></MemoryRouter></QueryClientProvider>));
+async function render(instance = 0, entry = `/chat/${SESSION_ID}`) {
+  await act(async () => root.render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[entry]}><NavigationSidebar key={instance} openSearch={openSearch} modifier="⌘" /><LocationProbe /></MemoryRouter></QueryClientProvider>));
   await settle();
 }
 
@@ -58,6 +58,12 @@ async function openMenu(id = SESSION_ID) {
   return trigger;
 }
 
+async function openAvatarMenu() {
+  const trigger = host.querySelector<HTMLButtonElement>(".nav-avatar-trigger")!;
+  await act(async () => trigger.click());
+  return trigger;
+}
+
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
@@ -72,6 +78,7 @@ beforeEach(() => {
     return saved;
   });
   toast.mockReset();
+  version.mockReset().mockResolvedValue({ version: "test", capabilities: {} });
   openSearch = vi.fn();
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   host = document.createElement("div");
@@ -101,9 +108,11 @@ describe("NavigationSidebar 兼容原入口与设备偏好", () => {
     expect(taskLink()?.textContent).toContain("准备产品需求文档");
     expect(host.querySelector("button[aria-expanded]")?.getAttribute("aria-expanded")).toBe("true");
     for (const path of ["/agents", "/providers", "/extensions", "/channels", "/audit"]) expect(host.querySelector(`a[href='${path}']`)).toBeNull();
-    for (const path of ["/jobs", "/settings"]) expect(host.querySelector(`a[href='${path}']`)).not.toBeNull();
+    expect(host.querySelector("a[href='/jobs']")).not.toBeNull();
+    expect(host.querySelector(".nav-avatar-trigger")).not.toBeNull();
     expect(host.querySelector(".nav-tools")).toBeNull();
-    await act(async () => host.querySelector<HTMLAnchorElement>("a[href='/settings']")!.click());
+    await openAvatarMenu();
+    await act(async () => document.querySelector<HTMLAnchorElement>("a[href='/settings?section=general']")!.click());
     expect(host.querySelector("output")?.textContent).toBe("/settings");
     await act(async () => button("phase2.all").click()); expect(openSearch).toHaveBeenCalledOnce();
   });
@@ -135,7 +144,7 @@ describe("NavigationSidebar 兼容原入口与设备偏好", () => {
     await act(async () => host.querySelector<HTMLButtonElement>("button[aria-expanded]")!.click());
     expect(readUiPreferences()).toMatchObject({ taskListVisible: false, toolsExpanded: false });
     await render(1); expect(taskLink()).toBeNull();
-    expect(host.querySelector("a[href='/settings']")).not.toBeNull();
+    expect(host.querySelector(".nav-avatar-trigger")).not.toBeNull();
     await act(async () => host.querySelector<HTMLButtonElement>("button[aria-expanded]")!.click());
     expect(taskLink()).not.toBeNull(); expect(readUiPreferences().taskListVisible).toBe(true);
   });
@@ -205,5 +214,85 @@ describe("NavigationSidebar 任务操作", () => {
     await act(async () => { document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
     expect(document.querySelector("[role=menu]")).toBeNull();
     expect(document.activeElement).toBe(trigger);
+  });
+});
+
+describe("NavigationSidebar 头像设置菜单", () => {
+  it("显示指定版本并保留全部设置入口，打开菜单不会增加请求", async () => {
+    version.mockResolvedValue({ version: "test", capabilities: { "runtime.resources": 1 } });
+    await render();
+    expect(host.querySelector(".nav-avatar-copy")?.textContent).toContain("版本：Beta 0.0.1103");
+    expect(host.querySelector(".nav-local")).toBeNull();
+    const requestCount = version.mock.calls.length;
+    const listCount = list.mock.calls.length;
+    await openAvatarMenu();
+    const menu = document.querySelector(".avatar-settings-menu")!;
+    expect(menu.querySelectorAll("a[role=menuitem]")).toHaveLength(10);
+    expect(menu.querySelector("a[href='/settings?section=resources']")).not.toBeNull();
+    expect(menu.textContent).not.toMatch(/套餐|积分|登录|logout|subscription|credits/i);
+    expect(version).toHaveBeenCalledTimes(requestCount);
+    expect(list).toHaveBeenCalledTimes(listCount);
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it("旧服务不显示资源入口，设置跳转保留任务与项目参数", async () => {
+    await render(0, `/chat/${SESSION_ID}?project_id=local-project`);
+    await openAvatarMenu();
+    const menu = document.querySelector(".avatar-settings-menu")!;
+    expect(menu.querySelectorAll("a[role=menuitem]")).toHaveLength(9);
+    expect(menu.querySelector("a[href*='section=resources']")).toBeNull();
+    const appearance = menu.querySelector<HTMLAnchorElement>("a[href*='section=appearance']")!;
+    expect(appearance.getAttribute("href")).toBe("/settings?project_id=local-project&section=appearance");
+    await act(async () => appearance.click());
+    expect(document.querySelector(".avatar-settings-menu")).toBeNull();
+    expect(host.querySelector("output")?.dataset.returnTo).toBe(`/chat/${SESSION_ID}?project_id=local-project`);
+    await openAvatarMenu();
+    await act(async () => document.querySelector<HTMLAnchorElement>(".avatar-settings-menu a[href*='section=models']")!.click());
+    expect(host.querySelector("output")?.dataset.returnTo).toBe(`/chat/${SESSION_ID}?project_id=local-project`);
+    expect(host.querySelector("output")?.dataset.search).toContain("project_id=local-project");
+  });
+
+  it("方向键浏览，Escape 返回头像，Tab 与失焦关闭菜单", async () => {
+    await render();
+    const trigger = await openAvatarMenu();
+    const items = Array.from(document.querySelectorAll<HTMLAnchorElement>(".avatar-settings-menu [role=menuitem]"));
+    expect(document.activeElement).toBe(items[0]);
+    await act(async () => document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true })));
+    expect(document.activeElement).toBe(items.at(-1));
+    await act(async () => document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    expect(document.activeElement).toBe(items[0]);
+    await act(async () => document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(document.querySelector(".avatar-settings-menu")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    await openAvatarMenu();
+    await act(async () => document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true })));
+    expect(document.querySelector(".avatar-settings-menu")).toBeNull();
+    await openAvatarMenu();
+    await act(async () => host.querySelector<HTMLButtonElement>(".nav-search")!.focus());
+    expect(document.querySelector(".avatar-settings-menu")).toBeNull();
+    await openAvatarMenu();
+    await act(async () => window.dispatchEvent(new Event("blur")));
+    expect(document.querySelector(".avatar-settings-menu")).toBeNull();
+  });
+
+  it("点击外部关闭，头像菜单和任务菜单互斥且不阻断重命名对话框", async () => {
+    await render();
+    await openAvatarMenu();
+    await act(async () => document.body.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    expect(document.querySelector(".avatar-settings-menu")).toBeNull();
+    await openAvatarMenu();
+    await openMenu();
+    expect(document.querySelector(".avatar-settings-menu")).toBeNull();
+    expect(document.querySelector(".session-context-menu")).not.toBeNull();
+    await openAvatarMenu();
+    expect(document.querySelector(".avatar-settings-menu")).not.toBeNull();
+    expect(document.querySelector(".session-context-menu")).toBeNull();
+    await openMenu();
+    await act(async () => button("chat.rename").click());
+    expect(host.querySelector("dialog")?.open).toBe(true);
+    expect(document.querySelector(".avatar-settings-menu")).toBeNull();
+    await act(async () => button("common.cancel").click());
+    await openAvatarMenu();
+    expect(document.querySelector(".avatar-settings-menu")).not.toBeNull();
   });
 });

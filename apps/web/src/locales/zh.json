@@ -465,7 +465,12 @@
     "runningPlaceholder": "写下补充要求，当前步骤结束后发送",
     "runningHint": "运行中 · 可先写补充要求",
     "uploading": "正在加入 {{count}} 份资料，完成后即可发送。",
-    "keyboardHint": "Enter 发送 · Shift + Enter 换行"
+    "keyboardHint": "Enter 发送 · Shift + Enter 换行",
+    "addMenu": "添加内容",
+    "addFiles": "添加文件",
+    "localFiles": "本地文件",
+    "projectMaterials": "项目资料",
+    "approvalMode": "审批方式"
   },
   "artifact": {
     "title": "成果",
@@ -942,5 +947,9 @@
       "unauthorized": "暂时无法取得上传授权，请稍后重试。",
       "invalid_response": "服务响应异常，可以重试。"
     }
+  },
+  "profile": {
+    "menuLabel": "个人设置",
+    "version": "版本：{{version}}"
   }
 }

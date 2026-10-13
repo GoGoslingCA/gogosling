@@ -465,7 +465,12 @@
     "runningPlaceholder": "Écrivez une suite à envoyer après cette étape",
     "runningHint": "En cours · Vous pouvez préparer une suite",
     "uploading": "Ajout de {{count}} fichiers. Vous pourrez envoyer lorsqu'ils seront prêts.",
-    "keyboardHint": "Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne"
+    "keyboardHint": "Entrée pour envoyer · Maj + Entrée pour une nouvelle ligne",
+    "addMenu": "Ajouter du contenu",
+    "addFiles": "Ajouter des fichiers",
+    "localFiles": "Fichiers locaux",
+    "projectMaterials": "Documents du projet",
+    "approvalMode": "Mode d’approbation"
   },
   "artifact": {
     "title": "Résultats",
@@ -942,5 +947,9 @@
       "unauthorized": "L’autorisation d’envoi est indisponible. Réessayez plus tard.",
       "invalid_response": "Le service a renvoyé une réponse inattendue. Vous pouvez réessayer."
     }
+  },
+  "profile": {
+    "menuLabel": "Préférences",
+    "version": "Version : {{version}}"
   }
 }

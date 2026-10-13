@@ -1,5 +1,5 @@
 // 导航中的最近任务常驻；固定与折叠仅为设备上的展示偏好，不改变会话业务状态。
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
@@ -12,7 +12,8 @@ import { useToast } from "../components/Toast";
 import { describeError } from "../lib/errorMessage";
 import { readUiPreferences, writeUiPreferences } from "../lib/uiPreferences";
 import { useWorkbenchCapabilities } from "../state/useWorkbenchCapabilities";
-import type { Session } from "../api/types";
+import type { Session, VersionInfo } from "../api/types";
+import { AvatarSettingsMenu } from "./AvatarSettingsMenu";
 
 export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => void; modifier: string }) {
   const { t } = useTranslation();
@@ -24,6 +25,8 @@ export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => 
   const location = useLocation();
   const [prefs, setPrefs] = useState(readUiPreferences);
   const [menu, setMenu] = useState<{ session: Session; x: number; y: number } | null>(null);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const changeAvatarOpen = useCallback((open: boolean) => { if (open) setMenu(null); setAvatarOpen(open); }, []);
   const [rename, setRename] = useState<Session | null>(null);
   const [title, setTitle] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
@@ -53,6 +56,7 @@ export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => 
   useEffect(() => { setMenu(null); }, [location.pathname]);
   const showMenu = (session: Session, event: MouseEvent<HTMLElement>) => {
     event.preventDefault();
+    setAvatarOpen(false);
     menuTrigger.current = event.currentTarget;
     const rect = event.currentTarget.getBoundingClientRect();
     setMenu({ session, x: Math.min(event.type === "contextmenu" ? event.clientX : rect.left, window.innerWidth - 200), y: Math.min(rect.bottom + 4, window.innerHeight - 180) });
@@ -81,7 +85,7 @@ export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => 
           {!recent.isPending && !recent.error && !pinned.length && !unpinned.length ? <p className="nav-task-empty">{t("phase2.noTasks")}</p> : null}
         </div> : null}
       </section>
-      <div className="nav-bottom"><NavLink to="/settings" state={{ returnTo: location.pathname + location.search }}><Icon name="settings" />{t("nav.settings")}</NavLink><span className="nav-local">{t("work.localWorkspace")}</span></div>
+      <div className="nav-bottom"><AvatarSettingsMenu open={avatarOpen} onOpenChange={changeAvatarOpen} resourcesAvailable={!caps.error && client.getQueryData<VersionInfo>(queryKeys.version)?.capabilities?.["runtime.resources"] === 1} /></div>
     </nav>
     {menu ? createPortal(<div ref={menuRef} className="session-context-menu" role="menu" style={{ left: menu.x, top: menu.y }} aria-label={t("work.taskActions")} onKeyDown={(event) => {
       if (event.key === "Escape") { event.preventDefault(); closeMenu(); }

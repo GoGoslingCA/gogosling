@@ -1,7 +1,7 @@
 {
   "name": "@gogosling/web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.0.1103-beta",
   "description": "gogosling Web UI：浏览器与 Electron 壳共用的 React 前端，只通过本地 HTTP API 访问守护进程",
   "type": "module",
   "scripts": {

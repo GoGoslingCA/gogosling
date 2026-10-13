@@ -2,6 +2,8 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../components/Icon";
+import { LocalAddMenu, type LocalMenuMaterial } from "./LocalAddMenu";
+import { TaskPopoverContext, useTaskPopoverController } from "./taskPopovers";
 import "./task-input.css";
 
 // 点击后才下载优化界面；内部模型指令始终由内核持有。
@@ -42,6 +44,8 @@ export interface TaskInputProps {
   textareaRef?: Ref<HTMLTextAreaElement>;
   actions?: ReactNode;
   contextActions?: ReactNode;
+  projectMaterials?: readonly LocalMenuMaterial[];
+  onToggleProjectMaterial?: (id: string) => void;
   secondaryAction?: ReactNode;
   status?: ReactNode;
   footer?: ReactNode;
@@ -50,10 +54,17 @@ export interface TaskInputProps {
 }
 
 /** Enter 提交、Shift+Enter 换行，输入法合成期间不提交；文件仅交回调用方。 */
-export function TaskInput({ value, onChange, onSubmit, materials, onRemoveMaterial, onFiles, disabled, filesDisabled, removeDisabled = disabled, submitDisabled, submitOnEnter = true, submitLabel, attachLabel, label, placeholder, className = "", inputKey, textareaRef, actions, contextActions, secondaryAction, status, footer, enhanceAgentId, enhanceDisabled = false }: TaskInputProps) {
+export function TaskInput({ value, onChange, onSubmit, materials, onRemoveMaterial, onFiles, disabled, filesDisabled, removeDisabled = disabled, submitDisabled, submitOnEnter = true, submitLabel, attachLabel, label, placeholder, className = "", inputKey, textareaRef, actions, contextActions, projectMaterials, onToggleProjectMaterial, secondaryAction, status, footer, enhanceAgentId, enhanceDisabled = false }: TaskInputProps) {
   const { t } = useTranslation();
+  const form = useRef<HTMLFormElement>(null);
+  const popovers = useTaskPopoverController(form, inputKey);
   const fileInput = useRef<HTMLInputElement>(null);
   const focusInput = () => queueMicrotask(() => fileInput.current?.form?.querySelector<HTMLTextAreaElement>("textarea")?.focus());
+  useEffect(() => {
+    const input = fileInput.current;
+    input?.addEventListener("cancel", focusInput);
+    return () => input?.removeEventListener("cancel", focusInput);
+  }, []);
   const composing = useRef(false);
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
@@ -74,10 +85,10 @@ export function TaskInput({ value, onChange, onSubmit, materials, onRemoveMateri
     const selected = files ? Array.from(files) : [];
     // 先重置选择器，让失败后再次选择同一个文件仍能触发 change。
     if (fileInput.current) fileInput.current.value = "";
-    if (!filesDisabled && selected.length) onFiles(selected);
+    if (!filesDisabled && selected.length) { onFiles(selected); focusInput(); }
   };
 
-  return <form
+  return <TaskPopoverContext.Provider value={popovers}><form ref={form}
     className={`task-input composer-dropzone ${className}${dragging ? " is-dragging" : ""}`}
     onSubmit={(event) => { event.preventDefault(); submit(); }}
     onDragEnter={(event) => {
@@ -125,7 +136,7 @@ export function TaskInput({ value, onChange, onSubmit, materials, onRemoveMateri
     />
     <div className="row composer-actions task-input-actions">
       <input ref={fileInput} type="file" multiple aria-label={t("chat.attach")} disabled={filesDisabled} hidden onChange={(event) => addFiles(event.target.files)} />
-      <button type="button" className="btn ghost sm composer-icon" aria-label={attachLabel ?? t("chat.attach")} title={attachLabel ?? t("chat.attach")} disabled={filesDisabled} onClick={() => fileInput.current?.click()}><Icon name="plus" size={19}/><span className="sr-only">{attachLabel ?? t("chat.attach")}</span></button>
+      <LocalAddMenu controller={popovers} disabled={disabled || filesDisabled} label={attachLabel ?? t("chat.attach")} hasTaskContext={!!contextActions} onChooseFiles={() => fileInput.current?.click()} projectMaterials={projectMaterials} onToggleMaterial={onToggleProjectMaterial}/>
       {enhanceAgentId ? enhancementStartedAt !== null ? <Suspense fallback={<button type="button" className="btn ghost sm" disabled>{t("common.loading")}</button>}><PromptEnhancementControls agentId={enhanceAgentId} scope={inputKey} value={value} revision={revision.current.number} initialRevision={enhancementStartedAt} disabled={disabled || enhanceDisabled} onChange={onChange} onFocus={focusInput} onDismiss={() => setEnhancementStartedAt(null)}/></Suspense> : <button type="button" className="btn ghost sm prompt-enhance-button" disabled={disabled || enhanceDisabled || !value.trim()} title={t("enhance.action")} aria-label={t("enhance.action")} onClick={() => setEnhancementStartedAt(revision.current.number)}><Icon name="spark" size={17}/><span className="sr-only">{t("enhance.action")}</span></button> : null}
       {actions}
       {contextActions}
@@ -136,5 +147,5 @@ export function TaskInput({ value, onChange, onSubmit, materials, onRemoveMateri
     <div className={!status || status === t("compose.keyboardHint") ? "sr-only" : "composer-hint"} role="status">{status ?? t("compose.keyboardHint")}</div>
     {footer ? <div className="task-input-footer">{footer}</div> : null}
 
-  </form>;
+  </form></TaskPopoverContext.Provider>;
 }

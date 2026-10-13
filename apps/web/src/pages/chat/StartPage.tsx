@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../components/Icon";
 import { ErrorBanner } from "../../components/ui";
-import type { Agent, Attachment, Session } from "../../api/types";
+import type { Agent, Attachment, ProjectMaterial, Session } from "../../api/types";
 import { SessionList } from "./SessionList";
 import { TaskInput } from "./TaskInput";
 import { TaskContextBar } from "./TaskContextBar";
@@ -17,7 +17,7 @@ import "../../components/compact-workbench.css";
 /** 开始页恢复的已上传引用与其已确认草稿版本，不包含本地文件二进制。 */
 export interface StartReferences { attachments: Attachment[]; material_ids: string[]; draft?: DraftSaveToken }
 
-export function StartPage({ enhancementEnabled = false, agents, sessions, loading, error, busy, timeZone, onStart, onSelect, onHistory, startStage = null, startError, startLocked = false, startBlocked = false, onDraftDirtyChange, projectId, projectMaterialIds, onProjectMaterialIdsChange }: {
+export function StartPage({ enhancementEnabled = false, agents, sessions, loading, error, busy, timeZone, onStart, onSelect, onHistory, startStage = null, startError, startLocked = false, startBlocked = false, onDraftDirtyChange, projectId, projectMaterials, projectMaterialIds, onProjectMaterialIdsChange }: {
   enhancementEnabled?: boolean;
   agents: Agent[]; sessions: Session[]; loading: boolean; error: unknown; busy: boolean;
   timeZone: string | undefined;
@@ -30,6 +30,7 @@ export function StartPage({ enhancementEnabled = false, agents, sessions, loadin
   startBlocked?: boolean;
   onDraftDirtyChange?: (dirty: boolean) => void;
   projectId?: string;
+  projectMaterials?: readonly Pick<ProjectMaterial, "id" | "name">[];
   projectMaterialIds?: string[];
   onProjectMaterialIdsChange?: (ids: string[]) => void;
 }) {
@@ -115,6 +116,10 @@ export function StartPage({ enhancementEnabled = false, agents, sessions, loadin
         submitLabel={t(inFlight ? "phase2.starting" : "phase2.startTask")}
         materials={[...files.map((file, index) => ({ id: String(index), name: file.name })), ...references.attachments.map((attachment) => ({ id: `uploaded:${attachment.path}`, name: attachment.name })), ...(projectMaterialIds === undefined ? references.material_ids.map((id) => ({ id: `material:${id}`, name: t("p3draft.materialReference", { id }) })) : [])]}
         onFiles={(added) => { if (!inFlight) setFiles((current) => [...current, ...added.filter((file) => !current.includes(file))]); }}
+        projectMaterials={projectMaterials?.map((material) => ({ id: material.id, name: material.name, selected: materialIds.includes(material.id) }))}
+        onToggleProjectMaterial={onProjectMaterialIdsChange ? (id) => {
+          if (!inFlight) onProjectMaterialIdsChange(materialIds.includes(id) ? materialIds.filter((selected) => selected !== id) : [...materialIds, id]);
+        } : undefined}
         onRemoveMaterial={(id) => { if (!inFlight) { setFiles((current) => current.filter((_, index) => String(index) !== id)); setReferences((current) => ({ attachments: current.attachments.filter((item) => `uploaded:${item.path}` !== id), material_ids: current.material_ids.filter((item) => `material:${item}` !== id) })); } }}
         onSubmit={() => void submit()}
         actions={<>

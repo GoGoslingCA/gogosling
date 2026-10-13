@@ -1,7 +1,7 @@
 {
   "name": "@gogosling/desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.0.1103-beta",
   "description": "Local-first desktop workbench developed by Gogosling.ca, a Canadian company.",
   "main": "dist/main/main.js",
   "scripts": {
