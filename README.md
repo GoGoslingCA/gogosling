@@ -1,7 +1,7 @@
-<p align="center"><img src="apps/web/public/brand/gosli.png" width="80" alt="Gosli, the gogosling mascot"></p>
+<p align="center"><img src="apps/web/public/brand/gosli.png" width="64" alt="Gosli, the gogosling mascot"></p>
 <h1 align="center">gogosling</h1>
-<p align="center"><strong>Work locally. Travel light.</strong></p>
-<p align="center">An open-source AI workbench for your files, focused tasks, and reviewable changes.</p>
+<p align="center"><strong>Bring the brief. Leave with a file.</strong></p>
+<p align="center">Read documents, write drafts, and review code changes.<br>Keep the conversation beside the work, with projects saved on your machine.</p>
 
 <p align="center">
   <a href="https://github.com/GoGoslingCA/gogosling/actions/workflows/ci.yml"><img src="https://github.com/GoGoslingCA/gogosling/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build and tests"></a>
@@ -9,58 +9,38 @@
   <a href="https://gogosling.ca"><img src="https://img.shields.io/badge/Built_in-Canada-D52B1E" alt="Built in Canada"></a>
 </p>
 <p align="center">
-  Documentation in English<br>
-  <a href="#try-it">Try it</a> · <a href="docs/README.md">Docs</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="https://github.com/GoGoslingCA/gogosling/discussions">Discuss</a>
+  <a href="#run-it">Run it</a> · <a href="docs/README.md">Docs</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
-**Developed by [Gogosling.ca](https://gogosling.ca), a Canadian company.** We welcome pull requests from developers everywhere. Help advance open-source AI in Canada with tools that people can inspect, run locally, and improve together.
+**An open-source desktop AI workspace, developed by [Gogosling.ca](https://gogosling.ca), a Canadian company.** Bring your own model connection. No gogosling account required.
 
-> **Development preview.** Run from source or build a desktop package. Signed releases and broader device validation are on the [roadmap](ROADMAP.md). Expect changes as the project matures.
+> **Beta:** run from source or build a desktop package. Signed installers are still on the [roadmap](ROADMAP.md).
 
-![The English start page: a focused composer, projects, and recent tasks](docs/assets/start-en.jpg)
+![A project, conversation, and editable draft together in gogosling](docs/assets/workbench-en.jpg)
 
-*Actual development UI in an isolated demo workspace. Interface languages: English, Simplified Chinese, and French.*
+*Actual app, synthetic demo content, local test model. This shows the workflow, not a model-quality benchmark.*
 
-## From an idea to a saved result
+## Keep your work in reach
 
-1. **Bring the material.** Start a task, add a file, and choose the project materials to reference.
-2. **Work alongside the result.** Keep the conversation and a document preview side by side. Refine a prompt before sending it.
-3. **Review, then save.** Edit a draft, keep a version, export a copy, or inspect a file change before applying it. Undo uses the same permission checks.
-
-Projects, drafts, task history, and result versions live in the local daemon. Desktop, browser, and CLI share that work through a versioned API.
-
-## Built to keep work local and bounded
-
-- **Separate client and engine.** The Go daemon owns state, permissions, and scheduling. A replaceable Python worker handles inference; Electron and React stay clients.
-- **Controlled concurrency.** Two running tasks and a 32-item queue by default, configurable parallelism, same-workspace serialization, and cancellation that releases local resources.
-- **On-demand viewers.** Preview modules load when opened. Parsing has size, time, and concurrency limits; closing a preview releases its resources.
-- **Reviewable changes.** Draft conflict checks, immutable result versions, and guarded text-file apply/undo support recovery.
-- **Your model, your tools.** OpenAI-compatible and Anthropic endpoints, compatible local model servers, MCP, extensions, and scheduled tasks.
-
-Resource and performance goals still need reproducible measurements. [Help us build benchmarks](ROADMAP.md#help-measure-the-difference) for memory use, responsiveness, and cancellation.
-
-### Read files without leaving the task
-
-View Markdown, text/code, static HTML/SVG, PDF, images, browser-supported audio/video, CSV/TSV, modern Office, OpenDocument, and archive listings.
-
-Office previews emphasize readable content; they are not full Office editors. Legacy Office and layout conversion currently require optional sandboxed LibreOffice on macOS. Other unsupported formats keep a download path. [Format boundaries →](docs/design/content-preview-architecture.md)
+- **Read beside the conversation.** Open a document or code file in the results pane while asking for changes.
+- **Pick the context.** Group files and tasks into projects. Choose which materials a task should reference.
+- **Keep a draft you can return to.** Edit text, save versions, copy, and export. Resume a task from the sidebar.
+- **Check a file edit before applying it.** Inspect the diff, apply through the permission checks, and undo supported text-file changes. External edits trigger conflict checks.
 
 <details>
-<summary>See the workbench and settings</summary>
+<summary>See the start page and settings</summary>
 
-![A conversation alongside a document preview](docs/assets/workbench-en.jpg)
+![The start page with project navigation and a focused composer](docs/assets/start-en.jpg)
 
-English development demo: a synthetic workshop plan and project brief beside the conversation. The isolated local demo contains no personal task history. Sample content illustrates the UI, not model quality.
+![Settings for language, models, tools, and file access](docs/assets/settings-en.jpg)
 
-![English settings with grouped navigation and language selection](docs/assets/settings-en.jpg)
-
-Models, tools, connections, permissions, and resource controls are grouped in Settings.
+The interface supports English, French, and Simplified Chinese. Model connections, tools, permissions, and resource limits live in Settings.
 
 </details>
 
-## Try it
+## Run it
 
-Requires **Go 1.26, Node.js 22.12+, Python 3.12, uv, Git, and make**. Use Bash on macOS/Linux, or WSL2 for this development workflow on Windows.
+For the source workflow, install **Go 1.26, Node.js 22 LTS (22.12+), Python 3.12, uv, Git, and make**. Use Bash on macOS/Linux, or WSL2 for Web development on Windows.
 
 ```bash
 git clone https://github.com/GoGoslingCA/gogosling.git
@@ -76,55 +56,62 @@ In a second terminal, from the same checkout:
 npm run dev -w @gogosling/web -- --strictPort
 ```
 
-Open **http://127.0.0.1:5173**. Leave the connection address empty and enter the `token` from your local `~/.gogosling-dev/daemon.json`. Do not share this file; the browser keeps the token only in memory.
+1. Open **http://127.0.0.1:5173**. Leave the connection address empty and enter the `token` from your local `~/.gogosling-dev/daemon.json`. Keep that file private; the browser holds the token only in memory.
+2. In **Settings → Model connections**, add and test a provider.
+3. In **Settings → Agents**, create an agent and select its model. Start a task or create a project from the sidebar.
 
-In **Settings → Model connections**, connect your provider. Then choose the model in **Settings → Agents** and start a task. Starting the app and running tests do not require a paid model key; real requests may incur provider charges.
+[Setup and troubleshooting →](docs/development/quickstart.md)
 
-[Full setup, Electron launch, and troubleshooting →](docs/development/quickstart.md)
+<details>
+<summary>Build a desktop package</summary>
 
-### Build a desktop package
-
-After installing the development dependencies above, run:
+With the build prerequisites installed on the target OS and architecture:
 
 ```bash
 npm run package -w @gogosling/desktop
 ```
 
-This builds for the current machine and bundles the daemon, Python runtime, worker dependencies, and Web UI. The package runs without separately installed Go, Node.js, Python, or uv. Staging checks the runtime after moving it to a new path and verifies inference with a local test model.
+The package includes the daemon, Python runtime, worker, and UI. Users do not need separate Go, Node, Python, or uv installations. Build outputs are unsigned and saved in `apps/desktop/release/`; configure a model after launch. See the [desktop guide](apps/desktop/README.md) for native build prerequisites and platform limits.
 
-Build outputs are unsigned development artifacts in `apps/desktop/release/`. See the [desktop build guide](apps/desktop/README.md) for prerequisites, supported build hosts, and validation limits. Model connections still need to be configured after launch.
+</details>
 
-### Current boundaries
+## Three things to try
 
-- Core CI covers **Linux, macOS, and Windows**; signed installers and full desktop validation are still release work.
-- Guarded text-file apply/undo supports **Linux/macOS**; Windows keeps preview and export.
-- Local-first describes storage and orchestration. **Remote models receive the context sent to them.** No gogosling cloud account is required.
-- HTML previews are static and sandboxed, with external resources blocked. Credentials are stored separately from the application database.
+- **Turn requirements into a plan.** Use a Markdown requirements file or paste a brief. Draft a plan, then edit it beside the conversation.
+- **Review a code change.** Ask for revised file content, save it as a result, then preview and approve the change to one text file.
+- **Prepare a project brief.** Read a slide deck in the preview pane, supply the key text, and draft a one-page brief to edit and export.
 
-## Architecture you can contribute to
+## What makes this workspace different
 
-```mermaid
-flowchart LR
-    UI["Desktop · Web · CLI"] -->|"Local HTTP + SSE"| D["Go daemon: state, permissions, scheduling"]
-    D -->|"stdio JSON-RPC"| W["Python inference worker"]
-    W --> M["Your model endpoint"]
-    D --> S["Local SQLite + workspace"]
-```
+**Projects have a place of their own.** Reopen the files, tasks, and saved results together. The latest draft stays within reach when the conversation gets long.
 
-The worker requests tools; the daemon checks permissions and executes them. The UI never opens the database directly. Start with the [English architecture guide](docs/development/architecture-guide.md); the [detailed architecture](docs/architecture.md) defines dependency and safety rules.
+**The model is your choice.** Connect an OpenAI-compatible endpoint, Anthropic Messages, or a compatible local model server. Remote models receive the context you send and may charge for requests. Local storage does not mean every model request stays on the device.
+
+**Concurrency has a limit.** By default, two tasks run at once and up to 32 wait in the queue. Tasks sharing a workspace run in order. File viewers load when opened and release resources when closed. We have not published comparative memory or energy benchmarks; [help us measure them](ROADMAP.md#help-measure-the-difference).
+
+## Know the current limits
+
+- Preview Markdown, code, static HTML/SVG, PDF, images, CSV/TSV, modern Office, OpenDocument, archive listings, and browser-supported media. Preview support does not imply model understanding of every format. [Format details →](docs/design/content-preview-architecture.md)
+- Office support is for reading, not full Office editing. Legacy formats and layout conversion need optional sandboxed LibreOffice on macOS.
+- Guarded text-file apply/undo works on Linux/macOS. Windows retains preview and export. Cross-platform core CI is not a claim of fully validated desktop installers.
+
+## Under the hood
+
+A **Go daemon** owns local state, permissions, and scheduling. A **Python worker** handles inference. **Electron and React** provide the desktop UI; Web and CLI clients use the same local API. Tool calls, including those from scheduled tasks and MCP extensions, pass through the daemon’s permission checks.
+
+[Architecture](docs/development/architecture-guide.md) · [Detailed contracts](docs/architecture.md) · [Development guide](docs/development/quickstart.md)
 
 ## Build with us
 
-**PRs are welcome.** A reproducible bug, clearer setup instructions, a French translation fix, or a small document fixture is a useful contribution.
+**PRs are welcome, from Canada and everywhere else.** Help Gogosling.ca build practical open-source AI tools in Canada.
 
-- [Choose a first contribution](CONTRIBUTING.md#good-places-to-start).
-- [Explore the roadmap and maintenance areas](ROADMAP.md).
-- [Report a bug or propose an improvement](https://github.com/GoGoslingCA/gogosling/issues/new/choose).
-- [Introduce an area you would like to help maintain](https://github.com/GoGoslingCA/gogosling/discussions).
+A small contribution counts: reproduce a file-preview bug, fix a keyboard interaction, improve a translation, test setup on a clean machine, or add a resource-usage benchmark.
+
+- [Pick a first contribution](CONTRIBUTING.md#good-places-to-start).
+- [Report a bug or request a feature](https://github.com/GoGoslingCA/gogosling/issues/new/choose).
+- [Discuss an idea or help maintain a module](https://github.com/GoGoslingCA/gogosling/discussions).
 - [Report a security issue privately](SECURITY.md).
-
-Built in Canada, open to everyone. Small, reviewed changes help grow a sustainable Canadian open-source AI community. If this direction is useful to you, a star helps others discover the project.
 
 ## License
 
-[MIT](LICENSE) · Developed by [Gogosling.ca](https://gogosling.ca).
+[MIT](LICENSE) · [Gogosling.ca](https://gogosling.ca).
