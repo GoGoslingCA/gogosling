@@ -9,7 +9,7 @@
   <a href="https://gogosling.ca"><img src="https://img.shields.io/badge/Built_in-Canada-D52B1E" alt="Built in Canada"></a>
 </p>
 <p align="center">
-  English · <a href="README.zh-CN.md">简体中文</a><br>
+  Documentation in English<br>
   <a href="#try-it">Try it</a> · <a href="docs/README.md">Docs</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="https://github.com/GoGoslingCA/gogosling/discussions">Discuss</a>
 </p>
 
@@ -19,7 +19,7 @@
 
 ![The English start page: a focused composer, projects, and recent tasks](docs/assets/start-en.jpg)
 
-*Actual development UI in an isolated demo workspace. Interface languages: English, 简体中文, Français.*
+*Actual development UI in an isolated demo workspace. Interface languages: English, Simplified Chinese, and French.*
 
 ## From an idea to a saved result
 

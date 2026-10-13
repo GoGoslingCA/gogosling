@@ -1,23 +1,23 @@
-# P3B 与界面统一交付
+# P3B and UI Unification Delivery
 
-2026-10-12。本地工作树已实现并验证，未提交、未推送、未发布安装包。后续资源调度属于新的实施范围，本记录不将它们算作已完成。
+2026-10-12. The local working tree has been implemented and verified; it has not been committed, pushed, or released as installation packages. Subsequent resource scheduling falls under a new scope of implementation and is not counted as completed in this record.
 
-## 完成的流程
+## Completed Workflows
 
-- 已保存成果 → 单文件差异预览 → 原权限引擎判定 → 单次审批 → 条件应用 → 独立撤销预览。撤销新建按 destructive 删除风险处理。
-- 操作具有独立持久 Operation，未伪造模型 Run；模型工具清单不暴露人工文件操作。拒绝规则优先，旧 Run 审批保留。
-- 原件、提议与真实执行结果由内核保存。先记录文件结果，再清理保留原件，最后确认终态；任一步无法确认进入 recovery_required。
-- 外部编辑、目录身份、文件 inode、权限及摘要变化均核对。未知原件不删除，不能只凭内容相同认定成功。
-- 前端重试使用固定幂等键；未知响应先重读状态，不自动重新应用。过期撤销可从原操作重新生成预览。
-- 原有任务、消息、草稿、成果版本和快捷键继续可用；无 changesets capability 的服务保留旧保存/导出路径。
+- Saved artifact → single-file diff preview → original permission engine evaluation → single approval → conditional application → independent undo preview. Undoing creation is handled as a destructive deletion risk.
+- Operations have independent persistent Operations without falsifying model Runs; the model tool list does not expose manual file operations. Rejection rules take precedence, and legacy Run approvals are retained.
+- Originals, proposals, and actual execution results are persisted by the kernel. File results are recorded first, followed by cleaning up retained originals, and finally confirming the terminal state; failure to confirm at any step enters recovery_required.
+- External edits, directory identity, file inodes, permissions, and digest changes are all verified. Unknown originals are not deleted, and success cannot be determined solely based on identical content.
+- Frontend retries use fixed idempotency keys; unknown responses re-read the state first without automatically re-applying. Expired undos can regenerate previews from the original operation.
+- Legacy tasks, messages, drafts, artifact versions, and keyboard shortcuts remain functional; services without changesets capability retain legacy save/export paths.
 
-## 视觉与交互
+## Visuals and Interaction
 
-界面统一灰白层次、细分隔线、圆角和控件间距；主要操作保留品牌蓝。设置使用单一双栏，窄窗口切换顶部标签，支持搜索与键盘导航。
+The interface unifies grayscale hierarchy, fine dividers, rounded corners, and control spacing; primary actions retain brand blue. Settings uses a single two-column layout, switching to top tabs on narrow windows, with support for search and keyboard navigation.
 
-长解释默认折叠，真实步骤改为紧凑轨迹。消息与成果支持安全的 chart JSON 柱状图/折线图，附数据表和源码；最多 50 个有限数值，非法内容保留原代码，不执行脚本或外部资源。默认输出建议更简洁，不覆盖用户明确要求的详细内容。
+Long explanations are collapsed by default, and real steps are converted into compact trajectories. Messages and artifacts support safe chart JSON bar/line charts with data tables and source code; up to 50 finite numeric values, invalid content retains original code without executing scripts or external resources. Default output suggestions are more concise, without overriding detailed content explicitly requested by the user.
 
-## 公开接口
+## Public Interfaces
 
 ```go
 workbench.NewChanges(model.ChangeStore, workbench.ChangeFiles, *event.Bus) (*workbench.ChangeService, error)
@@ -28,13 +28,13 @@ workspace.Workspace.Recover(context.Context, string, string, workspace.Snapshot,
 workspace.Workspace.Finalize(context.Context, string, string) error
 ```
 
-HTTP 在 `/api/v1` 增加 changesets 的准备、列表、读取、差异、应用、撤销预览、取消、恢复核对。`apply` 返回 202 仅表示受理。完整形状见 OpenAPI；本时点 51 个路径、54 个 schema、228 处引用均可解析。
+HTTP adds changesets prepare, list, read, diff, apply, undo preview, cancel, and recovery verification at `/api/v1`. `apply` returning 202 indicates acceptance only. See OpenAPI for the full schema; as of this moment, 51 paths, 54 schemas, and 228 references are all resolvable.
 
-数据库升至 schema 4：003 增加 Operation 与兼容审批关联，004 保存 ChangeSet 和独立幂等记录。复用升级前一致快照；终态操作留存，待审批/执行/恢复的主体阻止删除所属任务或助手。
+The database is upgraded to schema 4: 003 adds Operation and compatible approval associations, while 004 saves ChangeSet and independent idempotency records. Consistent pre-upgrade snapshots are reused; terminal state operations are retained, and entities pending approval/execution/recovery prevent deletion of their associated tasks or assistants.
 
-## 实际验证
+## Practical Verification
 
-先使用仓库指定 Go/Node PATH（e2e 另加入 `$HOME/.local/bin`），执行：
+First use the repository-specified Go/Node PATH (with `$HOME/.local/bin` additionally added for e2e) and execute:
 
 ```bash
 make lint
@@ -48,18 +48,18 @@ go test -race ./internal/workspace
 go test -race ./internal/server -run 'Test文件|Test外部|Test拒绝|Test应用|Test两个|Test清理|Test保留|Test启动恢复|Test显式|Test活跃|Test执行|Test旧工作' -count=1
 ```
 
-- Go 格式/vet/全仓测试、Python ruff/format/mypy 通过；Python 176 项。
-- 最终 Web 313、桌面 231，合计 544 项通过；Web/Electron 与 Go 构建通过。
-- 真实 Python worker + 假模型 e2e 通过且未跳过；此次未重新调用付费模型。
-- 真实文件测试覆盖创建/替换/撤销、外部改写、规则拒绝、取消、过期、未知响应、单次审批、两次并发恢复、原件清理失败、最终落账失败、重开数据库后的状态恢复和旧能力降级。
-- macOS 实际验证 0644/0755 权限保留、ACL/特殊权限/不支持属性拒绝；workspace Linux/Windows 交叉编译通过。
-- 浏览器实际完成预览、审批、创建、独立删除撤销，确认文件消失；外部改写后再批准应用得到冲突，外部字节保持不变。图表、设置搜索、真实主题切换、900×760 无横向溢出均已检查。
-- 全量前端检查曾因新增过期保护遇到固定旧时间测试数据；已改为有效期内测试预览，随后全量通过。
+- Go format/vet/repo-wide tests and Python ruff/format/mypy passed; 176 items for Python.
+- Final counts: Web 313, Desktop 231, totaling 544 items passed; Web/Electron and Go builds passed.
+- Real Python worker + mock model e2e passed without skipping; paid models were not re-invoked this time.
+- Real file tests covered creation/replacement/undo, external rewrites, rule rejections, cancellations, expirations, unknown responses, single approvals, dual concurrent recoveries, original cleanup failures, final commit failures, state recovery after database reopening, and legacy capability fallback.
+- macOS practical verification confirmed 0644/0755 permission retention and rejection of ACLs/special permissions/unsupported attributes; cross-compilation for workspace Linux/Windows passed.
+- Browser tests completed preview, approval, creation, and independent deletion undo, confirming file disappearance; approving application after external rewrites yielded conflicts with external bytes remaining unchanged. Charts, settings search, real theme switching, and 900x760 layout without horizontal overflow were all checked.
+- Full frontend checks previously encountered fixed old timestamp test data due to newly added expiration protection; updated to test preview within validity period, after which all passed.
 
-## 边界
+## Boundaries
 
-支持单文件、最多 512 KiB 的普通 UTF-8 文本。Linux/macOS 使用描述符路径解析与禁止覆盖的安装；Windows 暂不开放原位修改，保留导出与副本保存。Linux 条件写尚未真机执行；原生安装包未真机验收。
+Supports single-file, plain UTF-8 text up to 512 KiB. Linux/macOS uses descriptor path resolution and overwrite-forbidden installation; Windows does not currently support in-place modification, retaining export and copy saving. Conditional writes on Linux have not yet been executed on physical hardware; native installation packages have not been accepted on physical hardware.
 
-不承诺对任意同 UID 外部写者的原子 CAS。旧文件描述符继续写入、外部移动目录等不确定情况需核对并保留原件。恢复核对必要时会把保留原件恢复至空缺目标，不覆盖外部新文件，不自动重做提议。
+Atomic CAS is not guaranteed for arbitrary external writers under the same UID. Uncertain scenarios such as continuous writes via legacy file descriptors or external directory moves require verification and retention of the original file. Recovery verification will restore retained originals to vacant targets when necessary, without overwriting new external files or automatically redoing proposals.
 
-本地预览使用隔离测试数据和假模型，不能代表真实模型任务质量。密钥没有写入仓库、事件、测试或日志。原有 team-workflow 文档修改保留。
+Local previews use isolated test data and mock models, which do not represent real model task quality. Keys were not written to repository, events, tests, or logs. Existing modifications to team-workflow documentation are preserved.

@@ -1,109 +1,105 @@
-# 个人工作台：流程与状态
+# Personal workbench: Flows and states
 
-本文与 [模块规划](README.md) 使用同一套状态名。不增加新的状态。
-
----
-
-## 大纲
-
-1. 一次运行
-2. 草稿
-3. 成果版本
-4. 文件修改
-5. 项目、任务与助手
-6. 并行名额
+Use the same states as [the module plan](README.md), without adding new ones.
 
 ---
 
-## 1. 一次运行
+## Outline
 
-| 状态 | 含义 | 人可以做什么 |
+1. A run
+2. Drafts
+3. Result versions
+4. File changes
+5. Projects, tasks, and assistants
+6. Execution capacity
+
+---
+
+## 1. A run
+
+| State | Meaning | User action |
 |---|---|---|
-| 待开始 | 任务在，这轮还没提交 | 编写要求并开始 |
-| 排队中 | 已接受，还没开始处理 | 等待，或停止 |
-| 处理中 | 正在处理 | 查看已有步骤，写下一条补充，或停止 |
-| 待确认 | 停在需要人决定的操作 | 按 [确认](../approval/README.md) 的选项处理 |
-| 已完成 | 这轮结束并有结果 | 保存初稿，或继续补充 |
-| 未完成 | 这轮失败 | 看失败说明，再发要求。不自动重跑 |
-| 已停止 | 人停止了这轮 | 已完成的步骤保留 |
-| 恢复中 | 正在读取先前状态 | 等待。此期间不把它说成已完成或正在生成 |
-| 状态未知 | 暂时无法判断 | 先核对，不自动重发 |
+| Not started | Task exists, round not submitted | Write requirements and start |
+| Queued | Accepted, not processing yet | Wait or stop |
+| Processing | Work in progress | Inspect steps, draft follow-up, stop |
+| Awaiting approval | Operation needs a decision | Use [approval](../approval/README.md) choices |
+| Completed | Round ended with a result | Save draft or follow up |
+| Incomplete | Round failed | Inspect failure, send requirements; no automatic rerun |
+| Stopped | User stopped the round | Completed steps retained |
+| Recovering | Reading previous state | Wait; neither Completed nor Generating |
+| Unknown | Cannot determine state yet | Inspect; no automatic resend |
 
-同一任务有未结束的运行时，不能并行再发一条。补充先留在输入区。
+An unfinished run prevents another concurrent send in the same task. Keep follow-up text in the input.
 
-断线后，已经发生的状态还在。缺了中间过程时要说明可能不完整，结束后以完整回复为准。消息列表还在，只说明记录还在，不说明助手已经带着全部早期内容继续。打开任务时不自动继续。
+After disconnection, completed state remains. Explain potentially incomplete intermediate events and use the full reply after completion. Retained messages prove records exist, not that the assistant resumed with all earlier context. Opening a task never resumes automatically.
 
-关掉页面、切到别的任务或收到托盘，不停止已经受理的运行。只有人点停止，或运行自身结束，才改变这轮状态。对方只返回了开始信号、没有正文时，状态为未知，不自动再开一轮。
+Closing a page, switching tasks, or hiding to tray does not stop accepted work. User Stop or the run's own termination changes its state. A start signal without body remains unknown and must not trigger another run automatically.
 
-一次开始的结果如果迟到，文字和资料仍属于当初那件任务，不把人当前正在看的页面带走。
+Late start results belong to the original task, without redirecting the current page. Switching assistants restores each assistant's own unsent draft; the previous assistant's text stays under that assistant.
 
-开始页更换助手时，输入区改为该助手自己的未发送草稿。上一个助手已经写下、尚未发送的句子留在那个助手名下，不出现在新助手的输入区里。
+## 2. Drafts
 
-## 2. 草稿
+Drafts include unsent input and result edits not yet saved as a formal version.
 
-草稿有两类：还没发送的输入，以及成果里还没存成正式版本的编辑。
-
-| 显示 | 含义 |
+| Display | Meaning |
 |---|---|
-| 检查草稿 | 正在读取 |
-| 保存中 | 已提交，尚未确认 |
-| 已保存 | 已经确认这一版 |
-| 保存失败 | 窗口里的字还在。关闭或刷新可能丢失尚未确认的部分 |
-| 草稿有更新 | 两份都保留，必须人来选 |
-| 已恢复 | 文字或已上传资料引用已找回。发送前先看任务里是否已经有这条消息 |
-| 文件待上传 | 还没传完的本地文件不能在重启后继续 |
-| 当前连接不支持自动保存 | 关闭或刷新后不能恢复 |
+| Checking draft | Reading |
+| Saving | Submitted, not confirmed |
+| Saved | This revision confirmed |
+| Save failed | Window text retained; closing/refreshing may lose unconfirmed edits |
+| Draft updated elsewhere | Both sides retained; user chooses |
+| Restored | Text/uploaded references recovered; inspect existing messages before sending |
+| File pending upload | Unfinished local-file upload cannot continue after restart |
+| Connection lacks autosave | Closing/refreshing cannot restore it |
 
-只有确认之后才能显示已保存。发送成功后，清掉的是发送当时那一版。发送之后新打的字不因此被清掉。
+Only confirmed saves show Saved. Successful sending clears only the submitted revision, preserving text typed afterward.
 
-已确认落库、并且当前没有打开的实时过程，可以不再占着界面。未确认保存的失败正文不因为离开页面而消失。成果版本、写回前留存的原件和操作记录不按天数自动删除。
+Confirmed, inactive real-time state may be released. Unconfirmed failed output survives leaving the page. Result versions, retained write-back originals, and activity records are not automatically deleted by age.
 
-## 3. 成果版本
+## 3. Result versions
 
-- 正式成果来自真实回复，并由人点「保存初稿并编辑」。
-- 版本一旦保存就不再改写。再保存是新版本。
-- 查看历史时，当前编辑稿不变。
-- 用历史内容恢复时，保存会新增一版，不删除旧版。
-- 若已有更新的正式版本，当前编辑仍留着。人可以选择载入最新内容，或明确以最新版为基线后继续保存。
-- 保存版本、保存副本、导出都不覆盖工作区里的原文件。
-- 任务已经结束，或助手当前没有在运行，已保存成果和文件预览仍可打开。不能因为没有正在运行就拒绝阅读。
-- 同名文件同时加入时，每一份单独保留。后一份不覆盖前一份，两份都要能打开并看到各自的内容。
+- A formal result comes from a real reply and explicit Save draft and edit.
+- Saved versions are immutable; saving again creates another version.
+- Historical preview leaves the current edit intact.
+- Restoring historical content creates a version, without deleting old ones.
+- If a newer formal version exists, retain edits; load the latest or explicitly adopt its baseline before saving.
+- Save version/copy/export never overwrites the original workspace file.
+- Results/previews remain readable after a task ends or while no assistant runs.
+- Concurrent same-name uploads retain both files with independent, correct contents.
 
-## 4. 文件修改
+## 4. File changes
 
-| 状态 | 目标文件 |
+| State | Target |
 |---|---|
-| 已预览 · 未写入 | 不变 |
-| 等待审批 | 不变 |
-| 正在应用 | 尚未宣称完成 |
-| 已应用 | 与这份已批准的预览一致 |
-| 已拒绝、已取消、预览已过期 | 不变。过期后需重新预览 |
-| 文件已变化 | 不写入。外部内容保留 |
-| 应用失败 | 不宣称成功 |
-| 需要核对 | 不继续写入，不自动重做 |
-| 申请结果未知、正在核对 | 先查状态，不自动重新提交 |
+| Previewed, not written | Unchanged |
+| Awaiting approval | Unchanged |
+| Applying | Not declared complete |
+| Applied | Matches the approved preview |
+| Denied/cancelled/expired | Unchanged; expired previews require a new preview |
+| File changed | No write; external content retained |
+| Apply failed | No success claim |
+| Needs review | No further write or automatic retry |
+| Request outcome unknown/checking | Query state before any resubmission |
 
-一份预览只针对一个目标文件，内容来自当时已保存的版本。本版写回只接受普通文本，最大 512 KiB。可新建、替换。撤销新建等于删除，必须单独预览并再次确认。
+One preview targets one file and uses a saved version. Current write-back accepts plain text up to 512 KiB, with create/replace. Undoing creation deletes the file and requires a separate preview and confirmation. Do not begin the write while the workspace has an active run.
 
-工作区正有运行时，不开始这份文件写入。
+## 5. Projects, tasks, and assistants
 
-## 5. 项目、任务与助手
-
-| 动作 | 发生的事 | 同时保持 |
+| Action | Effect | Retained |
 |---|---|---|
-| 归档任务 | 不能再发送，直到恢复 | 不删除消息和成果 |
-| 归档项目 | 不能从这里开始新任务 | 不停止已有任务 |
-| 删除任务 | 去掉该任务的消息、草稿和成果版本 | 工作区文件还在 |
-| 删除助手 | 去掉它的任务、项目、草稿和成果版本 | 工作区文件还在 |
-| 移除资料引用 | 项目里不再列出 | 原文件和已发送消息还在 |
+| Archive task | Sending disabled until restored | Messages/results |
+| Archive project | No new tasks from it | Existing tasks continue |
+| Delete task | Remove messages/drafts/result versions | Workspace files |
+| Delete assistant | Remove tasks/projects/drafts/result versions | Workspace files |
+| Remove material reference | Remove project listing | Original file/sent messages |
 
-任务可以属于一个项目，也可以未归入项目。归属不改变任务身份，也不改变文件权限。一个项目固定使用创建时选的助手。
+A task may be in one project or unassigned. Association changes neither identity nor permissions. A project uses its originally selected assistant.
 
-## 6. 并行名额
+## 6. Execution capacity
 
-- 默认同时执行 2 个，可改为 1 到 8。
-- 最多 32 个等待。等待时不开始占用模型。
-- 人当场发起的任务优先于定时任务。
-- 同一个工作区里的任务依次执行。
-- 等待确认占用一个执行名额。
-- 把名额调低，不中断已经在执行的任务。
+- Default 2 concurrent runs, configurable from 1 to 8.
+- At most 32 queued; waiting does not invoke the model.
+- Immediate user requests precede scheduled jobs.
+- Same-workspace tasks execute serially.
+- Awaiting approval occupies a slot.
+- Lowering capacity does not interrupt accepted running work.

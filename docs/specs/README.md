@@ -1,94 +1,83 @@
-# gogosling 本地版模块规划
+# gogosling local module plans
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 读者 | 产品、设计、验收 |
-| 产品 | 一个人在自己的电脑上使用的开源工作台 |
-| 权威细节 | 个人工作台的完整需求、故事和验收见 [个人工作台 PRD](../prd/personal-workbench.md) 草案 v0.5。本目录与它用词不一致时，先改本目录去对齐，不另写一套规则 |
-| 使用说明 | [个人工作台使用说明](../user/personal-workbench.md) |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Audience | Product, design, and acceptance review |
+| Product | An open-source workbench for one person working on their own computer |
+| Authoritative detail | Complete requirements, stories, and acceptance criteria are in [the personal workbench PRD](../prd/personal-workbench.md), draft v0.5. Resolve wording differences here by aligning this directory with that PRD, rather than creating another rule set |
+| User guide | [Personal workbench guide](../user/personal-workbench.md) |
 
-本目录只做模块规划。不规定实现方式，也不修改其他模块。
+This directory plans modules. It does not prescribe implementation or change other modules.
 
 ---
 
-## 大纲
+## Outline
 
-1. 项目要达成的事
-2. 本地版边界
-3. 模块地图
-4. 模块之间如何交接
-5. 每份规范要达到的水准
+1. Project goal
+2. Local edition boundaries
+3. Module map
+4. Module handoffs
+5. Specification standards
 
 ---
 
-## 1. 项目要达成的事
+## 1. Project goal
 
-一个人打开应用后，可以带着资料开始一件任务，看清进行到哪一步，把成果留成可再打开的版本，并在支持的系统上单独确认后写回一个文本文件。离开后再回来，能核对草稿、版本和运行状态。应用不替人自动继续。
+A person can open the app, bring materials into a task, see its actual progress, save a result as a reopenable version, and separately confirm write-back to one text file on a supported system. Returning later exposes drafts, versions, and runtime state for review. The app does not resume execution automatically.
 
-用量只显示模型服务实际给到的 token。没有数字就显示尚未提供。
+Usage displays only token counts actually supplied by the model service. Missing counts are shown as not provided.
 
-## 2. 本地版边界
+## 2. Local edition boundaries
 
-应用自己的联网能力不进入本目录的模块。唯一保留的对外入口是 [手机端应用](mobile-link/README.md)：一条浏览器链接，不登录、不同步、不上传。正式地址尚未提供，地址确定前不显示链接。
+The application's own networking capabilities are outside these module plans. The only retained external entry is [the mobile app](mobile-link/README.md): a browser link, without login, synchronization, or uploads. The official URL has not been supplied; hide the link until it is available.
 
-不纳入本目录、也不设规范文件夹的有：
+These capabilities are excluded from this directory and have no specification folders here:
 
-| 能力 | 规划决定 |
+| Capability | Planning decision |
 |---|---|
-| 消息连接 | 工作台的导航和设置不进入。不在这里重写它自己的规则 |
-| 团队仓库与团队知识 | 另有团队工作流说明。本地版默认流程不包含它 |
-| 云助理、云端继续、账号同步、在线转换、分享链接、技能市场、获取网页 | 不规划入口 |
+| Messaging connections | Excluded from workbench navigation/settings in this plan; their independent rules are not rewritten here |
+| Team repositories and knowledge | Covered by the separate team workflow; absent from the default local flow |
+| Cloud assistants, cloud continuation, account synchronization, online conversion, sharing links, skill markets, and web retrieval | No entry points planned |
 
-使用者自己填写的模型地址仍由 [模型连接](model-connection/README.md) 说明。那是使用者选择的模型，不是本应用提供的云。
+[Model connections](model-connection/README.md) still cover endpoints supplied by the user. These are the user's chosen services, not an application-provided cloud.
 
-## 3. 模块地图
+## 3. Module map
 
-| 模块 | 规范 | 一句话 |
+| Module | Specification | Purpose |
 |---|---|---|
-| 个人工作台 | [personal-workbench](personal-workbench/README.md) | 开始任务、组织项目、留下成果、看清停在哪一环 |
-| 助手 | [assistant](assistant/README.md) | 选择模型、确认档位、工作目录和可用技能 |
-| 模型连接 | [model-connection](model-connection/README.md) | 保存并测试使用者自己的模型服务 |
-| 确认 | [approval](approval/README.md) | 在执行前说明任务、动作和对象，由人决定这一次 |
-| 定时任务 | [schedule](schedule/README.md) | 到点在这台电脑上运行，不发到外部软件 |
-| 技能与扩展 | [extensions](extensions/README.md) | 只使用这台电脑上已安装的技能、服务和插件 |
-| 操作记录 | [audit](audit/README.md) | 按时间查看已经发生的操作和决定 |
-| 桌面 | [desktop](desktop/README.md) | 窗口、托盘和退出时如何对待未保存内容 |
-| 手机端应用 | [mobile-link](mobile-link/README.md) | 唯一对外链接 |
+| Personal workbench | [personal-workbench](personal-workbench/README.md) | Start tasks, organize projects, retain results, and identify where work stopped |
+| Assistant | [assistant](assistant/README.md) | Select a model, approval mode, workspace, and available skills |
+| Model connection | [model-connection](model-connection/README.md) | Save and test the user's model service |
+| Approval | [approval](approval/README.md) | Explain the task, action, and target before a person decides |
+| Scheduled jobs | [schedule](schedule/README.md) | Run on this computer at the scheduled time, without posting to other software |
+| Skills and extensions | [extensions](extensions/README.md) | Use skills, services, and plugins already installed on this computer |
+| Activity records | [audit](audit/README.md) | Review past operations and decisions chronologically |
+| Desktop | [desktop](desktop/README.md) | Window, tray, and unsaved-content handling on exit |
+| Mobile app | [mobile-link](mobile-link/README.md) | The only external link |
 
-## 4. 模块之间如何交接
+## 4. Module handoffs
 
-工作台把一件事交给相邻模块，并展示交回的结果。交回不清楚时，显示未知，不补成成功，也不显示成 0。
+The workbench hands a specific request to a neighboring module and displays the returned result. An unclear result remains unknown; it is neither synthesized as success nor displayed as zero.
 
-上一环已有明确结果，下一环是空的或未知，问题就记在这一次交接。排查路径见 [个人工作台的排查规范](personal-workbench/troubleshooting.md)。
+If one stage has a confirmed result and the next has none or is unknown, record the issue at that handoff. See [workbench troubleshooting](personal-workbench/troubleshooting.md).
 
-| 从 | 到 | 交出 | 交回后工作台必须显示 |
+| From | To | Sent | Required workbench display |
 |---|---|---|---|
-| 工作台 | 模型连接 | 当前助手所用的连接 | 模型名；没有用量就显示尚未提供 |
-| 工作台 | 助手 | 使用者选中的助手 | 名称、模型、工作目录、确认档位 |
-| 工作台 | 确认 | 所属任务、动作、对象 | 批准、拒绝或仍在等待。看不清任务时不替人决定 |
-| 工作台 | 定时任务 | 不交出任务正文。只共享同时能做几件事的名额 | 排队时说明是定时任务占用，还是当前任务在等 |
-| 工作台 | 手机端应用 | 打开链接的动作 | 打不开时，电脑上的任务保持原样 |
-| 工作台 | 消息连接 | 不交接 | 不出现通道失败提示 |
+| Workbench | Model connection | Connection used by the current assistant | Model name; missing usage shown as not provided |
+| Workbench | Assistant | Selected assistant | Name, model, workspace, and approval mode |
+| Workbench | Approval | Owning task, action, and target | Approved, denied, or still waiting; never decide when task ownership is unclear |
+| Workbench | Scheduled jobs | No task body; only shared execution capacity | Whether scheduled work occupies capacity or the current task is waiting |
+| Workbench | Mobile app | Open-link action | Desktop tasks remain intact if opening fails |
+| Workbench | Messaging connections | No handoff | No channel-failure notification |
 
-## 5. 每份规范要达到的水准
+## 5. Specification standards
 
-每份模块说明都先给大纲，再写这些内容：
+Each module begins with an outline and covers goal, responsibilities, workflow, inputs/outputs, dependencies, detectable failures, verification, and assumptions/open questions.
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常，以及人如何发现
-7. 怎样验证
-8. 假设与待确认
-
-写法要求：
-
-- 用界面上的话：助手、任务、资料、项目、成果、版本、副本、文件修改、手机端应用。设置里的「智能体」与「助手」是同一个对象。
-- 同一状态只用一套名称。运行用「待开始、排队中、处理中、待确认、已完成、未完成、已停止、恢复中、状态未知」。
-- 失败要能说出停在哪一环、已经保住什么、没有发生什么、下一步只做一件事。
-- 没有依据的数量、地址和效果不写进规范。缺少的事实放进「待确认」。
-- 不写实现步骤，不改其他模块的规范来迁就某一条验收。
+- Use product terms: assistant, task, material, project, result, version, copy, file change, and mobile app. An agent in Settings is the same object as an assistant in the workbench.
+- Use one label per state: not started, queued, processing, awaiting approval, completed, incomplete, stopped, recovering, or unknown.
+- A failure explains where it stopped, what was retained, what did not happen, and one next action.
+- Do not invent quantities, URLs, or effects. Put missing facts under open questions.
+- Do not prescribe implementation or change another module's rules to satisfy an acceptance case.

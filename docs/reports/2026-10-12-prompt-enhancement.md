@@ -1,30 +1,30 @@
-# 提示词优化与按需加载
+# Prompt Optimization and On-Demand Loading
 
-> 历史记录：此文描述第一版交互。当前已改为一键回填、还原和按需补充意见，真实 API 与取消验收见[最新记录](2026-10-12-live-prompt-validation.md)。
+> History: This document describes the first version of the interaction. It has now been changed to one-click backfill, restore, and on-demand supplementary feedback; for the real API and cancellation acceptance, see the [latest record ](2026-10-12-live-prompt-validation.md)].
 
-## 已实现
+## Implemented
 
-开始页、聊天输入区新增“优化提示词”。使用当前助手的模型，只优化输入文字；不读取历史和附件、不执行工具、不发送聊天任务。结果先预览，可继续编辑，再选择“替换输入”；支持保留原文、重试、取消和撤销。替换、撤销或关闭后焦点回到输入框。
+Added "Optimize Prompt" to the start page and chat input area. It uses the current assistant's model to optimize only the input text; it does not read history or attachments, execute tools, or send chat tasks. The result is previewed first, can be further edited, and then "Replace Input" can be selected; it supports keeping the original text, retrying, canceling, and undoing. The focus returns to the input box after replacement, undoing, or closing.
 
-内部指导词保留意图、约束与语言，不要求模型回答原任务；源码只由 Go 内核嵌入，不进入前端资源、聊天记录、草稿或事件。原文及被应用的候选仍按已有草稿机制保存。检测到空结果、明显未完成文本、指导词或语言分析标签时拒绝该候选。
+Internal system prompts preserve intent, constraints, and language, without requiring the model to answer the original task; the source code is embedded only by the Go kernel and does not enter frontend resources, chat history, drafts, or events. The original text and the applied candidate are still saved according to the existing draft mechanism. The candidate is rejected when an empty result, obviously incomplete text, system prompt, or language analysis tag is detected.
 
-优化模块在点击后才动态加载。最终构建单独生成 `PromptEnhancementDialog` 的 JS/CSS；约2KB JS、0.9KB CSS（未压缩，以本次构建为准），没有增加运行依赖。模块加载失败保留原文。实际启动和能耗收益未做硬件基准，不能将分包直接换算成速度提升百分比。
+The optimization module is dynamically loaded only after being clicked. The final build separately generates JS/CSS for `PromptEnhancementDialog`; approximately 2KB JS and 0.9KB CSS (uncompressed, subject to this build), without adding runtime dependencies. If module loading fails, the original text is retained. Actual startup and energy consumption benefits have not been hardware-benchmarked, so the code splitting cannot be directly converted into a speed improvement percentage.
 
-## 接口与执行边界
+## Interfaces and Execution Boundaries
 
 ```text
 POST /api/v1/agents/{id}/prompt-enhancement
-Request:  {"text":"用户输入"}
-Response: {"text":"优化候选"}
+Request:  {"text":"User Input"}
+Response: {"text":"Optimized Candidate"}
 
 session.Service.EnhancePrompt(context.Context, string, string) (string, error)
 ```
 
-新增可选能力 `prompt.enhance: 1`。旧内核没有该能力时隐藏入口；未配置工作台存储也可独立使用文字优化。复用现有鉴权、供应商凭据与 worker RPC，不增加数据库或 RPC 模式迁移。
+Added optional capability `prompt.enhance: 1`. The entry point is hidden when the old kernel does not have this capability; text optimization can also be used independently without configuring workbench storage. It reuses existing authentication, provider credentials, and worker RPC, without adding database or RPC schema migrations.
 
-单次输入最多16000 UTF-8字节，候选最多32000字节，45秒总时限、最多一次模型循环与2048输出token。全局最多一个优化请求，并计入现有并行预算；满载时明确返回忙碌，不另开常驻进程。运行使用临时推理身份，不创建业务 Session/Run，没有工具授权或助手人格注入。取消跟随请求生命周期，收到运行终态后释放资源；取消失败不能把仍在途的请求当作已释放。
+A single input is limited to a maximum of 16,000 UTF-8 bytes, and the candidate to a maximum of 32,000 bytes, with a 45-second total timeout, a maximum of one model loop, and 2,048 output tokens. Globally, there is at most one optimization request, which counts towards the existing concurrency budget; it explicitly returns busy when fully loaded, without starting an additional resident process. Execution uses a temporary inference identity, does not create a business Session/Run, and has no tool authorization or assistant persona injection. Cancellation follows the request lifecycle, releasing resources upon receiving the final run state; if cancellation fails, the request still in transit cannot be treated as released.
 
-## 实际验证
+## Actual Verification
 
 ```bash
 make lint
@@ -36,13 +36,13 @@ go test -race ./internal/session
 npm test --workspace @gogosling/web -- src/pages/chat/PromptEnhancement.test.tsx
 ```
 
-以上均已运行。最初的新测试 mock 类型不兼容当前 Vitest，已修正后重新通过检查。全量 Go、Python176项、桌面231项、Web340项测试通过；后续焦点与样式调整对应5项优化专项再次通过。原工具审批端到端通过。
+All of the above have been run. The initial new test mock types were incompatible with the current Vitest, which has been corrected and re-passed the checks. Full Go, 176 Python, 231 desktop, and 340 Web tests passed; subsequent focus and style adjustments corresponding to 5 optimization-specific items passed again. The original tool approval passed end-to-end.
 
-- 内核专项：中文、英文、混合语言候选；无历史、工具和会话事件；空白/超长/停用助手；并行预算与排队释放；取消、截止、关闭、启动失败；内部指令/错误正文不泄漏；过大输出、越界工具；仅文本增量的终态及源缩进保持。
-- HTTP专项：鉴权、输入边界、拒绝客户端覆盖指导词、能力声明、仅返回候选与禁止缓存。
-- 前端专项：点击才请求、StrictMode不重复调用；预览不改原文、不提交、不丢附件；候选编辑/应用/撤销；关闭/换会话中止请求；迟到结果与原文变化后再改回的保护；错误重试、空输入和旧能力回退。
-- 真实 Python worker + 本地假模型分别通过中文、英文、混合语言调用；这是传输及流程验收，不是对真实供应商生成质量的保证。未把用户给出的密钥写入测试或仓库。
-- 浏览器验收：聊天区预览、替换、撤销、关闭后原文保留；切到开始页确认同一入口。验收聊天始终0条消息，优化结束后执行中/排队均为0；没有误发任务。
-- OpenAPI 53个路径、233处引用可解析。生产前端资源检索确认不包含内部指导词标记。最新截图为 `24-prompt-enhancement-final.jpg`。
+- Kernel-specific: Chinese, English, and mixed-language candidates; no history, tools, or session events; blank/overlength/disabled assistants; concurrency budget and queue release; cancellation, deadline, closing, and startup failure; no leakage of internal instructions/error bodies; oversized output, out-of-bounds tools; final state with text-only increments and source indentation preservation.
+- HTTP-specific: Authentication, input boundaries, rejecting client-side overrides of system prompts, capability declarations, returning only candidates, and disabling caching.
+- Frontend-specific: Requesting only on click, StrictMode preventing duplicate calls; preview not modifying original text, not submitting, and not losing attachments; candidate editing/applying/undoing; aborting requests on close/session switch; protection for late results and when the original text changes and then changes back; error retry, empty input, and fallback for old capabilities.
+- Real Python worker + local mock model calls passed for Chinese, English, and mixed languages respectively; this is transmission and workflow acceptance, not a guarantee of generation quality from real providers. User-provided keys were not written to tests or the repository.
+- Browser acceptance: Preview, replace, undo, and original text retention after closing in the chat area; switching to the start page confirms the same entry point. Acceptance chat always has 0 messages, and running/queued tasks are both 0 after optimization ends; no tasks were sent by mistake.
+- OpenAPI 53 paths and 233 references are resolvable. Production frontend resource search confirmed that it does not contain internal system prompt markers. The latest screenshot is `24-prompt-enhancement-final.jpg`.
 
-优化使用当前模型的推理额度；当前会话用量统计仍只统计正式聊天运行。候选质量和语言稳定性依赖所选模型，未做跨供应商真实网络质量评测。现有用户的模型连接、快捷键、发送行为和草稿接口保持兼容。
+Optimization uses the inference quota of the current model; current session usage statistics still only count formal chat runs. Candidate quality and language stability depend on the selected model, and no cross-provider real network quality evaluation has been performed. Existing users' model connections, shortcuts, sending behaviors, and draft interfaces remain compatible.

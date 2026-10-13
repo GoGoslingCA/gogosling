@@ -15,4 +15,4 @@ Do not publish exploit details in a public issue. If the private form is unavail
 - Parser limits, HTML sandboxing, archive expansion, and converter isolation.
 - Credential handling in logs, events, database, workers, and extensions.
 
-Local-first is not offline-only: configured models and tools may receive data or use external services. Test only authorized systems and data. See the [architecture invariants](docs/architecture.md#6-安全不变量).
+Local-first is not offline-only: configured models and tools may receive data or use external services. Test only authorized systems and data. See the [architecture invariants](docs/architecture.md#6-security-invariants).

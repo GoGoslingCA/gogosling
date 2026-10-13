@@ -1,65 +1,65 @@
-# AGENTS.md — 贡献者与 AI 代理工作手册
+# AGENTS.md — Contributor and AI Agent Working Manual
 
-本文件面向在本仓库中工作的人类与 AI 代理。架构本身见 [docs/architecture.md](docs/architecture.md)；本文只讲"怎么在这里干活"。
+This document is intended for humans and AI agents working within this repository. See [docs/architecture.md](docs/architecture.md) for the architecture itself; this file focuses solely on "how to work here".
 
-## 1. 工作原则
+## 1. Working Principles
 
-- 先读 `docs/architecture.md` 的依赖规则与安全不变量，再动手；实现不得与之冲突。
-- 只改与任务直接相关的文件；不顺手重构、不统一风格、不删除别人的待办注释。
-- 不确定的接口形状：先看 `internal/model`（类型、错误码、仓储接口）与 `api/` 下的契约，再看同层包的用法；仍不确定就在交付说明里写明假设，不要静默发明第二套类型。
-- 共享文件（`internal/model/*`、`go.mod`、`Makefile`、`AGENTS.md`、`docs/architecture.md`、`api/*`）属于架构负责人；需要改动时在交付说明中提出，不要直接改。例外：`go get` 批准列表内的依赖。
-- 任何面向用户的文字走 `internal/i18n`（内核）或 `apps/web/src/locales`（界面）；代码里不硬编码中文或英文提示。
-- 密钥、令牌、API key 不进日志、不进数据库、不进事件、不进测试固件。
+- Read the dependency rules and security invariants in `docs/architecture.md` before getting started; implementations must not conflict with them.
+- Only modify files directly related to the task; do not perform opportunistic refactoring, unify styles, or delete others' TODO comments.
+- For uncertain interface shapes: check `internal/model` (types, error codes, repository interfaces) and the contracts under `api/` first, then check the usage in sibling packages; if still unsure, state assumptions clearly in the delivery notes and do not silently invent a second set of types.
+- Shared files (`internal/model/*`, `go.mod`, `Makefile`, `AGENTS.md`, `docs/architecture.md`, `api/*`) belong to the architecture lead; request changes in the delivery notes rather than modifying them directly. Exception: dependencies within the `go get` approval list.
+- All user-facing text must go through `internal/i18n` (kernel) or `apps/web/src/locales` (UI); do not hardcode Chinese or English prompts in the code.
+- Secrets, tokens, and API keys must not enter logs, databases, events, or test fixtures.
 
-## 2. 工具链
+## 2. Toolchain
 
-先安装 Go、Node 和 uv，并确认工具位于 PATH。Go 和 uv 使用用户目录安装时，可加入：
+Install Go, Node, and uv first, and ensure the tools are in the PATH. When using user-directory installations for Go and uv, you can add:
 
 ```bash
 export PATH="$HOME/.local/go/bin:$HOME/.local/bin:$PATH"
 ```
 
-| 栈 | 版本 | 验证命令（在仓库根目录） |
+| Stack | Version | Verification Command (at repository root) |
 |---|---|---|
-| Go | 1.26（`go.mod` 声明 1.26.0） | `test -z "$(gofmt -l cmd internal)" && go vet ./... && go test ./...`（`gofmt -l` 有输出即未格式化） |
-| Python | 3.12，uv 管理 | `cd worker && uv sync && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest` |
-| Node | 22 LTS，npm workspaces | `npm install && npm run typecheck && npm test && npm run build` |
-| 端到端 | 需要 uv | `make e2e`（真实 Python 工作进程 + 假模型服务） |
+| Go | 1.26 (`go.mod` declares 1.26.0) | `test -z "$(gofmt -l cmd internal)" && go vet ./... && go test ./...` (`gofmt -l` having output indicates unformatted) |
+| Python | 3.12, managed by uv | `cd worker && uv sync && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest` |
+| Node | 22 LTS,npm workspaces | `npm install && npm run typecheck && npm test && npm run build` |
+| End-to-End | uv required | `make e2e` (real Python worker process + fake model service) |
 
-`make lint`（gofmt/vet/ruff/mypy/tsc）、`make test`（Go + Python + vitest）、`make build`（Go 二进制）、`make e2e` 聚合了上面的命令；`make dev` 启动源码开发态的守护进程（数据目录 `DEV_HOME`，工作进程走 `uv run`，放行 Vite 的 Origin）。交付前必须贴出实际运行的命令与结果；没跑的要说明原因。
+`make lint` (gofmt/vet/ruff/mypy/tsc), `make test` (Go + Python + vitest), `make build` (Go binary), and `make e2e` aggregate the commands above; `make dev` starts the source development daemon (data directory `DEV_HOME`, worker process uses `uv run`, allowing Vite's Origin). Actual running commands and results must be posted before delivery; explain any unrun commands.
 
-## 3. Go 约定
+## 3. Go Conventions
 
-- 包布局与依赖方向：见架构文档 §3、§4。新包必须有 `doc.go` 或在主文件顶部写包注释，说明职责、待实现项与边界。
-- 批准的第三方依赖（已在 `go.mod`）：`modernc.org/sqlite`、`github.com/modelcontextprotocol/go-sdk`、`github.com/robfig/cron/v3`、`github.com/zalando/go-keyring`、`golang.org/x/sys`、`golang.org/x/sync`。需要别的依赖先提出，不要先加。
-- 不要运行 `go mod tidy`（会与并行工作冲突）；集成时由架构负责人统一执行。
-- 错误：领域错误用 `model.NewError / Errorf / Wrap / NotFound` 携带 `model.Code`；向上返回时用 `fmt.Errorf("...: %w", err)` 保留链。不要 `panic`（`model.NewID` 的随机源失败除外）。
-- 上下文：所有可能阻塞或做 I/O 的函数第一个参数是 `ctx context.Context`，并尊重取消。
-- 并发：导出类型若并发安全要在注释里说明；共享状态用互斥锁或通道，不用全局变量；长生命周期 goroutine 必须能被 `ctx` 停止。
-- 日志：用 `*slog.Logger` 由调用方注入；键值对小写下划线；不打印密钥与完整请求体。
-- 时间：内部 UTC；格式化给用户时才转时区。
-- 文件权限：数据目录内新建文件 `0o600`、目录 `0o700`。
-- 测试：`go test` 标准库即可，不引入断言库；用 `t.TempDir()`、`t.Setenv`、`httptest`；不访问真实网络；跨平台（Linux、macOS、Windows）都要能跑，POSIX 专有行为用 `runtime.GOOS` 跳过；测试名与失败信息用中文描述期望。
-- 注释：标识符英文，注释中文；导出符号必须有注释。
+- Package layout and dependency direction: see architecture documentation §3, §4. New packages must have `doc.go` or a package comment at the top of the main file explaining responsibilities, items to be implemented, and boundaries.
+- Approved third-party dependencies (already in `go.mod`): `modernc.org/sqlite`, `github.com/modelcontextprotocol/go-sdk`, `github.com/robfig/cron/v3`, `github.com/zalando/go-keyring`, `golang.org/x/sys`, `golang.org/x/sync`. Propose any new dependencies first; do not add them beforehand.
+- Do not run `go mod tidy` (it will conflict with parallel work); integration will be performed uniformly by the architecture lead.
+- Errors: domain errors use `model.NewError / Errorf / Wrap / NotFound` carrying `model.Code`; use `fmt.Errorf("...: %w", err)` to preserve the chain when returning upward. Do not use `panic` (except for random source failures in `model.NewID`).
+- Context: the first parameter of all functions that may block or perform I/O must be `ctx context.Context`, and must respect cancellation.
+- Concurrency: document in comments if exported types are concurrency-safe; use mutexes or channels for shared state, avoiding global variables; long-running goroutines must be stoppable by `ctx`.
+- Logging: injected by the caller using `*slog.Logger`; key-value pairs in lowercase snake_case; do not print secrets or complete request bodies.
+- Time: internal UTC; convert timezones only when formatting for users.
+- File permissions: new files within data directories `0o600`, directories `0o700`.
+- Testing: `go test` standard library is sufficient, do not introduce assertion libraries; use `t.TempDir()`, `t.Setenv`, `httptest`; do not access the real network; must run across platforms (Linux, macOS, Windows), use `runtime.GOOS` to skip POSIX-specific behaviors; describe expectations in Chinese for test names and failure messages.
+- Comments: identifiers in English, comments in Chinese; exported symbols must have comments.
 
-## 4. Python 约定（worker/）
+## 4. Python Conventions (worker/)
 
-- 严格类型（`mypy --strict`），`ruff` 的 `E F I B UP` 规则；行宽 100。
-- 只用 stdout 发协议消息，日志走 stderr（`logging` 配置到 stderr）。
-- 不读写数据目录、不监听端口、不持久化密钥；凭据只在内存中、只在使用点使用。
-- 依赖加到 `pyproject.toml` 的 `dependencies`，并说明用途；优先标准库与 `httpx`。
-- 测试用 `pytest`，网络用本地假服务器（`http.server` 或 `httpx.MockTransport`）。
+- Strict typing (`mypy --strict`), `ruff` rules for `E F I B UP`; line width 100.
+- Use stdout only for protocol messages, route logs to stderr (`logging` configured to stderr).
+- Do not read or write data directories, do not listen on ports, do not persist secrets; credentials should exist only in memory and at the point of use.
+- Add dependencies to `pyproject.toml` under `dependencies` with a stated purpose; prioritize standard library and `httpx`.
+- Use `pytest` for tests, and local fake servers (`http.server` or `httpx.MockTransport`) for networking.
 
-## 5. 前端约定（apps/）
+## 5. Frontend Conventions (apps/)
 
-- TypeScript `strict`；React 函数组件 + hooks；状态用 `@tanstack/react-query` 管远端数据，本地 UI 状态用 `useState`/`useReducer`。
-- 所有网络访问经 `apps/web/src/api/`，类型与 `api/openapi/openapi.yaml` 一致（手写或生成，但要注明来源）。
-- 文案放 `apps/web/src/locales/{zh,en}.json`，默认中文。
-- Electron：`contextIsolation: true`、`nodeIntegration: false`、`sandbox: true`；preload 只暴露最小 IPC；令牌只经 IPC 传入渲染进程内存，不写 `localStorage`。
+- TypeScript `strict`; React functional components + hooks; manage remote data with `@tanstack/react-query`, and local UI state with `useState`/`useReducer`.
+- All network access must go through `apps/web/src/api/`; types must match `api/openapi/openapi.yaml` (handwritten or generated, but source must be noted).
+- UI copy belongs in `apps/web/src/locales/{zh,en,fr}.json`; the existing application fallback remains Chinese.
+- Electron: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`; preload exposes minimal IPC only; tokens are passed into renderer memory exclusively via IPC and are not written to `localStorage`.
 
-## 6. 提交与交付
+## 6. Commit and Delivery
 
-- 提交信息：`<type>(<scope>): <中文摘要>`，type ∈ feat / fix / refactor / docs / test / chore / build / ci；例：`feat(store): 实现 SQLite 仓储与迁移`。
-- 每个任务的交付说明包含：实现了什么、公开接口（签名）、运行过的验证命令与输出摘要、与契约或架构文档的偏差及理由、留下的待办。
-- 不提交构建产物、`node_modules`、`.venv`、本地配置、任何密钥。
-- 本机发布提交使用 `Gogosling.ca` 项目署名，不自动附加个人资料或工具联名页脚。
+- Commit messages: `<type>(<scope>): <English summary>`, where type ∈ feat / fix / refactor / docs / test / chore / build / ci; example: `feat(store): implement SQLite repository and migrations`.
+- Delivery notes for each task must include: what was implemented, public interfaces (signatures), executed verification commands and output summaries, deviations from contracts or architecture documentation with reasons, and remaining TODOs.
+- Do not commit build artifacts, `node_modules`, `.venv`, local configurations, or any secrets.
+- Local release commits use the `Gogosling.ca` project signature, without automatically appending personal profiles or automatic attribution trailers.

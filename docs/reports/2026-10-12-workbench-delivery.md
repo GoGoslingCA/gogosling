@@ -1,42 +1,42 @@
-# 工作台重构实施交付记录
+# Workbench Refactoring Implementation Delivery Record
 
-本文记录 P3A 交付时点；后续用户已授权并推进 P3B，最新状态见 [P3B 与样式统一交付](2026-10-12-p3b-delivery.md)。
+This document records the delivery point of P3A; the user has subsequently authorized and advanced P3B. For the latest status, see [P3B and Style Unification Delivery](2026-10-12-p3b-delivery.md).
 
-日期：2026-10-12。状态：本地实现和验证完成，未提交、未推送、未发布安装包。基线为 `b8bbd0d`，保留仓库中原有的两份 team-workflow 未提交文档修改。
+Date: 2026-10-12. Status: Local implementation and verification completed, uncommitted, unpushed, and no installation package published. The baseline is `b8bbd0d`, preserving the original two uncommitted team-workflow document modifications in the repository.
 
-用户已在本次会话明确授权工作台 P3A 的共享模型、仓储接口、OpenAPI 和架构文档变更。文件覆盖、原子应用与磁盘撤销作为 P3B 后置，没有启用未完成接口或占位按钮。
+In this session, the user explicitly authorized workbench P3A shared model, repository interface, OpenAPI, and architecture document changes. File overwriting, atomic application, and disk undo are deferred to P3B, with no uncompleted interfaces or placeholder buttons enabled.
 
-## 已实现的完整流程
+## Completed End-to-End Workflows
 
-1. 开始页与任务页共用输入组件。首页先选文件，再一次完成创建、上传和发送；空任务仍可直接新建。输入法、Enter/Shift+Enter 行为一致。
-2. 常驻最近任务、固定、搜索、重命名、归档和恢复保留旧路由。右键菜单与键盘可操作；配置入口仍在可折叠分组中。
-3. 项目固定属于一个助手，组织资料、任务和成果。资料上传不自动全选；本次勾选明确带入消息。旧任务可以原位关联项目，ID、Key 与消息历史不变。
-4. 输入区集中显示助手/模型、工作目录、助手的审批/自治模式、资料引用及当前轮次 token 用量。没有用量时显示未上报，不捏造费用。
-5. 运行展示基于真实 Run/SSE、工具调用及结果。首条目标与最近补充可检查；恢复状态读取期间不伪称运行或完成。审批同时标明所属任务。
-6. 用户明确选择“保存初稿并编辑”，才建立正式成果。支持完整文档和独立代码片段；语法预览、编辑、差异、导出与副本保存继续保留。
-7. 正式成果版本不可变，修改保存追加新版本。历史预览不修改当前草稿；使用历史内容恢复也生成新版本。并发版本冲突需明确选择，不静默覆盖。
-8. 输入与成果草稿由守护进程持久保存，按主体与作用域隔离。自动保存只有在服务成功确认后才显示完成；冲突保留本地和远端内容。发送完成仅清理发送时的草稿版本。
-9. 开始任务阶段保存已创建会话和已上传资料的检查点；失败续传不重复创建。创建/发送响应未知时先核对历史，不自动重发。迟到回调不抢走用户当前页面。
-10. 桌面窗口尺寸、最大化状态，成果宽度、主题、固定任务和最后打开位置可恢复。客户端只存 UI 偏好及资源 ID，正文、附件数据和凭据不写浏览器持久存储。退出时先完成未保存确认，再停止守护进程。
+1. The start page and task page share the input component. On the home page, select files first, then complete creation, uploading, and sending in a single step; empty tasks can still be created directly. Input method editor (IME) and Enter/Shift+Enter behaviors remain consistent.
+2. Persistent recent tasks, pinning, search, renaming, archiving, and restoration retain the old routes. Context menus and keyboard controls are operable; configuration entry points remain in collapsible groups.
+3. A project permanently belongs to an assistant, organizing materials, tasks, and deliverables. Material uploads do not auto-select all items; current selections are explicitly included in the message. Legacy tasks can be associated with projects in place, keeping IDs, Keys, and message histories unchanged.
+4. The input area centrally displays the assistant/model, working directory, assistant approval/autonomous mode, material references, and current-turn token usage. When usage data is unavailable, it shows "not reported" rather than fabricating costs.
+5. Run display is based on real Run/SSE, tool calls, and results. The initial goal and recent supplements are inspectable; during state restoration reading, running or completion is not falsely claimed. Approvals also indicate their associated task.
+6. A formal deliverable is created only when the user explicitly chooses "Save draft and edit". Full documents and standalone code snippets are supported; syntax previewing, editing, diffing, exporting, and saving copies are retained.
+7. Formal deliverable versions are immutable, and saving edits appends a new version. Previewing history does not modify the current draft; restoring using historical content also generates a new version. Concurrent version conflicts require explicit choice and are not silently overwritten.
+8. Input and deliverable drafts are persisted by the daemon, isolated by subject and scope. Auto-save indicates completion only after successful service confirmation; conflicts preserve both local and remote content. Sending completion cleans up only the draft version at the time of sending.
+9. The task initiation phase saves checkpoints for created sessions and uploaded materials; resuming after failure avoids duplicate creation. When creation/sending response status is unknown, history is checked first instead of automatically retransmitting. Late callbacks do not hijack the user's current page.
+10. Desktop window size, maximized state, deliverable pane width, theme, pinned tasks, and last opened location are restorable. The client stores only UI preferences and resource IDs; content body, attachment data, and credentials are not written to browser persistent storage. Upon exit, un-saved confirmations are completed before stopping the daemon.
 
-## 数据与协议
+## Data and Protocols
 
-- 新增 `Project`、`ProjectMaterial`、`Draft`、`Artifact`、`ArtifactRevision`，保留原 `model.Store`，另设 `WorkbenchStore`。
-- schema 从 1 升为 2。旧数据库升级前执行 SQLite 一致快照、完整性/版本校验和摘要记录；文件 0600、目录 0700。备份失败则拒绝迁移，新数据库不制造空备份。
-- 项目关联和草稿更新使用预期值/版本条件；成果追加使用 `expected_latest_revision_id`。草稿基线可在同一成果内通过 CAS 显式更新。
-- 材料发送前检查 Agent/项目归属、存在性、大小和 SHA-256；失败整体拒绝，不静默使用变化后的文件。
-- 新建成果校验真实 assistant 消息来源；创建幂等键按主体及端点作用域处理。
-- 新增 22 条工作台 HTTP 操作；内容读取和下载单独鉴权，元数据不带正文。纯文本预览、attachment 下载、文件名净化和 nosniff/CSP 边界保持有效。
-- `/version` 声明已完成的能力；旧 daemon 没有能力字段时保留既有会话与附件副本流程，不探测或调用新写接口。
-- 新事件只发 ID/版本等元数据；原 SSE Seq、gap、hello 和重连处理不变。工作台资源收到事件后失效相应查询。
+- Added `Project`, `ProjectMaterial`, `Draft`, `Artifact`, and `ArtifactRevision`, retained original `model.Store`, and separately set `WorkbenchStore`.
+- The schema upgraded from 1 to 2. Prior to upgrading legacy databases, an SQLite consistent snapshot, integrity/version verification, and digest logging are executed; file permissions are 0600 and directory permissions are 0700. Migration is rejected if backup fails, and new databases do not create empty backups.
+- Project associations and draft updates use expected value/version conditions; deliverable appends use `expected_latest_revision_id`. Draft baselines can be explicitly updated via CAS within the same deliverable.
+- Materials undergo checks for Agent/project ownership, existence, size, and SHA-256 before sending; failure results in overall rejection without silently using altered files.
+- Creating new deliverables validates the authentic assistant message source; creation idempotency keys are processed based on subject and endpoint scope.
+- Added 22 workbench HTTP operations; content reading and downloading are independently authenticated, and metadata excludes the body. Plain text preview, attachment downloads, filename sanitization, and nosniff/CSP boundaries remain effective.
+- `/version` declares completed capabilities; when a legacy daemon lacks capability fields, existing session and attachment copy flows are preserved without probing or calling new write endpoints.
+- New events transmit only metadata such as ID/version; original SSE Seq, gap, hello, and reconnection handling remain unchanged. Workbench resources invalidate corresponding queries upon receiving events.
 
-## 主要公开接口
+## Key Public Interfaces
 
 ```go
 workbench.New(store model.WorkbenchStore, files workbench.Files, bus *event.Bus) (*workbench.Service, error)
 ```
 
-完整共享资源/仓储签名见 `internal/model/workbench.go`、`internal/model/repository.go`。新增 HTTP 路径与输入约束见 `api/openapi/openapi.yaml`：项目/材料、会话项目关联、草稿、成果及版本、版本正文和下载。无 worker RPC、go.mod、Makefile 或 AGENTS.md 修改。
+For complete shared resource/repository signatures, see `internal/model/workbench.go` and `internal/model/repository.go`. For new HTTP paths and input constraints, see `api/openapi/openapi.yaml`: project/materials, session-project associations, drafts, deliverables and versions, version body, and downloading. No worker RPC, go.mod, Makefile, or AGENTS.md modifications.
 
 ```ts
 workbenchApi(client: ApiClient): WorkbenchApi
@@ -45,11 +45,11 @@ TaskStarter.start(input: StartTaskInput, onStage: (stage: StartStage) => void): 
 SavedArtifactEditor({ artifactId, sessionId, visible, onClose, onDirtyChange })
 ```
 
-`Composer.onSend` 向后兼容原 text/attachments 参数，第三个可选参数为材料 ID。StartPage 的第四个可选参数携带恢复的已上传引用，不包含本地 File 二进制。ApiClient 新增可选 text/blob 响应类型，默认 JSON 行为不变。
+`Composer.onSend` is backward compatible with the original text/attachments parameters, where the third optional parameter is the material ID. StartPage's fourth optional parameter carries restored uploaded references, excluding local File binaries. ApiClient adds an optional text/blob response type, keeping default JSON behavior unchanged.
 
-## 实际执行的验证
+## Executed Verifications
 
-命令均在仓库根目录执行，先设置仓库指定 PATH：
+Commands were all executed in the repository root directory, setting the repository-specified PATH first:
 
 ```bash
 make lint
@@ -63,38 +63,38 @@ go test -race ./internal/store
 git diff --check -- apps internal api docs/architecture.md docs/design/workbench-contract-proposal.md docs/reports docs/research
 ```
 
-- Go 格式、vet、全仓测试通过；store race 通过。
-- Python ruff、格式、mypy 通过，176 项测试通过。
-- Web 与桌面 TypeScript 类型检查通过。
-- 最终前端测试：桌面 231 项，Web 275 项，合计 506 项通过。
-- Go 二进制与 Web/Electron 构建通过。复用现有锁定依赖，没有新增依赖或执行 go mod tidy。
-- `make e2e` 使用真实 Python worker、本地假模型、审批与工具调用，完整通过且未跳过。
-- OpenAPI 用现有解析器核验：44 个路径、48 个 schema，引用均可解析。
-- 全仓差异检查仍包含原有 team-workflow 文档的空白字符问题；本次相关文件范围通过，未顺手修改那些文档。
+- Go formatting, vet, and full repository tests passed; store race passed.
+- Python ruff, formatting, and mypy passed; 176 tests passed.
+- Web and desktop TypeScript type checks passed.
+- Final frontend tests: 231 desktop items, 275 Web items, total 506 items passed.
+- Go binary and Web/Electron builds passed. Existing locked dependencies were reused, with no new dependencies added or go mod tidy executed.
+- `make e2e` passed fully without skips, using real Python worker, local mock model, approval, and tool calls.
+- OpenAPI verified using the existing parser: 44 paths, 48 schemas, all references resolvable.
+- Repository-wide diff check still contains whitespace issues in original team-workflow documents; scope of files relevant to this work passed without modifying those documents in passing.
 
-### 实际进程和浏览器验证
+### Actual Process and Browser Verification
 
-- 已运行独立的两进程验证：同数据目录关闭 daemon 1，再启动不同 PID、不同令牌的 daemon 2；相同草稿正文、版本、owner 恢复，旧令牌 401，过期版本写入 409。
-- 实际 HTTP 并发 16 次同名上传，得到 16 个独立路径，每份内容正确；材料内容变化后消息提交 409；owner 注入及缺失/null/超限正文被拒，原草稿保持不变。
-- 浏览器中创建项目、上传资料、明确勾选、开始任务、批准读取、生成初稿、保存版本 1、编辑并自动保存、刷新恢复、追加版本 2、读取版本 1，以及重启后的再次编辑并保存版本 3 均成功。
-- 再次停止整个测试 daemon，启动新进程并从应用根入口进入，自动回到原任务/成果，包含 `P3-20261012` 标记的未完成编辑稿完整恢复。
-- 1440×900 并排与 900×760 标签布局已检查；保存按钮均在可见窗口内，切回对话后成果仍保留。项目成果列表显示最新版本 3。文件导出与守护进程中的副本内容曾逐字节比较一致。
-- 最终验收发现临时代理未转发 PUT，补齐验收环境后使用“重试保存”恢复，无需修改产品接口；失败期间窗口内编辑仍保留。
+- Executed dual-process verification: closed daemon 1 under the same data directory, then started daemon 2 with a different PID and token; identical draft body, version, and owner were restored, old token returned 401, and expired version write returned 409.
+- Actual HTTP concurrency of 16 uploads with the same name yielded 16 independent paths with correct content in each; message submission returned 409 after material content changed; owner injection and missing/null/oversized body were rejected, leaving the original draft intact.
+- In-browser actions all succeeded: creating projects, uploading materials, explicitly checking boxes, starting tasks, approving reads, generating initial draft, saving version 1, editing and auto-saving, refreshing to restore, appending version 2, reading version 1, as well as editing again post-restart and saving version 3.
+- Stopped the entire test daemon again, launched a new process, and entered from the application root entry point; automatically returned to original task/deliverable, fully restoring uncompleted edits marked with `P3-20261012`.
+- Checked 1440×900 side-by-side and 900×760 tab layouts; save buttons remained inside visible windows, and deliverables were retained when switching back to conversation. The project deliverable list displayed the latest version 3. Exported files and copy contents in the daemon were compared byte-for-byte and matched.
+- Final acceptance revealed the temporary proxy did not forward PUT; after fixing the acceptance environment, "Retry Save" recovered state without modifying product interfaces; window edits were preserved during failure.
 
-上述完整任务使用本地假模型，不能作为真实模型质量结论。用户提供网关的 `auto:fast` 最小文本请求已单独返回 HTTP 200；没有据此声称真实网关的完整工具回路或所有协议已验证。密钥未写入仓库、测试、配置文件或日志。
+The complete tasks above used a local mock model and cannot serve as conclusions on real model quality. A minimal text request for `auto:fast` via the user-provided gateway independently returned HTTP 200; no claim is made that the complete tool loop or all protocols on the real gateway have been verified. Keys were not written to the repository, tests, config files, or logs.
 
-## 设计与研究交付
+## Design and Research Deliverables
 
-- [第三阶段契约提案](../design/workbench-contract-proposal.md)：保留授权范围与 P3B 后置设计。
+- [Phase-three contract proposal](../design/workbench-contract-proposal.md): preserves the authorized scope and deferred P3B design.
 
-## 仍然明确保留的边界
+## Explicitly Retained Boundaries
 
-- 新的项目、材料、项目内任务与成果列表首版最多显示 200 项，尚未补完整分页交互；原历史任务分页保留。
-- 未点击开始、尚未上传的本地 File 不能跨重启恢复；界面说明需要重新选择。正文与已上传引用可以恢复。
-- 项目不是独立文件沙箱：同一 Agent 的项目共享其工作区，勾选资料不等于撤销其他已授权文件的访问。
-- 支持文本/代码成果，不包含 Office 格式转换平台。保存版本、保存副本、导出与修改原文件是不同动作。
-- 原文件覆盖/原子应用/磁盘撤销仍未实现，也未启用对应 capability。
-- 没有跨进程精确一次发送保证；未知结果必须核对，不自动重发。
-- 没有正式账户额度、费用核算或消费上限面板；目前展示服务实际提供的 token 用量。
-- Electron 原生退出确认、多显示器拔插、Windows/Linux 安装包尚未真机运行验证。
-- 自动保存仍存在写入确认前的时间窗口；失败时保留窗口内编辑并提示，不能承诺断电前最后一个字符必然已保存。
+- The initial version of lists for new projects, materials, in-project tasks, and deliverables displays up to 200 items, with full pagination interactions not yet added; original historical task pagination is retained.
+- Local Files that have not been started or uploaded cannot be restored across restarts; UI instructions require re-selection. Content text and uploaded references can be restored.
+- A project is not an isolated file sandbox: projects under the same Agent share its workspace, and selecting materials does not revoke access to other authorized files.
+- Text/code deliverables are supported, excluding Office format conversion platforms. Saving versions, saving copies, exporting, and modifying original files are distinct actions.
+- Original file overwriting, atomic application, and disk undo remain unimplemented, with corresponding capabilities not enabled.
+- No cross-process exactly-once sending guarantee; unknown results must be verified rather than automatically retransmitted.
+- No formal account quota, cost accounting, or spending limit dashboard; currently displays token usage actually provided by the service.
+- Electron native exit confirmation, multi-monitor hot-plugging, and Windows/Linux installation packages have not been verified on actual physical devices.
+- Auto-save still has a time window prior to write confirmation; upon failure, in-window edits are preserved with prompts, but saving the very last character before power loss cannot be guaranteed.

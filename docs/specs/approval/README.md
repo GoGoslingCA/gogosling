@@ -1,99 +1,99 @@
-# 模块规划：确认
+# Module Plan: Approval
 
-| 项 | 内容 |
+| Item | Content |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 模块 | 确认。界面标题为「需要你的确认」 |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Module | Approval. UI title is "Approval Required" |
 
-本文件规划人在操作执行前看到的决定。不新造一套长期授权。
+This document plans the decisions humans see before operations execute. It does not create a new set of long-term authorizations.
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 验证
-8. 假设与待确认
+1. Objectives
+2. Responsibility Boundaries
+3. Key Flows
+4. Inputs and Outputs
+5. Dependencies
+6. Potential Exceptions
+7. Verification
+8. Assumptions and Pending Confirmations
 
 ---
 
-## 1. 目标
+## 1. Objectives
 
-每一次需要人决定的操作，都让人在执行前看清：属于哪件任务、要做什么、对哪个对象。决定只覆盖这一次，除非人明确选择本会话内允许。
+For every operation requiring human decision, ensure the human clearly sees before execution: which task it belongs to, what is to be done, and to which target. The decision covers only this single instance, unless the human explicitly selects allow for this session.
 
-## 2. 职责边界
+## 2. Responsibility Boundaries
 
-| 本模块负责 | 本模块不负责 |
+| This Module Is Responsible For | This Module Is Not Responsible For |
 |---|---|
-| 展示风险和对象 | 改写助手的确认档位 |
-| 接受批准一次、本会话内允许、拒绝 | 在消息软件里批准 |
-| 文件修改只提供「仅批准此文件的当前预览」 | 用一次批准覆盖以后所有文件 |
-| 规则判定拒绝时，不执行 | 解释模型为什么提出这次操作 |
+| Displaying risks and targets | Rewriting the assistant's confirmation tier |
+| Accepting approve once, allow for this session, and reject | Approving inside messaging software |
+| Providing only "Approve current preview of this file only" for file modifications | Covering all future files with a single approval |
+| Not executing when rules evaluate to reject | Explaining why the model proposed this operation |
 
-风险用文字标出：只读、写入、执行、网络、破坏性。不只用颜色。
+Risks are labeled in text: read-only, write, execute, network, destructive. Color is not used alone.
 
-工作台不提供获取网页和自动对外发送的入口。若运行中仍出现网络或发送类确认，本模块照常展示任务、动作和对象，由人决定。不因为本地版去掉了那些入口，就隐藏已经出现的确认。
+The workbench provides no entry points for fetching web pages or sending externally automatically. If network- or send-type approvals still appear during runtime, this module displays the task, action, and target as usual for a human decision. Confirmations that have already appeared are not hidden just because the local edition removed those entry points.
 
-## 3. 关键流程
+## 3. Key Flows
 
-1. 操作停在待确认。目标还没有按这次请求被改掉。
-2. 人阅读任务名称、动作、对象和风险。
-3. 批准一次：只执行这一次。助手的长期档位不变。
-4. 本会话内允许：只存在于任务运行中的确认，不用于文件修改。
-5. 拒绝：这一次不执行。
-6. 文件修改的批准文案是「仅批准此文件的当前预览」。过期或目标已变时，这次批准不能用到另一份内容上。
+1. The operation halts at pending approval. The target has not yet been modified according to this request.
+2. The human reviews the task name, action, target, and risk.
+3. Approve once: executes only this instance. The assistant's long-term tier remains unchanged.
+4. Allow for this session: exists only for approvals during task runtime, not used for file modifications.
+5. Reject: this instance is not executed.
+6. The approval copy for file modifications is "Approve current preview of this file only". When expired or the target has changed, this approval cannot be applied to another piece of content.
 
-多条待确认时逐条显示，并说明还有几条。两件任务同时等待时，各自独立。处理一件不会改写另一件的等待，也不会把决定记到当前正打开的那件任务上。
+When multiple approvals are pending, display them one by one and state how many remain. When two tasks are waiting concurrently, each remains independent. Handling one does not overwrite the other's wait state, nor does it record the decision against whichever task is currently open.
 
-## 4. 输入与输出
+## 4. Inputs and Outputs
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
-| 所属任务、动作、对象、风险 | 一次决定：批准一次、本会话内允许、拒绝 |
-| 文件修改的当前预览 | 批准这一份，或拒绝。目标在批准前保持原样 |
-| 任务名称还在读取或读取失败 | 不显示成未命名任务。批准不可用，拒绝仍可用 |
+| Associated task, action, target, risk | A single decision: approve once, allow for this session, reject |
+| Current preview of file modification | Approve this version, or reject. Target remains unchanged before approval |
+| Task name is still loading or failed to load | Do not display as unnamed task. Approve is unavailable, reject remains available |
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 关系 |
+| Counterpart | Relationship |
 |---|---|
-| 助手 | 提供当前档位。哪些操作要问人，由档位和拒绝规则决定 |
-| 个人工作台 | 提供任务名称，并在决定后显示运行或文件状态 |
-| 文件修改 | 只有状态变成「已应用」，才表示预览已经写到目标 |
+| Assistant | Provides current tier. Which operations require asking humans is determined by tier and rejection rules |
+| Personal Workbench | Provides task name, and displays run or file status after decision |
+| File Modification | Only when status changes to "Applied" does it indicate the preview has been written to the target |
 
-等待确认占用一个执行名额。本模块不释放定时任务的计划，只结束这一次等待。
+Waiting for approval consumes an execution slot. This module does not release scheduled task plans; it only terminates this single wait state.
 
-## 6. 潜在异常
+## 6. Potential Exceptions
 
-| 异常 | 人要看见的事实 |
+| Exception | Facts Visible to the Human |
 |---|---|
-| 任务名称尚未读到或读取失败 | 显示正在确认或未能确认。批准不可用，拒绝仍可用 |
-| 批准前目标文件已变化 | 文件模块显示「文件已变化」，外部内容保留 |
-| 预览过期 | 需要重新预览。旧决定不能套用 |
-| 规则拒绝 | 操作不执行 |
-| 人没有处理就离开 | 操作保持等待或按过期处理，不当成已批准 |
-| 两件任务同时等待 | 各自保留。当前打开哪一件，不改变决定的归属 |
-| 档位名称和确认框不一致 | 以有没有确认框、文件是否变成「已应用」为准 |
+| Task name not yet read or failed to load | Shows confirming or failed to confirm. Approve is unavailable, reject remains available |
+| Target file changed before approval | File module displays "File has changed", external content is retained |
+| Preview expired | Requires regeneration of preview. Old decisions cannot be applied |
+| Rule rejected | Operation does not execute |
+| Human leaves without handling | Operation remains waiting or is treated as expired; not treated as approved |
+| Two tasks waiting simultaneously | Retained independently. Whichever is currently open does not alter decision attribution |
+| Tier name inconsistent with confirmation dialog | Governed by whether a confirmation dialog exists and whether file status changes to "Applied" |
 
-## 7. 验证
+## 7. Verification
 
-| 验证 | 通过时看到 |
+| Verification | Seen When Passing |
 |---|---|
-| 普通确认 | 能读到任务、动作、对象。拒绝后该操作不执行 |
-| 批准一次 | 助手档位不变 |
-| 文件修改 | 按钮是当前预览这一次。拒绝时文件不变 |
-| 本会话内允许 | 不出现在文件修改上 |
-| 连续多条 | 有剩余条数，逐条处理 |
-| 两件任务同时等待，只处理一件 | 另一件仍在等待，决定没有记到当前打开的任务上 |
+| Normal approval | Task, action, target are readable. Operation does not execute after rejection |
+| Approve once | Assistant tier remains unchanged |
+| File modification | Button applies to this current preview only. File remains unchanged upon rejection |
+| Allow for this session | Does not appear on file modifications |
+| Multiple consecutive items | Remaining count shown, handled item by item |
+| Two tasks waiting simultaneously, only one handled | The other remains waiting; decision is not recorded on the currently open task |
 
-## 8. 假设与待确认
+## 8. Assumptions and Pending Confirmations
 
-| 编号 | 内容 |
+| ID | Content |
 |---|---|
-| Q-1 | 三种档位下，人发起的写回是否一律询问。现版以当时有没有确认框、状态是不是「已应用」为准。收紧为「一律询问」尚未作为现版规则 |
+| Q-1 | Whether human-initiated writebacks always prompt under all three tiers. Current edition is governed by whether a confirmation dialog is present at the time and whether status is "Applied". Tightening to "always prompt" is not yet a rule in the current edition |

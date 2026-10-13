@@ -1,97 +1,97 @@
-# 模块规划：定时任务
+# Module plan: Scheduled jobs
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 模块 | 定时任务 |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Module | Scheduled jobs |
 
-定时任务在这台电脑上到点运行。它不把内容发到其他软件，也不是工作台里的一条普通聊天。
+Jobs run on this computer at the planned time. They do not post to other software or represent an ordinary workbench chat.
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 验证
-8. 假设与待确认
+1. Goal
+2. Responsibilities
+3. Key workflow
+4. Inputs and outputs
+5. Dependencies
+6. Potential failures
+7. Verification
+8. Assumptions and open questions
 
 ---
 
-## 1. 目标
+## 1. Goal
 
-让人设定一件到点要做的事，并在事后看见上次结果和下次时间。电脑当时没有运行到点任务时，按人选定的错过方式处理。
+Schedule work, then show last result and next time. A missed execution follows the selected missed-run policy.
 
-## 2. 职责边界
+## 2. Responsibilities
 
-| 本模块负责 | 本模块不负责 |
+| In scope | Out of scope |
 |---|---|
-| 新建、编辑、删除、立即运行 | 工作台草稿怎么保存 |
-| 选择运行助手，或只把一段文字送进本机上的某个任务 | 消息连接、邮件或云端推送 |
-| 设定时间和时区 | 解释模型回复质量 |
-| 错过时跳过，或恢复后补跑一次 | 补跑时自动改写已有成果版本 |
-| 显示下次、上次和上次是成功、失败还是已跳过 | 占用名额时替工作台隐藏排队原因 |
+| Create, edit, delete, run now | Workbench draft-saving rules |
+| Run an assistant or push text into a local task | Messaging, email, cloud push |
+| Configure time/timezone | Explain model reply quality |
+| Skip missed runs or catch up once after recovery | Rewrite saved result versions during catch-up |
+| Show next/last time and success/failure/skipped | Hide workbench queue causes |
 
-「推送文本」只表示把文字送进本机上的目标任务，不经过模型，也不离开这台电脑。
+Push text inserts text into a local target task without invoking a model or leaving this computer.
 
-## 3. 关键流程
+## 3. Key workflow
 
-1. 填写名称、时间、时区和内容。
-2. 选择运行助手，或选择只推送文本。
-3. 选择错过时跳过，或恢复后补跑一次。
-4. 保存后能看到下次时间。
-5. 到点后进入与普通任务相同的名额。人当场发起的任务优先。同一个工作区依次执行。
-6. 立即运行只是提前触发一次，不改下次计划。
-7. 助手已停用时，运行助手的任务要提示改选、启用助手，或改为推送文本。
+1. Enter name, schedule, timezone, and content.
+2. Select assistant execution or text-only push.
+3. Select skip or catch up once after recovery.
+4. Saving exposes the next execution time.
+5. Due work shares normal execution capacity; immediate user tasks have priority, and the same workspace runs serially.
+6. Run now triggers once without changing the next scheduled time.
+7. For a disabled assistant, prompt reselection, enablement, or text-only push.
 
-时间写法沿用现有说明：五段时间表达式，或按小时、按天这类现成说法。写错时不能保存。
+Use the existing five-field schedule or hourly/daily descriptor syntax. Invalid schedules cannot be saved.
 
-## 4. 输入与输出
+## 4. Inputs and outputs
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
-| 名称、助手或推送文本、时间、时区、内容、错过方式 | 一条已保存的定时任务，或说清哪一项不合法 |
-| 到点或立即运行 | 一次本机上的运行或一条送进目标任务的文字 |
-| 工作台询问名额 | 是否有定时任务正在占用 |
+| Name, assistant/text push, schedule, timezone, content, missed policy | Saved job or precise invalid-field notice |
+| Due/run now | Local execution or text inserted into the target task |
+| Workbench capacity request | Whether scheduled work occupies capacity |
 
-内容过长时拒绝保存，原任务不变。长度以界面现有上限提示为准。
+Reject oversized content and retain the existing job; use the current UI limit notice.
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 关系 |
+| Module | Relationship |
 |---|---|
-| 助手 | 运行助手时使用那个助手的模型和确认档位 |
-| 确认 | 到点运行若需要人决定，仍出现确认。不能在无人处理时当成已批准 |
-| 个人工作台 | 共享执行名额。工作台不编辑定时任务的时间 |
-| 桌面 | 窗口关到托盘后，本机任务仍可到点。真正退出后，本模块不能假装仍在运行 |
+| Assistant | Uses that assistant's model and approval mode |
+| Approval | Required decisions still appear; unattended waiting is never approval |
+| Workbench | Shares slots; workbench does not edit schedule times |
+| Desktop | May run while hidden in tray; do not pretend jobs continue after actual exit |
 
-## 6. 潜在异常
+## 6. Potential failures
 
-| 异常 | 人要看见的事实 |
+| Failure | Visible fact |
 |---|---|
-| 时间写错 | 不能保存 |
-| 助手不可用 | 这条定时任务不会悄悄改跑另一个助手 |
-| 错过且选择跳过 | 上次状态为已跳过 |
-| 名额已满 | 等待，不额外打开一套不受上限约束的运行 |
-| 等待确认 | 占用一个名额，直到人处理或该次确认结束 |
+| Invalid schedule | Cannot save |
+| Assistant unavailable | Never silently switch to another assistant |
+| Missed with skip selected | Last state shows skipped |
+| Capacity full | Wait rather than starting an unbounded execution pool |
+| Awaiting approval | Occupy one slot until decided or the approval ends |
 
-## 7. 验证
+## 7. Verification
 
-| 验证 | 通过时看到 |
+| Case | Expected result |
 |---|---|
-| 保存一条按天运行的任务 | 有下次时间 |
-| 立即运行 | 出现一次本机运行，计划本身还在 |
-| 助手停用 | 有明确提示，不会静默成功 |
-| 与工作台同时运行且上限为 1 | 后来者排队，工作台能看出不是自己正在处理 |
-| 查找外部发送 | 没有发到其他软件的选项 |
+| Save daily job | Next time shown |
+| Run now | One local execution; schedule retained |
+| Assistant disabled | Clear notice, no silent success |
+| Workbench/job overlap with limit 1 | Later work queued; workbench distinguishes waiting from processing |
+| Look for external sending | No option to send to other software |
 
-## 8. 假设与待确认
+## 8. Assumptions and open questions
 
-| 编号 | 内容 |
+| ID | Detail |
 |---|---|
-| Q-SC1 | 电脑睡眠错过之后，补跑一次是否在本次打开时立刻发生。现有选项是「跳过」或「恢复后补跑一次」。具体延迟没有单独的产品承诺 |
+| Q-SC1 | Immediate catch-up timing after sleep is unverified. Current choices are skip or catch up once after recovery; no separate delay promise |

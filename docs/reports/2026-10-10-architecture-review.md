@@ -1,95 +1,95 @@
-# 架构审查结论与阶段报告（2026-10-10）
+# Architecture Review Conclusions and Phase Report (2026-10-10)
 
-> 范围：gogosling 的首轮实现（契约 → 两波并行模块实现 → 集成 → 审查 → 修复）。
-> 验证基线：`go build ./... && go vet ./... && go test -race ./...`、`GOOS=windows/linux go vet ./...`、worker `ruff / mypy / pytest`、`npm run typecheck && npm test && npm run build`、`make e2e`（真实 Python 工作进程 + 假模型服务）均通过；GitHub Actions 三平台矩阵在 `8903381` 起转绿。
+> Scope: First-round implementation of gogosling (contracts → two waves of parallel module implementation → integration → review → fix).
+> Verification baseline: `go build ./... && go vet ./... && go test -race ./...`, `GOOS=windows/linux go vet ./...`, worker `ruff / mypy / pytest`, `npm run typecheck && npm test && npm run build`, `make e2e` (real Python worker process + fake model service) all passed; GitHub Actions three-platform matrix turned green starting from `8903381`.
 
-## 1. 审查结论
+## 1. Review Conclusions
 
-架构按 [docs/architecture.md](../architecture.md) 落地，三条不变量在代码与测试中可验证：
+The architecture is implemented according to [docs/architecture.md](../architecture.md), and three invariants are verifiable in code and tests:
 
-| 不变量 | 落地方式 | 验证 |
+| Invariant | Implementation Method | Verification |
 |---|---|---|
-| 守护进程持有全部状态，前端只是客户端 | `internal/app` 组合根；桌面壳、Web、CLI 全部经本地 HTTP + SSE；CLI 不打开数据库，只读 `daemon.json` | `internal/app` 集成测试（假工作进程走通对话、审批、取消、冲突、锁、关闭）；`tests/e2e` |
-| 密钥不入库、不进日志/事件 | `secret`（OS keychain / 加密文件，后端选择持久化）；provider / channel 记录只存引用；observability 脱敏 Handler；server 只返回 `has_secret` | provider / channel / server 测试断言响应与数据库不含密钥；e2e 断言数据库文件无明文密钥 |
-| 副作用必经权限与沙箱，第三方代码进程外 | 工作进程只能经 `host.tool.call` 申请；`tools.Executor` 固定顺序 permission → 执行；MCP / 插件为子进程；`archcheck` 强制依赖方向 | permission 的硬拒绝/规则/授权/档位测试；tools 的拒绝转 `is_error`；archcheck 测试 |
+| Daemon holds all state, frontend is just a client | `internal/app` composition root; desktop shell, Web, CLI all go through local HTTP + SSE; CLI does not open the database, only reads `daemon.json` | `internal/app` integration tests (fake worker process runs through conversation, approval, cancellation, conflict, lock, shutdown); `tests/e2e` |
+| Secrets do not enter database, logs, or events | `secret` (OS keychain / encrypted file, backend chooses persistence); provider / channel records only store references; observability desensitization Handler; server only returns `has_secret` | provider / channel / server tests assert that responses and database do not contain secrets; e2e asserts database files have no plaintext secrets |
+| Side effects must go through permissions and sandbox, third-party code is out-of-process | Worker process can only apply via `host.tool.call`; `tools.Executor` fixed sequence permission → execution; MCP / plugins are subprocesses; `archcheck` enforces dependency direction | permission hard rejection/rule/authorization/level tests; tools rejection to `is_error`; archcheck tests |
 
-依赖方向由 `internal/archcheck` 测试强制执行（越层导入即失败），已覆盖传输层不得导入 `store` 的规则。
+Dependency direction is enforced by `internal/archcheck` tests (cross-layer imports fail immediately), covering the rule that the transport layer must not import `store`.
 
-**整体判断**：分层清晰、边界可执行、关键安全路径有测试覆盖；可以进入下一阶段（TeamAI 团队工作流、Linux/Windows 沙箱、IM 适配器扩展）。尚未在真实 Windows/Linux 机器上做人工冒烟，是当前最大的验证缺口（CI 的 Windows 矩阵只能覆盖自动化测试）。
+**Overall Assessment**: Clear layering, enforceable boundaries, and critical security paths covered by tests; ready to proceed to the next phase (TeamAI team workflow, Linux/Windows sandboxing, IM adapter extensions). Manual smoke testing has not yet been performed on real Windows/Linux machines, which is currently the largest verification gap (CI's Windows matrix can only cover automated tests).
 
-## 3. 审查发现的问题与修正
+## 3. Issues Found and Fixed During Review
 
-审查由 6 个视角（安全不变量、并发与生命周期、契约一致性、分层与重复、跨平台、文档准确性）完成，共 82 条发现（7 high、26 medium、49 low）。按用户要求，发现的筛选与验证由架构负责人完成，未做多代理复核。全部 high 与 medium 已修复，low 修复了 29 条，其余 20 条列入待办。
+The review was completed from 6 perspectives (security invariants, concurrency and lifecycle, contract consistency, layering and duplication, cross-platform, document accuracy), with a total of 82 findings (7 high, 26 medium, 49 low). As requested by the user, filtering and verification of findings were completed by the architecture lead, without multi-agent double-check. All high and medium issues have been fixed, 29 low issues have been fixed, and the remaining 20 are listed in the backlog.
 
-### 3.1 high（7/7 已修）
+### 3.1 high(7/7 fixed)
 
-| ID | 问题 | 修正 |
+| ID | Issue | Fix |
 |---|---|---|
-| DOC-01 | `auto_in_sandbox` 在无隔离的 Linux/Windows 上直接放行命令执行；不可信输入的下限不含 execute | 权限请求增加 `Isolated` 事实（只有 Seatbelt 下的 run_command 为真）；无隔离时 execute/network 退回 ask_risky；不可信输入下 execute 至少询问 |
-| XP-03 | 路径规则区分大小写，macOS/Windows 上 `.SSH/id_rsa` 绕过 deny 规则 | darwin/windows 不区分大小写匹配；deny 规则全平台 fail-closed；Windows 长名规范化 |
-| XP-05 | 桌面壳 `app://` 页面跨源访问回环 API，浏览器拒绝读取响应 | 主进程 `protocol.handle` 把 `app://gogosling/api/*` 代理到守护进程并注入令牌；令牌不再进入渲染进程 |
-| XP-06 | `daemon stop` 只凭残留 `daemon.json` 的 pid 杀进程，PID 复用时误杀 | 先用令牌访问 `/version` 校验身份与 `started_at`，失败则只删残留文件 |
-| XP-02 | Windows 上 `cmd /C` 的引号被 Go 转义，带引号的命令全部失败 | `sandbox.Spec.RawCommandLine` + `SysProcAttr.CmdLine` 原样传递 |
-| XP-01 | Windows 发行版没有时区数据库 | `import _ "time/tzdata"` |
-| C1 | 工作进程把空名工具调用写进历史，之后整个会话被解析器拒绝 | 缺名调用不产生 `tool_call` 片段；解析历史时宽松；增加"产出必须能被自己解析"的往返测试 |
+| DOC-01 | `auto_in_sandbox` directly allows command execution on unisolated Linux/Windows; the lower bound of untrusted input does not contain execute | Permission requests add `Isolated` fact (only run_command under Seatbelt is true); execute/network falls back to ask_risky when unisolated; execute asks at least under untrusted input |
+| XP-03 | Path rules are case-sensitive, `.SSH/id_rsa` bypasses deny rules on macOS/Windows | darwin/windows case-insensitive matching; deny rules fail-closed on all platforms; Windows long name normalization |
+| XP-05 | Desktop shell `app://` page cross-origin accesses loopback API, browser refuses to read response | Main process `protocol.handle` proxies `app://gogosling/api/*` to daemon and injects token; token no longer enters render process |
+| XP-06 | `daemon stop` kills process solely based on leftover `daemon.json` pid, causing accidental kill during PID reuse | First use token to access `/version` to verify identity and `started_at`, if failed, only delete leftover files |
+| XP-02 | Quotes in `cmd /C` on Windows are escaped by Go, causing all quoted commands to fail | `sandbox.Spec.RawCommandLine` + `SysProcAttr.CmdLine` passed as-is |
+| XP-01 | Windows distribution lacks timezone database | `import _ "time/tzdata"` |
+| C1 | Worker process writes empty-name tool calls into history, after which the entire session is rejected by the parser | Calls with missing names do not generate `tool_call` fragments; lenient when parsing history; add round-trip test for "output must be parseable by itself" |
 
-### 3.2 medium（26/26 已修，节选）
+### 3.2 medium(26/26 fixed, selected)
 
-- 运行状态机：`approval.*` 事件现在经 `session.NoteApproval` 进入状态机，`Run.status` 会显示 `awaiting_approval`（C2/CONC-1）。
-- 删除智能体：先检查在途运行，级联删除会话并发布 `session.deleted`，调度器与网关内存状态随 `agent.deleted` 清理（C5）。
-- 网关：按会话键推导路由（重启后仍能回复），投递 `push_text` 推送到 IM（LAY-05）；失败原因本地化而不是机器常量（C13）。
-- 并发：引擎有界等待反向请求收尾（CONC-4）；未受理运行的取消收敛（CONC-3）；`ScopeAlways` 先决定后写规则并审计（CONC-2）；关闭分步预算（CONC-5）。
-- 契约：Windows 优雅关闭端点 `POST /api/v1/system/shutdown`（XP-07）；设置返回 `effective_locale / effective_timezone`、未设置时不伪装成用户偏好（C3/LAY-01）；`Agent.tools` 三态语义（C4/DOC-02/DOC-04）；消息分页上限统一 500（LAY-02）；MCP `Headers` 真正生效（LAY-04）；凭据后端选择持久化、不静默切换（XP-11）。
-- 跨平台：子进程不再弹控制台窗口（XP-08）；内核数据目录防护覆盖大小写与 `\\?\` 前缀（XP-04）；代理与证书环境变量透传给工作进程（XP-13）；桌面壳深链冷启动、Windows 自启动状态、内置扩展打包（XP-09/10/12）。
+- Running state machine: `approval.*` events now enter the state machine via `session.NoteApproval`, and `Run.status` will display `awaiting_approval` (C2/CONC-1).
+- Delete Agent: Check in-flight runs first, cascade delete sessions and publish `session.deleted`, scheduler and gateway in-memory states are cleaned up with `agent.deleted` (C5).
+- Gateway: Derive routes by session key (can still reply after restart), deliver `push_text` to push to IM (LAY-05); failure reasons are localized instead of machine constants (C13).
+- Concurrency: Engine bounded-waits for reverse request wrap-up (CONC-4); cancellation convergence of unaccepted runs (CONC-3); `ScopeAlways` decides first, then writes rules and audits (CONC-2); close step-by-step budget (CONC-5).
+- Contracts: Windows graceful shutdown endpoint `POST /api/v1/system/shutdown` (XP-07); settings return `effective_locale / effective_timezone`, do not masquerade as user preferences when unset (C3/LAY-01); `Agent.tools` tri-state semantics (C4/DOC-02/DOC-04); message pagination limit unified to 500 (LAY-02); MCP `Headers` truly takes effect (LAY-04); credential backend chooses persistence, no silent switching (XP-11).
+- Cross-platform: Subprocesses no longer pop up console windows (XP-08); kernel data directory protection covers case sensitivity and `\\?\` prefix (XP-04); proxy and certificate environment variables passed through to worker processes (XP-13); desktop shell deep link cold start, Windows autostart status, built-in extension packaging (XP-09/10/12).
 
-### 3.3 集成阶段由架构负责人直接修复的问题
+### 3.3 Issues Fixed Directly by the Architecture Lead During the Integration Phase
 
-- 系统提示重复注入：session 把 system 消息放进 `Messages`，工作进程又按 `agent.system_prompt` 注入一次（两边修复并加回归测试，协议写明只经 `agent.system_prompt` 传递）。
-- `go.sum` 缺 MCP SDK 传递依赖；Windows 上 sandbox/engine 测试的平台假设与时序竞争；macOS runner 的 `LC_ALL` 干扰 locale 测试；Windows 8.3 短路径导致的规则路径比较失败。
-- provider 对 `openai_compatible` 静默回填 `api.openai.com`（协议禁止）；engine 取消码在 session 侧按失败收尾。
+- Duplicate injection of system prompts: session puts system messages into `Messages`, and the worker process injects them again according to `agent.system_prompt` (fixed on both sides with regression tests added, protocol specifies delivery only via `agent.system_prompt`).
+- `go.sum` lacks MCP SDK transitive dependencies; platform assumptions and timing races in sandbox/engine tests on Windows; macOS runner's `LC_ALL` interferes with locale tests; rule path comparison failure caused by Windows 8.3 short paths.
+- provider silently backfills `api.openai.com` for `openai_compatible` (prohibited by protocol); engine cancellation code ends as failure on the session side.
 
-## 4. 各模块完成情况
+## 4. Module Completion Status
 
-| 模块 | 状态 | 说明 |
+| Module | Status | Description |
 |---|---|---|
-| `model` / `event` / `config` / `version` | 完成 | 契约层；事件总线带回放与 `gap` |
-| `store` | 完成 | SQLite 双池、嵌入式迁移、全部仓储；待：升级快照、保留期清理 |
-| `observability` / `i18n` / `secret` / `identity` | 完成 | 脱敏日志、zh/en 语言包、keychain + 加密文件（后端持久化）、本机令牌与句柄文件 |
-| `permission` / `sandbox` / `tools` / `workspace` | 完成（沙箱仅 macOS） | 规则引擎、审批代理、审计；Seatbelt；6 个内置工具 + `load_skill`；Linux bwrap / Windows Job Object 待实现 |
-| `engine` + `worker` | 完成 | 工作进程监管、stdio JSON-RPC、推理循环、openai_compatible / anthropic / ollama、reasoning.delta；worker 的 memory / knowledge 仍是骨架 |
-| `session` / `agent` / `provider` | 完成 | 运行状态机（含等待审批）、推送消息、模板库、供应商预设与连通性测试 |
-| `scheduler` / `gateway` / `channel` | 完成（通道仅 console、telegram） | cron 解析与错过补偿；网关路由与回复分片；飞书、钉钉、企微、Discord 适配器待实现 |
-| `extension` / `protocol/mcp` | 完成 | 技能 / 插件 / MCP 服务，工具摘要固定防 rug pull，内置资产播种；市场与签名待实现 |
-| `server` / `client` / `app` / `cmd` | 完成 | 51+2 条路由、SSE、组合根、完整 CLI；`protocol/acp` 与 `update` 仍为包注释 |
-| `apps/web` / `apps/desktop` | 完成（未在真机打包验证） | React UI；Electron 壳（代理、托盘、深链、守护进程生命周期） |
-| 文档 | 完成 | 架构、AGENTS、OpenAPI、worker-rpc、19 份参考记录、本报告 |
+| `model` / `event` / `config` / `version` | Completed | Contract layer; event bus with replay and `gap` |
+| `store` | Completed | SQLite dual pool, embedded migrations, all repositories; Todo: upgrade snapshots, retention period cleanup |
+| `observability` / `i18n` / `secret` / `identity` | Completed | Desensitized logs, zh/en language packs, keychain + encrypted files (backend persistence), local tokens and handle files |
+| `permission` / `sandbox` / `tools` / `workspace` | Completed (Sandbox macOS only) | Rule engine, approval proxy, audit; Seatbelt; 6 built-in tools + `load_skill`; Linux bwrap / Windows Job Object to be implemented |
+| `engine` + `worker` | Completed | Worker process supervision, stdio JSON-RPC, reasoning loop, openai_compatible / anthropic / ollama, reasoning.delta; worker's memory / knowledge is still a skeleton |
+| `session` / `agent` / `provider` | Completed | Running state machine (including waiting for approval), push messages, template library, provider presets and connectivity tests |
+| `scheduler` / `gateway` / `channel` | Completed (Channels console and telegram only) | cron parsing and missed compensation; gateway routing and reply chunking; Feishu, DingTalk, WeChat Work, Discord adapters to be implemented |
+| `extension` / `protocol/mcp` | Completed | Skills / plugins / MCP services, tool summary pinning to prevent rug pull, built-in asset seeding; marketplace and signatures to be implemented |
+| `server` / `client` / `app` / `cmd` | Completed | 51+2 routes, SSE, composition root, complete CLI; `protocol/acp` and `update` are still package comments |
+| `apps/web` / `apps/desktop` | Completed (Not verified by packaging on real machines) | React UI; Electron shell (proxy, tray, deep link, daemon lifecycle) |
+| Documentation | Completed | Architecture, AGENTS, OpenAPI, worker-rpc, 19 reference records, this report |
 
-## 5. 待办
+## 5. Todo
 
-**P0（下一迭代）**
-1. Windows / Linux 真机冒烟：子进程无窗口、命令引号、时区、`daemon stop`、桌面壳打包件中的 `app://` 代理与 SSE。
-2. Linux bwrap 沙箱与 Windows Job Object；`extension.ProcessRunner` 接入沙箱（插件子进程目前无 OS 级隔离）。
-3. `protocol/acp`（双向）与 `update`（内核与运行环境升级、升级前快照）。
-4. 随安装包分发 Python 运行环境（`electron-builder` 的 `resources/worker` 目前为空占位）。
+**P0 (Next Iteration)**
+1. Windows / Linux real machine smoke testing: subprocesses without windows, command quotes, timezones, `daemon stop`, `app://` proxy and SSE in desktop shell packages.
+2. Linux bwrap sandbox and Windows Job Object; `extension.ProcessRunner` integrated into sandbox (plugin subprocesses currently lack OS-level isolation).
+3. `protocol/acp` (bidirectional) and `update` (kernel and runtime environment upgrade, pre-upgrade snapshot).
+4. Distribute Python runtime environment with installation package (`electron-builder`'s `resources/worker` is currently an empty placeholder).
 
 **P1**
-5. IM 适配器：飞书、钉钉、企业微信、Discord；入站附件下载；斜杠命令。
-6. worker 的 memory / knowledge；多模态输入（`model.Part` 内容片段）；429/5xx 退避重试。
-7. 调度器时区设置热更新；执行历史表；`job.updated` 事件。
-8. 剩余 low 发现：LAY-06（组合根中少量领域规则下沉）、LAY-10（导出面收敛）、LAY-11（同形类型拷贝）、LAY-17（server 处理器中的校验下沉）、C7 文档、DOC-05（已改）、CLI 的附件上传 / 消息查看 / update 子命令。
-9. 桌面壳：`SIGTERM` 回退等待与守护进程最坏关闭时长对齐；`launch()` 与 `stop()` 的竞态；托盘重启非本壳启动的守护进程的产品决策。
+5. IM adapters: Feishu, DingTalk, WeChat Work, Discord; inbound attachment download; slash commands.
+6. worker's memory / knowledge; multimodal input (`model.Part` content fragments); 429/5xx backoff retry.
+7. Hot update of scheduler timezone settings; execution history table; `job.updated` events.
+8. Remaining low findings: LAY-06 (sinking of a small number of domain rules in the composition root), LAY-10 (convergence of export surfaces), LAY-11 (isomorphic type copying), LAY-17 (sinking of validation in server handlers), C7 documentation, DOC-05 (modified), CLI attachment upload / message viewing / update subcommands.
+9. Desktop shell: `SIGTERM` fallback wait aligned with daemon worst-case shutdown duration; race condition between `launch()` and `stop()`; product decision on tray restarting daemons not started by this shell.
 
 **P2**
-10. 可观测性：OTel SDK 适配、按日期轮转；用量与费用统计。
-11. 扩展市场：来源签名、撤销列表、压缩包 / URL 安装、插件常驻进程。
-12. 多用户模式与目录服务接入点。
+10. Observability: OTel SDK adaptation, rotation by date; usage and cost statistics.
+11. Extension marketplace: source signatures, revocation lists, archive / URL installation, plugin resident processes.
+12. Multi-user mode and directory service access points.
 
-## 6. 规模
+## 6. Scale
 
-截至本报告：Go 约 35.7k 行实现 + 28.9k 行测试（707 个测试函数）；Python 工作进程约 3.5k 行 + 2.6k 行测试；Web 约 6.0k 行、桌面壳约 2.8k 行 TypeScript；16 次提交。
+As of this report: Go approx. 35.7k lines of implementation + 28.9k lines of tests (707 test functions); Python worker process approx. 3.5k lines + 2.6k lines of tests; Web approx. 6.0k lines, desktop shell approx. 2.8k lines of TypeScript; 16 commits.
 
-## 7. 工作流记录
+## 7. Workflow Records
 
-- 第一波 12 个模块、第二波 2 个集成层任务由并行编码代理完成；每个任务按契约实现与自测。
-- 架构负责人负责契约、集成对齐、全仓验证、审查发现的筛选与跨组收尾；审查发现的验证不再使用多代理复核。
-- 关联文档：TeamAI 团队工作流的用户故事与 PRD 见 `docs/prd/team-workflow.md`，架构与流程设计见 `docs/design/team-workflow-architecture.md`（撰写中）。
+- The first wave of 12 modules and the second wave of 2 integration layer tasks were completed by parallel coding agents; each task was implemented and self-tested according to the contract.
+- The architecture lead is responsible for contracts, integration alignment, repository-wide validation, filtering of review findings, and cross-group wrap-up; validation of review findings no longer uses multi-agent double-checking.
+- Related documents: For user stories and PRD of the TeamAI team workflow, see `docs/prd/team-workflow.md`; for architecture and process design, see `docs/design/team-workflow-architecture.md` (in progress).

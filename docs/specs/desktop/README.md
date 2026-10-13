@@ -1,93 +1,93 @@
-# 模块规划：桌面
+# Module plan: Desktop
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 模块 | 桌面窗口、托盘与退出 |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Module | Desktop window, tray, and exit |
 
-本模块只规划人如何打开、隐藏和离开应用。任务内容仍由个人工作台负责。
+This plan covers opening, hiding, and leaving the app. Task content remains the workbench responsibility.
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 验证
-8. 假设与待确认
+1. Goal
+2. Responsibilities
+3. Key workflow
+4. Inputs and outputs
+5. Dependencies
+6. Potential failures
+7. Verification
+8. Assumptions and open questions
 
 ---
 
-## 1. 目标
+## 1. Goal
 
-关闭窗口后，人仍知道任务有没有继续。真正退出前，未保存的内容会先被询问。再次打开时，恢复窗口大小和上次所在的任务。
+After closing the window, users know whether tasks continue. Exiting first checks unsaved content. Reopening restores window size and the last task.
 
-## 2. 职责边界
+## 2. Responsibilities
 
-| 本模块负责 | 本模块不负责 |
+| In scope | Out of scope |
 |---|---|
-| 关闭窗口时隐藏到托盘 | 把任务同步到手机或云 |
-| 真正退出前先完成未保存确认 | 替工作台保存尚未确认的正文 |
-| 恢复窗口大小、位置和成果区宽度 | 恢复助手中途某一步的执行现场 |
-| 外观、语言入口的放置 | 模型密钥的保存 |
-| 打包版托盘里的开机启动开关 | 未做真机验收的系统上的安装承诺 |
+| Hide to tray on window close | Synchronize tasks to mobile/cloud |
+| Resolve unsaved-content confirmation before exit | Save unconfirmed text on behalf of the workbench |
+| Restore size, position, and result-panel width | Restore an assistant's intermediate execution state |
+| Place appearance/language entries | Store model credentials |
+| Packaged tray launch-at-login switch | Promise installation on unverified real platforms |
 
-浏览器打开时若要求填写地址和访问令牌，令牌只留在这次打开的页面里。这不是桌面版的主路径。
+A browser connection may request endpoint/token, held only in page memory. This is not the primary desktop flow.
 
-## 3. 关键流程
+## 3. Key workflow
 
-1. 打开桌面版，直接进入工作台。不经过账号登录。
-2. 关闭窗口：收到托盘，任务继续。
-3. 从托盘再打开：回到原来的窗口。上次任务和成果位置按已保存的界面偏好恢复。
-4. 真正退出：先处理未发送的文字、正在上传的资料和未确认的成果编辑，然后再停止。
-5. 外观可以跟随系统、浅色或深色，只影响这台设备。
+1. Open the desktop app directly into the workbench, without account login.
+2. Closing hides to the tray while tasks continue.
+3. Reopen from the tray; restore task/result positions from confirmed UI preferences.
+4. On actual exit, handle unsent text, uploads, and unconfirmed result edits before stopping.
+5. System/light/dark appearance affects only this device.
 
-## 4. 输入与输出
+## 4. Inputs and outputs
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
-| 关闭窗口 | 窗口隐藏。已经受理的任务继续，不因此变成已停止 |
-| 退出 | 未保存确认完成后，应用停止 |
-| 再次打开 | 窗口尺寸和上次位置恢复。正文以工作台已确认保存的为准 |
-| 尚未上传的本地文件 | 下次需要重新选择。界面要说明这一点 |
+| Close window | Hidden window; accepted work continues rather than becoming stopped |
+| Exit | App stops after unsaved-content confirmation |
+| Reopen | Size and location restored; body text follows confirmed workbench saves |
+| Local file not uploaded | Reselect next time, with an explicit notice |
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 关系 |
+| Module | Relationship |
 |---|---|
-| 个人工作台 | 提供未保存状态。桌面不在退出时悄悄丢弃或自动发送 |
-| 定时任务 | 留在托盘时仍可到点。退出后不再假装仍在运行 |
-| 手机端应用 | 桌面不因为退出或关闭去打开同步 |
+| Workbench | Supplies unsaved state; desktop never silently discards or sends on exit |
+| Scheduled jobs | May run while in the tray; do not pretend they continue after exit |
+| Mobile app | Closing/exiting does not start synchronization |
 
-多显示器拔插、Windows 和 Linux 安装包上的窗口恢复尚未作为本版承诺。
+Monitor unplugging and window restoration in packaged Windows/Linux builds are not promises for this version.
 
-## 6. 潜在异常
+## 6. Potential failures
 
-| 异常 | 人要看见的事实 |
+| Failure | Visible fact |
 |---|---|
-| 退出时仍有未保存编辑 | 先询问。人取消则留在应用内 |
-| 成果正在保存时退出 | 询问。不保证尚未确认的那一次已经成功 |
-| 断电或强制结束 | 只保证上次显示已保存的内容 |
-| 窗口位置恢复失败 | 仍能打开工作台。不因此清空任务 |
+| Unsaved edits on exit | Ask first; cancellation keeps the app open |
+| Exit while saving | Ask; an unconfirmed save is not guaranteed |
+| Power loss/forced termination | Only content last confirmed saved is guaranteed |
+| Position restoration failed | Workbench remains openable; do not clear tasks |
 
-## 7. 验证
+## 7. Verification
 
-| 验证 | 通过时看到 |
+| Case | Expected result |
 |---|---|
-| 关闭窗口 | 应用在托盘。已经受理的一轮不因此变成已停止 |
-| 保存并行数量后重新打开 | 仍是保存时的数量。没有显示成已保存却在下次恢复成旧值 |
-| 有未发送文字时退出 | 出现询问。取消后文字还在 |
-| 确认退出后再打开 | 已确认保存的草稿还在。未上传文件有重新选择的说明 |
-| 查找登录 | 没有账号登录才能使用的门 |
+| Close window | App in tray; accepted run not stopped by closure |
+| Save parallelism and reopen | Saved value restored, rather than a false saved notice followed by the old value |
+| Exit with unsent text | Confirmation appears; cancelling retains text |
+| Reopen after confirmed exit | Confirmed drafts retained; unuploaded files explicitly require reselection |
+| Look for login | No account-login gate to use the app |
 
-## 8. 假设与待确认
+## 8. Assumptions and open questions
 
-| 编号 | 内容 |
+| ID | Detail |
 |---|---|
-| A3 | 桌面版是主入口 |
-| Q-4 | 多显示器拔插，以及 Windows、Linux 安装包上的窗口恢复，未做真机验收 |
+| A3 | Desktop is the primary entry |
+| Q-4 | Monitor unplugging and packaged Windows/Linux window restoration lack real-device acceptance |

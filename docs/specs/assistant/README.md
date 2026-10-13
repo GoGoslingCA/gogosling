@@ -1,102 +1,100 @@
-# 模块规划：助手
+# Module plan: Assistant
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 模块 | 助手。设置中的「智能体」与工作台中的「助手」是同一个对象 |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Module | The agent in Settings is the same object as the workbench assistant |
 
-本文件只规划助手模块。不修改它的现有行为，也不把工作台的规则写进来代替它。
+This plan covers the assistant module only. It does not change existing behavior or replace its rules with workbench rules.
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 验证
-8. 假设与待确认
+1. Goal
+2. Responsibilities
+3. Key workflow
+4. Inputs and outputs
+5. Dependencies
+6. Potential failures
+7. Verification
+8. Assumptions and open questions
 
 ---
 
-## 1. 目标
+## 1. Goal
 
-让人准备一个可以开始任务的助手：有名称、有可用的模型、有明确的确认档位，并固定使用一个工作目录。
+Prepare an assistant that can start a task: a name, usable model, explicit approval mode, and one fixed workspace.
 
-## 2. 职责边界
+## 2. Responsibilities
 
-| 本模块负责 | 本模块不负责 |
+| In scope | Out of scope |
 |---|---|
-| 新建、编辑、启用、停用和删除助手 | 某一次任务的草稿和成果正文 |
-| 为助手选定模型连接和模型名 | 密钥是否正确、服务是否连通 |
-| 设定确认档位 | 某一次确认框上的决定 |
-| 选择这个助手可以使用的本机技能与工具 | 技能市场或在线安装 |
-| 说明删除助手时，任务、项目、草稿和成果版本会去掉，工作区文件保留 | 删除工作区里的文件 |
+| Create, edit, enable, disable, and delete assistants | A particular task's draft/result body |
+| Select a model connection and model name | Validate credentials or connectivity |
+| Configure approval mode | Decide a particular approval prompt |
+| Select available local skills and tools | Skill markets or online installation |
+| Explain deletion of tasks, projects, drafts, and result versions while retaining workspace files | Delete workspace files |
 
-确认档位只有三档：
-
-| 档位 | 人应理解的规则 |
+| Mode | Rule |
 |---|---|
-| 全部审批 | 每个会改动外界的操作都要先问 |
-| 高风险审批 | 执行命令、访问网络、发送消息、删除这类要先问 |
-| 沙箱内自动 | 在允许范围内可自行完成；超出该范围仍要问 |
+| Ask for everything | Ask before every operation that changes the outside world |
+| Ask for risky actions | Ask before command execution, networking, sending messages, or deletion |
+| Automatic in sandbox | Act within the allowed boundary; ask outside it |
 
-修改助手会影响到使用它的所有任务。工作台必须能展示这句话，但档位本身由本模块保存。
+Changing an assistant affects every task using it. The workbench must display this fact; this module stores the mode.
 
-## 3. 关键流程
+## 3. Key workflow
 
-1. 还没有可用的模型连接时，先去模型连接，不假装助手已经能开始任务。
-2. 填写名称，选择连接和模型，选择确认档位，保存。
-3. 需要本机技能时，只绑定已经安装并启用的项。
-4. 停用后，新的任务不能再选它。已有任务如何继续，以打开该任务时的提示为准。
-5. 删除前说明后果。人确认后，去掉它名下的任务、项目、草稿和成果版本。工作区文件保留。
+1. Without a usable model connection, direct the user to model connections rather than claiming the assistant is ready.
+2. Enter a name, select connection/model and approval mode, then save.
+3. Bind only installed, enabled local skills.
+4. A disabled assistant is unavailable to new tasks. Existing-task continuation follows the notice shown when opening that task.
+5. Explain deletion before confirmation. Remove its tasks, projects, drafts, and result versions; retain workspace files.
 
-## 4. 输入与输出
+## 4. Inputs and outputs
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
-| 名称、说明、模型连接、模型名、确认档位、是否启用 | 一个可被工作台选中的助手，或一条说清哪一项缺失的提示 |
-| 删除确认 | 助手及其任务、项目、草稿、成果版本被去掉；工作区文件仍在 |
+| Name, description, model connection/name, approval mode, enabled flag | A selectable assistant or a precise missing-field notice |
+| Confirmed deletion | Assistant and its tasks/projects/drafts/versions removed; workspace files retained |
 
-工作台读到的输出是：名称、模型名、工作目录、确认档位、是否启用。名称显示不全时，要能看到全名。
+The workbench reads name, model, workspace, approval mode, and enabled state. Truncated names must expose the full name.
 
-工作台更换助手时，未发送的输入回到该助手自己的草稿。不把上一个助手尚未发送的句子留在新助手的输入区。
+Switching assistants restores that assistant's own unsent draft rather than carrying the previous assistant's text into it.
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 关系 |
+| Module | Relationship |
 |---|---|
-| 模型连接 | 助手必须指向一个仍存在的连接。连接被删除时，本模块拒绝或要求改选，不保留一个空连接 |
-| 技能与扩展 | 只绑定已安装并启用的项。未安装的项显示为缺失，不自动下载 |
-| 个人工作台 | 工作台选择助手并展示档位。工作台不在任务里改写档位 |
-| 定时任务 | 助手停用后，运行助手的定时任务要提示改选或停用。本文件不改定时任务的计划规则 |
+| Model connection | Must reference an existing connection; reject deletion or require reselection rather than retaining an empty reference |
+| Skills and extensions | Bind installed/enabled items; mark absent items as missing rather than downloading |
+| Workbench | Selects the assistant and displays its mode without changing it inside a task |
+| Scheduled jobs | Disabling an assistant prompts reselection or disabling dependent agent jobs; scheduling rules remain unchanged |
 
-## 6. 潜在异常
+## 6. Potential failures
 
-| 异常 | 人要看见的事实 |
+| Failure | Visible fact |
 |---|---|
-| 没有模型连接 | 不能保存一个可以开始任务的助手。提示先去模型连接 |
-| 所选连接已停用或不存在 | 保存被拒绝，原助手保持不变 |
-| 绑定的技能已移除 | 标为未安装或已移除，不静默当成仍可用 |
-| 删除时仍有内容 | 确认文案写明任务、项目、草稿和成果版本会去掉，文件保留 |
+| No model connection | An assistant ready to start cannot be saved; direct the user to configuration |
+| Selected connection disabled/missing | Reject save and retain the existing assistant |
+| Bound skill removed | Show not installed/removed rather than silently treating it as available |
+| Deletion while content exists | Explain task/project/draft/version deletion and file retention |
 
-## 7. 验证
+## 7. Verification
 
-| 验证 | 通过时看到 |
+| Case | Expected result |
 |---|---|
-| 没有连接时新建助手 | 不能开始任务，并有去配置的提示 |
-| 改确认档位后回到工作台 | 工作台显示的档位与刚保存的一致，并说明会影响该助手的其他任务 |
-| 删除助手 | 相关任务不再可继续；工作区原文件还在 |
-| 技能未安装 | 助手上能看出缺失，设置里没有「去市场安装」 |
-| 写下未发送内容后更换助手 | 新助手的输入区不是上一名助手的句子 |
+| Create without a connection | Cannot start; configuration entry provided |
+| Change mode, return to workbench | Display matches saved mode and explains its effect on other tasks |
+| Delete assistant | Related tasks cannot continue; original workspace files remain |
+| Missing skill | Missing state shown without a market-install action |
+| Switch with unsent text | New assistant's input does not contain the previous assistant's sentence |
 
-## 8. 假设与待确认
+## 8. Assumptions and open questions
 
-| 编号 | 内容 |
+| ID | Detail |
 |---|---|
-| A5 | 「助手」和「智能体」是同一个对象 |
-| Q-AG1 | 助手停用后，已经打开的任务是否立刻不能发送。现有提示以打开任务时的说明为准，本规范不补写一个未核对的新状态 |
+| A5 | Assistant and agent are the same object |
+| Q-AG1 | Whether disabling an assistant immediately blocks sending in an already-open task remains unverified; follow the task-opening notice without inventing a state |

@@ -1,86 +1,86 @@
-# 模块规划：操作记录
+# Module plan: Activity records
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 模块 | 操作记录。设置中也可称为操作审计 |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Module | Activity records; also called operation audit in Settings |
 
-本模块让人回看已经发生的操作和决定。它不执行新的文件修改，也不连接外部服务。
+Review completed operations and decisions. This module neither applies new file changes nor connects to external services.
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 验证
-8. 假设与待确认
+1. Goal
+2. Responsibilities
+3. Key workflow
+4. Inputs and outputs
+5. Dependencies
+6. Potential failures
+7. Verification
+8. Assumptions and open questions
 
 ---
 
-## 1. 目标
+## 1. Goal
 
-按时间从新到旧查看工具操作和确认决定，并能按助手、操作和时间缩小范围。
+Review tool operations and approval decisions from newest to oldest, narrowing by assistant, operation, and time.
 
-## 2. 职责边界
+## 2. Responsibilities
 
-| 本模块负责 | 本模块不负责 |
+| In scope | Out of scope |
 |---|---|
-| 列出记录、筛选、翻页、查看一条的详情 | 撤销记录对应的文件修改 |
-| 说明当前筛选下没有记录 | 补写一条没有发生过的成功 |
-| 刷新 | 把记录上传或分享成链接 |
+| List, filter, paginate, and inspect records | Undo the recorded file change |
+| Explain an empty filtered result | Invent a successful operation |
+| Refresh | Upload records or publish sharing links |
 
-记录供人核对。它不是账单，也不是用量的第二份数字。
+Records support inspection; they are neither billing nor a second usage counter.
 
-## 3. 关键流程
+## 3. Key workflow
 
-1. 打开操作记录，默认看到最新的一页。
-2. 可按助手、操作身份、操作类型、任务、运行和开始时间筛选。
-3. 时间需要带时区。写错时不应用筛选，原列表保持。
-4. 没有符合条件的记录时，显示空，不显示成 0 次消费。
-5. 打开一条查看详情。详情不回显密钥和令牌。
+1. Open the latest page by default.
+2. Filter by assistant, actor identity, operation type, task, run, or start time.
+3. Times include a timezone. Reject invalid filters and retain the current list.
+4. Show an empty result when nothing matches, not zero spending.
+5. Inspect details without echoing keys or tokens.
 
-## 4. 输入与输出
+## 4. Inputs and outputs
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
-| 筛选条件 | 符合条件的一页记录，或空结果，或筛选不合法 |
-| 刷新 | 重新读取后的列表 |
-| 查看详情 | 这一条的操作、对象和结果。没有密钥明文 |
+| Filters | A matching page, empty result, or invalid-filter notice |
+| Refresh | Reloaded list |
+| Detail request | Operation, target, and result without plaintext credentials |
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 关系 |
+| Module | Relationship |
 |---|---|
-| 确认 | 决定完成后，记录里能看到对应操作。记录模块不改那次决定 |
-| 个人工作台 | 工作台的失败提示不靠操作记录来代替四句说明。人可以到这里继续核对 |
-| 助手 | 可按助手筛选。助手已删除时，历史记录仍按当时的身份显示，不改写成别人的 |
+| Approval | Completed decisions appear with the operation; records do not change decisions |
+| Workbench | Records do not replace the workbench's four-part failure explanation; users may inspect further here |
+| Assistant | Filter by assistant; deleted assistants retain their historical identity, without reassignment |
 
-## 6. 潜在异常
+## 6. Potential failures
 
-| 异常 | 人要看见的事实 |
+| Failure | Visible fact |
 |---|---|
-| 筛选时间不合法 | 不应用。提示如何填写 |
-| 没有记录 | 空状态。不是故障，除非刷新本身失败 |
-| 刷新失败 | 保留上一份已经显示的列表，并说明这次没刷新成 |
-| 详情缺字段 | 缺的项显示未知，不编造 |
+| Invalid time filter | Do not apply; explain the format |
+| No records | Empty state, not a fault unless refresh failed |
+| Refresh failed | Retain the previously displayed list and explain this refresh failed |
+| Missing detail fields | Show unknown, never invent |
 
-## 7. 验证
+## 7. Verification
 
-| 验证 | 通过时看到 |
+| Case | Expected result |
 |---|---|
-| 拒绝一次确认后打开记录 | 能找到这次拒绝 |
-| 非法时间 | 筛选不生效，并有提示 |
-| 清空筛选 | 回到未筛选的最新记录 |
-| 查看详情 | 看不到密钥或令牌 |
+| Inspect after denying approval | Find that denial |
+| Invalid time | Filter rejected with notice |
+| Clear filters | Return to the latest unfiltered records |
+| Inspect details | No keys or tokens visible |
 
-## 8. 假设与待确认
+## 8. Assumptions and open questions
 
-| 编号 | 内容 |
+| ID | Detail |
 |---|---|
-| Q-AU1 | 记录保留多久没有产品承诺。本规范不写一个未核对的天数 |
+| Q-AU1 | No retention-duration promise exists; do not invent a number of days |

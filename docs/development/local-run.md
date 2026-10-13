@@ -1,8 +1,8 @@
-# 本地开发运行
+# Local Development and Execution
 
-需要 Go 1.26、Node 22（至少 22.12）、Python 3.12、uv 和 make。以下命令在仓库根目录用 Bash 执行，适用于 macOS / Linux；Windows 可在 WSL2 中运行 Web 开发环境。仓库不提供预构建二进制，请使用本机新构建的 `bin/` 文件。English: [Quickstart](quickstart.md)。
+Requires Go 1.26, Node 22 (at least 22.12), Python 3.12, uv, and make. The following commands are executed using Bash at the repository root and apply to macOS / Linux; Windows can run the Web development environment in WSL2. The repository does not provide prebuilt binaries; please use the freshly built `bin/` file on your local machine. English: [Quickstart](quickstart.md).
 
-## 安装与构建
+## Installation and Build
 
 ```bash
 npm ci
@@ -11,46 +11,46 @@ make build
 npm run build
 ```
 
-## 启动 Web 开发环境
+## Start Web Development Environment
 
-终端一：
+Terminal one:
 
 ```bash
 make dev
 ```
 
-默认数据目录为 `$HOME/.gogosling-dev`，与日常使用的 `.gogosling` 分开。守护进程绑定 `127.0.0.1:46750`，真实 Python worker 从源码启动。终端应出现 worker ready 状态；uv 必须在 PATH 中。
+The default data directory is `$HOME/.gogosling-dev`, kept separate from the daily-use `.gogosling`. The daemon binds to `127.0.0.1:46750`, and the real Python worker starts from source. The terminal should show the worker ready status; uv must be in PATH.
 
-终端二：
+Terminal two:
 
 ```bash
 npm run dev -w @gogosling/web -- --strictPort
 ```
 
-在本机浏览器打开 `http://127.0.0.1:5173`。开发态连接页的地址留空会使用 Vite 代理；令牌取自本机 `$HOME/.gogosling-dev/daemon.json` 的 `token` 字段，只填入本机连接页。界面不会把令牌写入浏览器持久存储。
+Open `http://127.0.0.1:5173` in a local browser. Leaving the address blank on the development connection page will use the Vite proxy; the token is taken from the `token` field of the local `$HOME/.gogosling-dev/daemon.json` and filled only into the local connection page. The UI will not write the token to browser persistent storage.
 
-启动服务不需要模型 API 密钥。实际对话前，在“模型供应商”中配置可用模型，再创建或配置智能体，然后新建会话。
+Starting the service does not require a model API key. Before actual conversations, configure available models under "Model Providers", then create or configure an agent, and finally start a new session.
 
-## 启动 Electron 桌面壳
+## Start Electron Desktop Shell
 
-保持终端一的守护进程运行，构建完成后在另一终端执行：
+Keep the daemon in terminal one running, then use another terminal after the build finishes:
 
 ```bash
 GOGOSLING_HOME="$HOME/.gogosling-dev" npm run start -w @gogosling/desktop
 ```
 
-桌面壳会复用同一数据目录里的守护进程，通过内置代理注入认证，使用已构建的 Web 界面。Web 代码变更后重新执行 `npm run build -w @gogosling/web`。Electron 图形界面和安装包仍需在你的本机验证；云端已验证的是桌面管理逻辑与 Chromium Web 交互。
+The desktop shell reuses the daemon in the same data directory, injects authentication via a built-in proxy, and uses the built Web interface. Re-run `npm run build -w @gogosling/web` after Web code changes. The Electron graphical interface and installer packages still need to be verified on your local machine; what has been verified in the cloud is the desktop management logic and Chromium Web interaction.
 
-## 检查与停止
+## Inspect and Stop
 
 ```bash
 bin/gogosling --home "$HOME/.gogosling-dev" daemon status
 bin/gogosling --home "$HOME/.gogosling-dev" daemon stop
 ```
 
-Vite 使用其运行终端的 Ctrl-C 停止。若自定义 `DEV_HOME`，桌面壳的 `GOGOSLING_HOME` 和 CLI 的 `--home` 也使用同一目录。
+Stop Vite using Ctrl-C in its running terminal. If customizing `DEV_HOME`, the desktop shell's `GOGOSLING_HOME` and the CLI's `--home` must also use the same directory.
 
-验证命令：
+Verification commands:
 
 ```bash
 make lint
@@ -60,4 +60,4 @@ npm run build
 make e2e
 ```
 
-已完成功能、实际测试结果和未完成范围见 [个人工作台说明](../user/personal-workbench.md)。Linux bwrap 需要宿主允许 user namespace；辅助程序存在不等于隔离可用，启动日志会显示实际选择的机制。
+For completed features, actual test results, and unfinished scope, see [Personal Workbench Documentation](../user/personal-workbench.md). Linux bwrap requires the host to allow user namespaces; the presence of helper programs does not equal isolation availability, and startup logs will show the actual selected mechanism.

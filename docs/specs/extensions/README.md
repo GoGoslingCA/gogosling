@@ -1,89 +1,89 @@
-# 模块规划：技能与扩展
+# Module plan: Skills and extensions
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 模块 | 技能与扩展 |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Module | Skills and extensions |
 
-本模块只管理这台电脑上已经有的技能、本机服务和插件。没有市场，也不从网上一键安装。
+Manage skills, local services, and plugins already on this computer. No market or one-click online installation is provided.
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 验证
-8. 假设与待确认
+1. Goal
+2. Responsibilities
+3. Key workflow
+4. Inputs and outputs
+5. Dependencies
+6. Potential failures
+7. Verification
+8. Assumptions and open questions
 
 ---
 
-## 1. 目标
+## 1. Goal
 
-让人安装、启用或卸下本机上的技能与扩展，并在助手使用前知道它是否已启用、工具声明是否变过。
+Install, enable, or remove local skills/extensions, showing enabled state and tool-declaration changes before assistant use.
 
-## 2. 职责边界
+## 2. Responsibilities
 
-| 本模块负责 | 本模块不负责 |
+| In scope | Out of scope |
 |---|---|
-| 从本机目录安装技能或插件 | 浏览或搜索社区市场 |
-| 登记本机上的扩展服务 | 工作台里的「获取网页」入口 |
-| 启用、停用、卸载 | 卸载时删除工作区里的成果文件 |
-| 工具声明变化时，要求人确认后才提供给助手 | 把未确认的新工具悄悄启用 |
-| 密钥只按引用保存，不回显明文 | 替人申请云端账号 |
+| Install skills/plugins from a local directory | Browse/search a community market |
+| Register a local extension service | Workbench web-retrieval entry |
+| Enable, disable, uninstall | Delete result files during uninstall |
+| Require confirmation after tool declarations change | Silently enable unconfirmed tools |
+| Store credential references without plaintext display | Provision cloud accounts |
 
-## 3. 关键流程
+## 3. Key workflow
 
-1. 选择本机上的技能目录或插件目录，安装。
-2. 需要扩展服务时，填写显示名和本机启动方式。密钥写成引用，不把明文留在说明里。
-3. 启用后，助手才能绑定它。
-4. 工具声明发生变化时，先停在待确认。人确认后，新的声明才可用。
-5. 卸载前说明名称。卸载后，助手上对应项变为未安装或已移除。
+1. Select and install a local skill/plugin directory.
+2. For a service, supply display name and local startup method; use credential references without plaintext in descriptions.
+3. An assistant may bind it only after enablement.
+4. Changed tool declarations remain unavailable pending confirmation.
+5. Name the item before uninstalling; assistant bindings then show not installed/removed.
 
-## 4. 输入与输出
+## 4. Inputs and outputs
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
-| 本机目录 | 已安装的技能或插件，或安装失败的原因 |
-| 启用或停用 | 助手能否绑定的状态 |
-| 工具声明变化 | 未确认前，这些工具不提供给助手 |
-| 卸载确认 | 该项从列表消失。已有成果文件不因此删除 |
+| Local directory | Installed item or a clear failure reason |
+| Enable/disable | Assistant binding availability |
+| Tool-declaration change | Tools unavailable until confirmed |
+| Confirm uninstall | Item removed from list; existing result files retained |
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 关系 |
+| Module | Relationship |
 |---|---|
-| 助手 | 只绑定已安装并启用的项 |
-| 确认 | 扩展若要执行会改动外界的操作，仍走确认。本模块不单独放行 |
-| 个人工作台 | 不在开始页用占位符教人调用尚未存在的快捷命令 |
+| Assistant | Binds installed/enabled items |
+| Approval | External side effects still require normal approval; this module grants no separate bypass |
+| Workbench | Do not advertise nonexistent shortcuts in start-page placeholders |
 
-远程地址的扩展服务是否属于应去掉的联网能力，见待确认。本规范不把它写成推荐路径，也不写成已经禁止。
+Whether user-registered remote service addresses count as excluded networking remains open. This plan neither recommends nor bans them.
 
-## 6. 潜在异常
+## 6. Potential failures
 
-| 异常 | 人要看见的事实 |
+| Failure | Visible fact |
 |---|---|
-| 目录里没有所需说明 | 安装失败，不产生一个空技能 |
-| 服务未连接 | 显示未连接和最近错误。助手不能把它当成可用 |
-| 工具声明已变化 | 确认前不提供给助手 |
-| 密钥被写成明文 | 界面要求改用引用。已保存的值不回显 |
+| Required directory instructions absent | Installation fails rather than creating an empty skill |
+| Service disconnected | Show disconnected/latest error; assistant cannot treat it as available |
+| Tool declarations changed | Unavailable to assistant before confirmation |
+| Plaintext credential entered | Require a reference; never echo saved values |
 
-## 7. 验证
+## 7. Verification
 
-| 验证 | 通过时看到 |
+| Case | Expected result |
 |---|---|
-| 安装本机技能 | 列表出现该项，没有市场入口 |
-| 未启用就去助手里绑定 | 绑不上，或显示没有已启用的扩展 |
-| 工具声明变化 | 确认前助手用不了新声明 |
-| 卸载 | 助手上显示缺失。工作区文件还在 |
+| Install local skill | Item appears without a market entry |
+| Bind before enablement | Binding rejected or no enabled extensions shown |
+| Change tool declarations | Assistant cannot use new declarations before confirmation |
+| Uninstall | Binding marked missing; workspace files remain |
 
-## 8. 假设与待确认
+## 8. Assumptions and open questions
 
-| 编号 | 内容 |
+| ID | Detail |
 |---|---|
-| Q-EX1 | 使用者自己登记的远程扩展地址，算不算本应用的联网能力。工作台不提供这个入口。本文件不追加禁止或允许的新规则 |
+| Q-EX1 | Whether a user-registered remote extension is application networking remains unresolved. No workbench entry or new allow/deny rule is added |

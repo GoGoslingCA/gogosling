@@ -1,52 +1,52 @@
-# 提示词优化：真实网关验收与交互简化
+# Prompt Optimization: Live Gateway Acceptance and Interaction Simplification
 
-## 已完成
+## Completed
 
-默认点击即优化并回填，提供“还原”。需要进一步修改时才打开单输入弹窗，填写意见后直接更新输入。保持原始文字、既有附件、草稿保存和发送方式；优化不会发送聊天消息。请求绑定草稿版本、任务和助手，手动修改、切换、发送或取消后，迟到结果不能回填。
+By default, clicking optimizes and fills back, providing "Restore". The single-input modal is opened only when further modifications are needed, updating the input directly after filling in feedback. Retain original text, existing attachments, draft saving, and sending methods; optimization will not send chat messages. Requests are bound to draft versions, tasks, and assistants; late results cannot be filled back after manual modification, switching, sending, or cancellation.
 
-接口仍为 `POST /api/v1/agents/{id}/prompt-enhancement`，新增可选 `draft`、`feedback`；旧的 `{text}` 调用兼容。Go 接口为：
+The interface remains `POST /api/v1/agents/{id}/prompt-enhancement`, with optional `draft` and `feedback` added; old `{text}` calls remain compatible. The Go interface is:
 
 ```go
 EnhancePrompt(ctx context.Context, agentID, input string) (string, error)
 EnhancePromptWithFeedback(ctx context.Context, agentID, input, draft, feedback string) (string, error)
 ```
 
-内部指导词留在 Go 内核。输入使用结构化边界并增加中英混合示例，禁止直接回答、编造邮件/代码或丢弃原约束。回归保护检查已知答题前缀、中文/英文明显错位与数字约束；这不是完整的语义证明，用户仍可还原和调整。
+Internal instruction prompts remain in the Go kernel. Inputs use structured boundaries and add mixed Chinese-English examples, strictly prohibiting direct answering, fabricating emails/code, or discarding original constraints. Regression protection checks known answer prefixes, obvious Chinese/English misalignments, and numerical constraints; this is not a complete semantic proof, and users can still restore and adjust.
 
-## 真实调用结果
+## Live Call Results
 
-使用用户已授权的 `https://ai.gogosling.ca/v1`、`auto:fast`，通过实际本地 HTTP → Go app/session → Python worker → 网关调用。不是只测 curl，也不是用假模型代替质量结果。凭据只通过 stdin 进入临时进程的内存 secret store，未写入配置、数据库、日志、事件或固件；临时实例结束后清理。
+Using user-authorized `https://ai.gogosling.ca/v1` and `auto:fast`, calls were executed via actual local HTTP → Go app/session → Python worker → gateway. This is not just testing curl, nor using fake models to replace quality results. Credentials enter the temporary process's in-memory secret store only via stdin, and were not written to configurations, databases, logs, events, or firmware; they are cleaned up after the temporary instance terminates.
 
-首次测试发现直接答题/虚构邮件、一次超时，以及 TLS 握手取消后遗留连接。保留[基线](2026-10-12-live-prompt-baseline.json)，没有把首次 HTTP 200 当作验收通过。基线第一条取消样本没有观察到上游连接，不能计为有效取消测试。
+The initial test revealed direct answering/fabricated emails, a single timeout, and leaked connections after TLS handshake cancellation. The [baseline ](2026-10-12-live-prompt-baseline.json) was retained, and the initial HTTP 200 was not treated as passing acceptance. The first cancellation sample in the baseline did not observe an upstream connection and cannot be counted as a valid cancellation test.
 
-修正后的[8个样例](2026-10-12-live-prompt-results.json)：
+The corrected [8 samples ](2026-10-12-live-prompt-results.json):
 
-- 中文代码说明：2.73秒，保留中文、200字、不改代码。
-- 中文周报：15.27秒，保留两部分、不编造、待补充。
-- 英文代码说明：11.90秒，保留英文、120 words、不修改和边界情况。
-- 英文邮件：1.12秒，保留英文、礼貌直接、姓名日期数字承诺不变，返回的是优化要求。
-- 中英混合代码：15.84秒，保留自然混合、根因、最小修复、不改接口/不加依赖。
-- 中英混合清单：12.05秒，保留术语、6条上限、不虚构负责人/日期。
-- 中文补充意见：16.63秒，按意见将200字改为100字，只讲主要功能且不改代码。
-- 混合补充意见：3.38秒，保留混合表达、不增依赖，加入最小回归测试。
+- Chinese code explanation: 2.73s, retained Chinese, 200 characters, did not modify code.
+- Chinese weekly report: 15.27s, retained two parts, no fabrication, pending completion.
+- English code explanation: 11.90s, retained English, 120 words, no modification and edge cases.
+- English email: 1.12s, retained English, polite and direct, names, dates, numbers, and commitments unchanged, returning optimization requirements.
+- Mixed Chinese-English code: 15.84s, retained natural mix, root cause, minimal fix, did not change interface/did not add dependencies.
+- Mixed Chinese-English checklist: 12.05s, retained terminology, max 6 items, no fabricated assignees/dates.
+- Chinese supplementary feedback: 16.63s, changed 200 characters to 100 characters per feedback, described key features only without changing code.
+- Mixed supplementary feedback: 3.38s, retained mixed expression, no added dependencies, added minimal regression tests.
 
-这是一轮样例结果，不代表所有模型和未来请求都能保证语义等价。耗时是请求到完整候选的端到端时间；没有把它称为首字延迟或 p95。
+This is a single round of sample results and does not guarantee semantic equivalence for all models and future requests. Elapsed time is the end-to-end time from request to complete candidate; it is not referred to as time-to-first-token or p95.
 
-## 取消及资源释放
+## Cancellation and Resource Release
 
-定位到已安装的 httpcore 1.0.9：AnyIO `start_tls` 仅捕获 Exception，Python 任务取消属于 BaseException。握手中的底层流尚未移交连接池，单纯关闭客户端可能留有 socket。通过 HTTPX 公开 trace 扩展追踪本次建立的流，并在异常/取消时有界关闭；未修改第三方包或使用全局猴子补丁。
+Traced to installed httpcore 1.0.9: AnyIO `start_tls` captures Exception only, whereas Python task cancellation belongs to BaseException. The underlying stream during handshake has not been transferred to the connection pool yet, so simply closing the client may leave leaked sockets. Established streams for this instance were tracked using the HTTPX public trace extension and boundedly closed upon exception/cancellation; no third-party packages were modified nor global monkey patches used.
 
-参考 [httpcore trace 扩展](https://github.com/encode/httpcore/blob/master/docs/extensions.md)，相关取消讨论包括 [#1053](https://github.com/encode/httpcore/discussions/1053) 和已关闭的 [#961](https://github.com/encode/httpcore/issues/961)。这些讨论与取消后的连接状态有关，不等于它们与本次 TLS 缺口完全相同。
+Referenced [httpcore trace extension ](https://github.com/encode/httpcore/blob/master/docs/extensions.md); relevant cancellation discussions include [#1053 ](https://github.com/encode/httpcore/discussions/1053) and closed [#961 ](https://github.com/encode/httpcore/issues/961). These discussions relate to post-cancellation connection state, but are not identical to this TLS gap.
 
-[修复后真实取消记录](2026-10-12-live-prompt-cancellation.json)：
+[Post-fix live cancellation records ](2026-10-12-live-prompt-cancellation.json):
 
-- 两次均先观察到实际上游 TCP 连接，再取消；请求没有提前结束。
-- 连接回收约26ms、48ms；执行槽回收约79ms、100ms。
-- 最终0个残留连接、0个业务会话；取消后的下一次请求正常完成（1.41秒）。
+- In both cases, an actual upstream TCP connection was observed before cancellation; requests did not terminate prematurely.
+- Connection reclamation took ~26ms and 48ms; execution slot reclamation took ~79ms and 100ms.
+- Final result: 0 leaked connections, 0 business sessions; subsequent request after cancellation completed normally (1.41s).
 
-以上证明本机连接和执行槽释放，不能证明远端供应商的计算或计费已经停止。
+The above proves local connection and execution slot release, but does not prove that the remote vendor's computation or billing has stopped.
 
-## 验证命令
+## Verification Commands
 
 ```bash
 go test ./internal/session ./internal/server
@@ -56,8 +56,8 @@ cd worker && uv run ruff check . && uv run ruff format --check . && uv run mypy 
 npm test --workspace @gogosling/web -- src/pages/chat/PromptEnhancement.test.tsx
 ```
 
-全部通过。取消回归使用本地真实 TCP 服务器，分别覆盖等待响应头和 TLS 握手；不访问真实网络。完整 Python 测试178项通过。前端7项覆盖点击调用、可选意见、原始还原、取消、切换、手改后改回、发送后迟到响应、失败保留和旧能力回退。
+All passed. Cancellation regression used a local real TCP server to cover waiting for response headers and TLS handshake respectively, without accessing the actual network. 178 full Python tests passed. 7 frontend tests covered click-invocation, optional feedback, original restore, cancellation, switching, reverting after manual editing, late response after sending, failure preservation, and legacy fallback.
 
-真实网关另用临时验收程序运行，已保存脱敏输入、输出、耗时与资源观测；密钥扫描通过。该程序与临时配置不作为产品代码提交。
+The live gateway was executed separately using a temporary acceptance runner, saving sanitized inputs, outputs, elapsed times, and resource observations; secret scanning passed. This runner and temporary configurations will not be submitted as production code.
 
-此记录取代此前[提示词优化记录](2026-10-12-prompt-enhancement.md)中“先预览再替换”的旧交互描述；旧记录中的当时测试数字不作为当前版本数字。
+This record supersedes the old interaction description of "preview before replacing" in the previous [prompt optimization record ](2026-10-12-prompt-enhancement.md); test figures from that time in the old record do not serve as current version figures.

@@ -1,155 +1,155 @@
-# 工作台第三阶段契约变更提案
+# Workbench Stage Three Contract Change Proposal
 
-状态：用户已于 2026-10-12 授权 P3A，并继续授权 P3B 文件预览、应用、撤销和兼容验证；两阶段已在本地实现。本文保留设计推演，最终字段及签名以 internal/model/workbench.go、change.go、operation.go、repository.go 与 OpenAPI 为准。核对基线：`b8bbd0d` 与本次工作树的界面改动。
+Status: The user authorized P3A on 2026-10-12 and subsequently authorized P3B file preview, apply, revert, and compatibility validation; both stages have been implemented locally. This document retains the design rationale; final fields and signatures are governed by internal/model/workbench.go, change.go, operation.go, repository.go, and OpenAPI. Verification baseline: `b8bbd0d` and the UI changes in this working tree.
 
-本文沿用现有中文工程说明的写法，目的是让负责人可以明确批准变更范围。它不替代 `docs/architecture.md`。
+This document adopts the style of existing Chinese engineering notes to enable leads to explicitly approve the change scope. It does not replace `docs/architecture.md`.
 
-## 1. 本次建议批准的范围
+## 1. Scope Recommended for Approval
 
-先实现 P3A：一个项目组织同一智能体下的会话和资料；输入与成果草稿由内核保存；成果有可重新打开的索引与不可变版本；用户能读取、下载和继续修改这些版本。完整路径为“加入需求文档 → 明确本次资料 → 对话形成初稿 → 修改 → 保存新版本 → 重启后继续”。
+Implement P3A first: a project organizes sessions and materials under the same agent; input and deliverable drafts are persisted by the kernel; deliverables have reopenable indexes and immutable revisions; users can read, download, and continue modifying these revisions. The full flow is "add requirement doc → select materials for this run → dialogue to form initial draft → edit → save new revision → resume after restart".
 
-P3A 不提供任意工作区文件写入、覆盖、执行或磁盘撤销按钮。现有“保存副本”保留，新增版本保存与文件下载分别命名，避免将保存版本说成已经修改原文件。
+P3A does not provide arbitrary workspace file writing, overwriting, execution, or on-disk revert buttons. Existing "Save Copy" is retained; new revision saving and file downloads are named distinctly to avoid characterizing revision saving as having modified the original file.
 
-P3B 的单文件变更和独立 Operation 主体已获后续用户授权。完整装配后声明 capability；未支持平台拒绝原位修改。UI 申请仍经 `tools.Executor` 和 `permission`，每份冻结预览仅允许单次批准。
+Single-file changes and standalone Operation entities for P3B have received subsequent user authorization. Capabilities are declared after full assembly; unsupported platforms reject in-place modifications. UI requests still go through `tools.Executor` and `permission`, and each frozen preview permits only a single approval.
 
-P3A 需要允许修改的共享文件只有：
+The only shared files requiring modification for P3A are:
 
-- `internal/model/session.go`：给 Session 增加可选 `project_id`，不改 ID、Key、Origin 或现有状态。
-- `internal/model/repository.go`：新增项目、材料、草稿、成果仓储接口及独立 WorkbenchStore；扩展 SessionFilter 的可选项目过滤。原 `model.Store` 不强制嵌入新接口，以免无关测试和消费者全部扩大依赖。
-- 新增 `internal/model/workbench.go`：Project、ProjectMaterial、Draft、Artifact、ArtifactRevision 的共享类型与输入约束；P3A 不加入运行时未支持的 ChangeSet 类型。
-- `api/openapi/openapi.yaml`：新增资源路径、字段、能力声明和事件；旧字段与旧路径语义不变。
-- `docs/architecture.md`：登记 `internal/workbench` 的职责、依赖和数据归属，说明 P3A 没有新增直接文件修改通道；明确升级前备份的实际实现要求。
+- `internal/model/session.go`: Add optional `project_id` to Session, without altering ID, Key, Origin, or existing status.
+- `internal/model/repository.go`: Add project, material, draft, and deliverable repository interfaces, plus an independent WorkbenchStore; extend SessionFilter with optional project filtering. The original `model.Store` is not forced to embed the new interfaces to prevent unrelated tests and consumers from expanding dependencies.
+- New `internal/model/workbench.go`: Shared types and input constraints for Project, ProjectMaterial, Draft, Artifact, and ArtifactRevision; P3A does not add ChangeSet types unsupported at runtime.
+- `api/openapi/openapi.yaml`: Add resource routes, fields, capability declarations, and events; legacy fields and route semantics remain unchanged.
+- `docs/architecture.md`: Register responsibilities, dependencies, and data ownership of `internal/workbench`, stating that P3A adds no direct file modification channels; clarify actual implementation requirements for pre-upgrade backups.
 
-不需要修改 `go.mod`、`Makefile`、`AGENTS.md`、`api/worker-rpc/*`、`internal/model/run.go` 或 `internal/model/approval.go`。后两项仅在 P3B 审批主体方案确定后另行列出。
+No modifications required for `go.mod`, `Makefile`, `AGENTS.md`, `api/worker-rpc/*`, `internal/model/run.go`, or `internal/model/approval.go`. The latter two will be listed separately only after the P3B approval entity design is finalized.
 
-普通实现文件预计涉及 `internal/workbench/*`、`internal/store/*`、`internal/session/*`、`internal/server/*`、`internal/app/*`、必要的 `internal/i18n/*` 和前端 API/状态层。新增 SQL 的实际序号在合并时分配，不能抢占并行团队方案草案中的 `002`、`003`；不修改已经发布的 `001_init.sql`。
+Standard implementation files are expected to involve `internal/workbench/*`, `internal/store/*`, `internal/session/*`, `internal/server/*`, `internal/app/*`, necessary `internal/i18n/*`, and frontend API/state layers. Actual sequence numbers for new SQL will be assigned during merge and must not preempt `002` or `003` in parallel team draft proposals; already released `001_init.sql` will not be modified.
 
-## 2. 已核对的现状与复用边界
+## 2. Verified Current State and Reuse Boundaries
 
-- `internal/model/session.go:27`：Session 是持续对话线程，绑定 Agent；Key 用于路由，不是项目标识。
-- `internal/model/repository.go:131`：已有 `Store.Tx`；`internal/session/run.go` 的 `Send` 把用户消息和 Run 放在同一事务后才调用模型。
-- `internal/server/handlers_sessions.go:199`：附件必须是对应 Agent 工作区 `inbound/` 下的真实文件；`sessionWorkspace` 按 Agent 定位工作区。
-- `internal/workspace/inbound.go:32`：上传净化名称、重名另存、限制大小、临时文件后原子替换；它不是文件版本管理。
-- `internal/workspace/workspace.go:105`：现 Workspace 的并发写语义是最后一次 rename 生效，不能把它当成带基线校验的 compare-and-swap。
-- `internal/tools/executor.go:139`：现 Executor 以真实 RunID 解析上下文，然后检查工具启用状态、权限和执行路径。
-- `internal/permission/service.go:306`：`Check` 统一执行 guard、规则与审批；请求可以阻塞等待决定。
-- `internal/store/migrations/001_init.sql:99`：`approvals.run_id` 是非空外键；`internal/store/approvals.go:14` 同样依赖真实运行。人工文件操作不能填空 RunID 或伪造一个模型 Run 来复用它。
-- `apps/web/src/lib/artifacts.ts:50`：当前成果是助手消息派生视图；`ArtifactPanel` 保存调用附件上传，不是成果仓储。
-- `apps/web/src/pages/chat/Composer.tsx:53` 与 `ArtifactPanel.tsx:53`：未发送与未保存正文只在 React 内存中。离开确认不能恢复崩溃时的草稿。
-- `internal/store/migrate.go:86`：已有按版本事务迁移和拒绝旧内核打开新 schema；`internal/update` 当前只有 `doc.go`，尚不能声称已有自动备份回滚实现。
+- `internal/model/session.go:27`: Session is a persistent dialogue thread bound to an Agent; Key is used for routing, not as a project identifier.
+- `internal/model/repository.go:131`: Already has `Store.Tx`; `Send` in `internal/session/run.go` invokes the model only after placing the user message and Run in the same transaction.
+- `internal/server/handlers_sessions.go:199`: Attachments must be real files under `inbound/` of the corresponding Agent workspace; `sessionWorkspace` locates workspaces by Agent.
+- `internal/workspace/inbound.go:32`: Upload sanitizes names, saves duplicates under new names, enforces size limits, and atomically replaces via temporary files; it is not file version management.
+- `internal/workspace/workspace.go:105`: The current Workspace concurrent write semantics follow last-rename-wins; it cannot be treated as a compare-and-swap with baseline validation.
+- `internal/tools/executor.go:139`: The current Executor resolves context via actual RunID, then checks tool enablement status, permissions, and execution paths.
+- `internal/permission/service.go:306`: `Check` centrally executes guards, rules, and approvals; requests can block waiting for decisions.
+- `internal/store/migrations/001_init.sql:99`: `approvals.run_id` is a non-null foreign key; `internal/store/approvals.go:14` similarly relies on real runs. Manual file operations cannot leave RunID empty or forge a model Run to reuse it.
+- `apps/web/src/lib/artifacts.ts:50`: Deliverables are currently assistant message derived views; `ArtifactPanel` save invokes attachment upload, not a deliverable store.
+- `apps/web/src/pages/chat/Composer.tsx:53` and `ArtifactPanel.tsx:53`: Unsent and unsaved body texts exist only in React memory. Leave confirmation cannot restore drafts after crashes.
+- `internal/store/migrate.go:86`: Already features versioned transactional migrations and rejects old kernels opening new schemas; `internal/update` currently only has `doc.go` and cannot yet claim an automated backup and rollback implementation.
 
-## 3. 最小领域边界
+## 3. Minimal Domain Boundaries
 
-只新增 `internal/workbench` 一个领域包，内部按 project、material、draft、artifact 文件拆分，不建通用知识平台、团队权限平台或新的模型执行框架。
+Only add one new domain package `internal/workbench`, split internally by project, material, draft, and artifact files, without building generic knowledge platforms, team permission platforms, or new model execution frameworks.
 
-该包只直接导入叶子包。它依赖的会话、工作区和权限能力用本包消费者接口描述，由 `internal/app` 适配，避免直接导入 `session`、`workspace`、`permission`、`store`。传输层负责鉴权、HTTP、大小限制和下载响应；领域层负责归属、版本、来源与一致性；store 负责 SQL 与事务。
+This package only directly imports leaf packages. The session, workspace, and permission capabilities it depends on are described via consumer interfaces within this package and adapted by `internal/app`, avoiding direct imports of `session`, `workspace`, `permission`, and `store`. The transport layer handles auth, HTTP, size limits, and download responses; the domain layer handles ownership, revisions, lineage, and consistency; store handles SQL and transactions.
 
-P3A 的 Project 固定 `agent_id`，只是材料和任务的组织容器，不拥有独立工作区、不改变工具可访问范围。同一 Agent 的不同项目仍共享 Agent 工作区，这一点应写进项目文件范围说明。跨 Agent 移动项目、在一项目中混用多个 Agent、独立项目沙箱均不在本版。
+In P3A, Project fixes `agent_id` and serves merely as an organizational container for materials and tasks; it does not own an independent workspace or alter tool accessible scopes. Different projects under the same Agent still share the Agent workspace, which should be documented in the project file scope description. Moving projects across Agents, mixing multiple Agents within a project, and isolated project sandboxes are out of scope for this version.
 
-新业务状态在内核数据库；只含布局的偏好仍由 Web/Electron 保存。正文、材料引用、成果版本不放到 localStorage、Electron userData 或 IPC。
+New business state resides in the kernel database; layout-only preferences are still saved by Web/Electron. Body text, material references, and deliverable revisions are not placed in localStorage, Electron userData, or IPC.
 
-## 4. P3A 资源定义
+## 4. P3A Resource Definitions
 
-所有 ID 继续使用 `model.NewID()` 的 ULID，时间为 UTC，列表复用 `model.Page`。所有 `version` 为从 1 开始的正整数；更新采用数据库条件写入，不接受“先读再无条件覆盖”。下文的内容上限为本提案默认值，发布时通过能力响应公布。
+All IDs continue to use ULID from `model.NewID()`, timestamps are UTC, and listings reuse `model.Page`. All `version` are positive integers starting from 1; updates use database conditional writes, rejecting "read-then-unconditionally-overwrite". Content limits below are proposal defaults, announced via capability responses upon release.
 
-### 4.1 Project 与会话关联
+### 4.1 Project and Session Associations
 
-Project 字段：`id`、不可变 `agent_id`、`name`（1–120 个 Unicode 字符）、`description`（最多 2,000 字符）、`status: active|archived`、`version`、`created_at`、`updated_at`。
+Project fields: `id`, immutable `agent_id`, `name` (1–120 Unicode characters), `description` (up to 2,000 characters), `status: active|archived`, `version`, `created_at`, `updated_at`.
 
-Project 没有可写 `workspace_dir`；响应可引用现有 Agent 信息，由已有 Agent 接口提供真实文件范围。项目归档只隐藏组织入口，不归档、停止或删除已有会话，不改变旧客户端对这些会话的操作能力。本版没有项目硬删除接口。
+Project has no writable `workspace_dir`; responses can reference existing Agent info, with real file scopes provided by existing Agent interfaces. Project archiving only hides organizational entry points, without archiving, stopping, or deleting existing sessions, and without altering legacy client operational capabilities on those sessions. This version has no hard delete API for projects.
 
-Session 增加 `project_id?: string`。旧行全部为 NULL，旧 JSON 省略该字段；新会话可以不带项目。关联时服务端校验项目存在且 `project.agent_id == session.agent_id`。移入、移出项目不改 `session.id/key/origin`，不重放消息、不迁移磁盘文件、不创建新的 Run。
+Session adds `project_id?: string`. Legacy rows are all NULL, and legacy JSON omits this field; new sessions may omit projects. Upon association, the server validates project existence and `project.agent_id == session.agent_id`. Moving into or out of a project does not alter `session.id/key/origin`, replay messages, migrate disk files, or create new Runs.
 
-关联变化用单独接口处理，避免与已有 title/status PATCH 的并发更新互相覆盖：
+Association changes are handled via a dedicated interface to prevent mutual overwrites with concurrent title/status PATCH updates:
 
 ```text
 PUT /api/v1/sessions/{id}/project
 { "project_id": "<id>" | null, "expected_project_id": "<id>" | null }
 ```
 
-两个字段都必填；expected 不匹配返回 `conflict`。成功后发布既有 `session.updated`。创建会话增加可选 `project_id`，落盘前验证 Agent 一致；无此字段的旧创建流程原样保留。
+Both fields are required; mismatch with expected returns `conflict`. Upon success, existing `session.updated` is published. Session creation adds optional `project_id`, validating Agent consistency before persistence; legacy creation flows without this field remain as-is.
 
-### 4.2 ProjectMaterial 与本次资料选择
+### 4.2 ProjectMaterial and Material Selection for Current Run
 
-ProjectMaterial 字段：`id`、`project_id`、`agent_id`、`name`、`mime`、`size`、`sha256`、内部校验过的 `attachment`（复用现 Attachment）、`created_at`。本版每次上传是一个新材料，不覆盖旧材料；材料名字不是身份。
+ProjectMaterial fields: `id`, `project_id`, `agent_id`, `name`, `mime`, `size`, `sha256`, internally validated `attachment` (reusing existing Attachment), `created_at`. In this version, each upload is a new material and does not overwrite old materials; material names are not identities.
 
-上传复用 `Workspace.SaveInbound`，由项目的 Agent 解析工作区；响应沿用服务端最终净化后的名称与相对路径。先完成文件写入再提交索引，失败必须报错；只能清理本请求新建且可证明没有被引用的文件，不能扫描删除其他历史 inbound 文件。
+Upload reuses `Workspace.SaveInbound`, resolving workspace via the project's Agent; responses follow the final server-sanitized name and relative path. File writes must complete before submitting the index, and failures must error; cleanup is restricted to newly created files from this request provably unreferenced elsewhere, without scanning and deleting other historical inbound files.
 
-项目材料从上传开始就有列表索引，不要求先发一条聊天消息。已上传但未索引的历史文件不会被扫描并默认加入任何项目。
+Project materials are listed in index right upon upload, without requiring a chat message to be sent first. Uploaded but unindexed historical files will not be scanned and added to any project by default.
 
-`POST /sessions/{id}/messages` 增加可选 `material_ids: string[]`，旧 `attachments` 仍有效。新客户端明确提交本次选中项，默认不自动加入整个项目材料库。服务端校验材料项目与会话项目一致、Agent 一致、文件存在、当前大小及 SHA-256 与材料记录一致，展开为现有 Attachment 后调用 `Session.Send`。任一引用无效时拒绝整次发送；不静默跳过，也不偷偷使用变化后的文件。
+`POST /sessions/{id}/messages` adds optional `material_ids: string[]`; legacy `attachments` remains valid. New clients explicitly submit selections for the current run, not automatically including the entire project material library by default. The server validates that material project matches session project, Agent matches, file exists, current size and SHA-256 match material records, expands into existing Attachment, and invokes `Session.Send`. If any reference is invalid, the entire send is rejected; no silent skips, and no covert use of changed files.
 
-如果同时出现 `material_ids` 与 `attachments`，按规范化相对路径去重，总数仍受现有附件上限约束。来源材料 ID 和采集摘要作为消息非推理元数据保存；实际推理仍使用现有 attachment part，不改 worker RPC。
+If both `material_ids` and `attachments` appear, deduplicate by normalized relative path; total count is still constrained by existing attachment limits. Source material ID and ingestion summary are stored as message non-inference metadata; actual inference still uses existing attachment parts, without altering worker RPC.
 
-这里的资料勾选是上下文选择，不是工具文件权限白名单。所选资料带来源标记，不能洗成系统指令。要增加“模型只能访问勾选资料”的能力，必须另做运行级文件能力约束，不能靠提示词或隐藏列表实现。
+Material selection here is context selection, not a tool file permission allowlist. Selected materials carry provenance markers and cannot be laundered into system instructions. Adding the capability for "model can only access selected materials" requires separate run-level file capability constraints, which cannot rely on prompts or hidden lists.
 
-`DELETE /projects/{project_id}/materials/{id}` 仅移除项目索引，不删除 inbound 文件、不修改已发送历史消息。草稿里的失效引用在恢复时保留为“资料不可用”，发送前要求用户处理；不丢弃草稿正文。
+`DELETE /projects/{project_id}/materials/{id}` only removes project index, without deleting inbound files or modifying sent historical messages. Invalid references in drafts are retained upon restore as "material unavailable", requiring user handling before sending; draft body text is not discarded.
 
-### 4.3 Draft 与乐观版本
+### 4.3 Drafts and Optimistic Versioning
 
-Draft 字段：`id`、`owner_id`（服务端从 Principal 得到）、`kind: composer|artifact`、`agent_id`、可选 `project_id/session_id/artifact_id/base_revision_id`、`text`、可选 `filename`、`material_ids`、兼容的 `attachments`、`version`、`created_at`、`updated_at`。
+Draft fields: `id`, `owner_id` (obtained by server from Principal), `kind: composer|artifact`, `agent_id`, optional `project_id/session_id/artifact_id/base_revision_id`, `text`, optional `filename`, `material_ids`, compatible `attachments`, `version`, `created_at`, `updated_at`.
 
-作用域由服务器生成，不接受任意字符串：
+Scopes are generated by the server and do not accept arbitrary strings:
 
-- 开始页输入：`owner + composer + agent + project-or-none`，无 session。
-- 会话输入：`owner + composer + session`。
-- 成果编辑：`owner + artifact + artifact_id`；以 `base_revision_id` 引用不可变的成果版本。基线引用可随 Draft 的 expected_version CAS 修改，但新 revision 必须属于同一 artifact；不能借此修改 owner 或作用域。
+- Start page input: `owner + composer + agent + project-or-none`, no session.
+- Session input: `owner + composer + session`.
+- Artifact editing: `owner + artifact + artifact_id`; references an immutable artifact version via `base_revision_id`. Baseline references can be modified via Draft expected_version CAS, but the new revision must belong to the same artifact; owner or scope cannot be modified through this.
 
-数据库对上述作用域建唯一约束。首次创建 POST，若作用域已存在返回冲突及已有草稿 ID，客户端读取后提供恢复/替换选择。后续 PUT 必须带 `expected_version`；成功返回 version+1；不匹配返回 409 与 `reason=stale_version,current_version`，不在错误里塞完整正文。删除同样必须带 expected_version。
+The database establishes unique constraints on the aforementioned scopes. On initial creation POST, if the scope already exists, return conflict and the existing draft ID, and the client provides restore/replace choices after reading. Subsequent PUTs must include `expected_version`; on success, return version+1; on mismatch, return 409 and `reason=stale_version,current_version`, without stuffing the full body into the error. Deletions must likewise include expected_version.
 
-正文上限 512 KiB UTF-8，文件名最多 160 字符，附件上传仍走独立文件接口；草稿不能嵌入文件二进制、连接令牌或模型凭据。字段关联全部在服务端核实，客户端传入 owner_id 一律拒绝。
+Body limit is 512 KiB UTF-8, file names up to 160 characters, and attachment uploads still go through the standalone file endpoint; drafts cannot embed file binaries, connection tokens, or model credentials. Field associations are all verified on the server side, and any owner_id passed by the client is rejected.
 
-自动保存需明确区分“正在保存 / 已保存 / 保存失败”。客户端只在服务端返回后提升已确认版本；离线或请求失败时保留内存正文。跨窗口冲突保留双方内容供用户选择，不自动最后写入者获胜。
+Auto-save must clearly distinguish between "Saving / Saved / Save failed". The client advances the confirmed version only after the server returns; it retains the in-memory body when offline or when requests fail. Cross-window conflicts retain both sides' content for the user to choose, without automatic last-write-wins.
 
-从开始页创建会话后，以版本校验绑定该草稿到新 session。绑定失败不删除开始页草稿；恢复时提示已有会话与草稿，不重新自动发送。首版不承诺跨 API 的原子“建会话并发送”。
+After creating a session from the start page, bind the draft to the new session with version verification. If binding fails, do not delete the start page draft; upon recovery, prompt with existing session and draft, without automatically re-sending. The first version does not commit to atomic cross-API "create session and send".
 
-成功发送后删除旧草稿必须使用发送时的草稿 version；如果用户在发送期间继续编辑，删除因版本不符而失败，新稿保留。若响应丢失或客户端崩溃，草稿可能留存：再次打开先展示“可能已发送，请检查历史”，不得自动重发。将来若要严格一次发送，需要单独补入客户端消息幂等键；本版不声称已有此能力。
+Deleting the old draft after a successful send must use the draft version from the time of sending; if the user continues editing during sending, deletion fails due to version mismatch, and the new draft is retained. If responses are lost or the client crashes, drafts may persist: re-opening first displays "May have been sent, please check history", and must not automatically re-send. If strictly-once sending is required in the future, a client message idempotency key must be separately added; this version does not claim to have this capability.
 
-### 4.4 Artifact、Revision 与来源
+### 4.4 Artifacts, Revisions, and Provenance
 
-Artifact 字段：`id`、`agent_id`、`session_id`、派生显示的 `project_id?`、`title`、`kind: document|code|text`、`filename`、`media_type`、`source`、`latest_revision_id`、`version`、`created_at`、`updated_at`。
+Artifact fields: `id`, `agent_id`, `session_id`, derived display `project_id?`, `title`, `kind: document|code|text`, `filename`, `media_type`, `source`, `latest_revision_id`, `version`, `created_at`, `updated_at`.
 
-source 必须引用该会话的一条真实 assistant Message：`message_id`、服务器从消息取得的 `run_id?`、`message_seq`、`source_sha256`、`partial`，可选 `fragment`（全文或代码片段序号，仅为 UI 定位）。客户端不能引用其他会话的消息，不能提交工具输出冒充助手成果。服务端验证源消息，记录原始来源；用户保存的正文明确为从来源编辑出的副本，不承诺代码片段解析和原文件路径存在。
+source must reference a real assistant Message in the session: `message_id`, `run_id?` obtained by the server from the message, `message_seq`, `source_sha256`, `partial`, and optional `fragment` (full text or code snippet index, for UI positioning only). Clients cannot reference messages from other sessions and cannot submit tool outputs to impersonate assistant artifacts. The server validates the source message and records the original provenance; the body saved by the user is explicitly a copy edited from the source, with no commitment to code snippet parsing or existence of original file paths.
 
-ArtifactRevision 字段：`id`、`artifact_id`、`number`、`parent_revision_id?`、`content`、`sha256`、`byte_size`、`filename`、`media_type`、`created_by`、`created_at`。每个版本不可变，`UNIQUE(artifact_id, number)`。最多 512 KiB UTF-8，先支持文档与代码文本，不扩展为办公文件转换平台。
+ArtifactRevision fields: `id`, `artifact_id`, `number`, `parent_revision_id?`, `content`, `sha256`, `byte_size`, `filename`, `media_type`, `created_by`, `created_at`. Each version is immutable, `UNIQUE(artifact_id, number)`. Maximum 512 KiB UTF-8, initially supporting documents and code text, without expanding into an office document conversion platform.
 
-第一次保存显式创建 Artifact 与 Revision 1，二者和来源验证在同一数据库事务内。修改保存 POST 新 revision，必须带 `expected_latest_revision_id`；只有基线仍匹配才插入并推进 latest。冲突返回当前 latest ID，不覆盖别人的版本。读旧版本不会改变 latest。
+Initial save explicitly creates Artifact and Revision 1, both within the same database transaction as provenance validation. Modification save POSTs a new revision and must include `expected_latest_revision_id`; insert and advance latest only if the baseline still matches. Conflicts return the current latest ID, without overwriting others' versions. Reading older versions does not change latest.
 
-恢复旧版本使用“以旧版本为内容保存新版本”，保留完整审计与版本链；不删除较新的版本。编辑器撤销未保存编辑只影响 Draft；二者与 P3B 的磁盘撤销分开命名。
+Restoring an older version uses "save a new version with old version content", retaining full audit trails and version chains; newer versions are not deleted. Editor undo for unsaved edits affects only Draft; both are named separately from P3B disk undo.
 
-历史助手消息不自动迁移为成果。旧 UI 使用的派生 ID 仍可用，用户首次保存时建立 `source message + fragment → artifact ID` 映射；创建支持 `Idempotency-Key`，同一主体、同一路径、同一请求内容重试返回原资源，不同内容复用 key 返回冲突。
+Historical assistant messages are not automatically migrated into artifacts. Derived IDs used by the legacy UI remain available, establishing `source message + fragment → artifact ID` mapping upon the user's first save; creation supports `Idempotency-Key`, where retries with the same principal, path, and request content return the original resource, while reusing the key with different content returns a conflict.
 
-列表与元数据响应不含正文。内容读取与下载端点必须经过同一 API 鉴权，不返回 `file://`、系统绝对路径或带令牌的 URL。下载强制 `Content-Disposition: attachment`，使用净化文件名与 `X-Content-Type-Options: nosniff`；文本预览固定安全 Content-Type，不能将模型 HTML 当同源页面执行。字节总数和 SHA-256 与 revision 一致，超过上限拒绝而不是静默截断。
+List and metadata responses do not contain the body. Content read and download endpoints must pass through the same API authentication, without returning `file://`, system absolute paths, or URLs with tokens. Downloads enforce `Content-Disposition: attachment`, using sanitized file names and `X-Content-Type-Options: nosniff`; text preview fixes a safe Content-Type, and must not execute model HTML as same-origin pages. Byte count and SHA-256 match the revision; exceeding limits is rejected rather than silently truncated.
 
-## 5. P3A HTTP、事件与能力发现
+## 5. P3A HTTP, Events, and Capability Discovery
 
-候选端点（都是 `/api/v1` 下的向后兼容扩展）：
+Candidate endpoints (all backward-compatible extensions under `/api/v1`):
 
 ```text
 GET, POST   /projects
-GET, PATCH  /projects/{id}                  PATCH 需 expected_version
-GET, POST   /projects/{id}/materials        POST 为 multipart 文件上传
+GET, PATCH  /projects/{id}                  PATCH requires expected_version
+GET, POST   /projects/{id}/materials        POST is multipart file upload
 DELETE      /projects/{id}/materials/{material_id}
-PUT         /sessions/{id}/project          CAS 更新项目关联
+PUT         /sessions/{id}/project          CAS updates project association
 
-GET, POST   /drafts                         GET 可按 scope 字段过滤，owner 隐式
-GET, PUT    /drafts/{id}                    PUT 需 expected_version
+GET, POST   /drafts                         GET can filter by scope field, owner is implicit
+GET, PUT    /drafts/{id}                    PUT requires expected_version
 DELETE      /drafts/{id}?expected_version=N
 
-GET, POST   /sessions/{id}/artifacts         创建含首个 revision
-GET         /projects/{id}/artifacts        按会话当前项目关联聚合
+GET, POST   /sessions/{id}/artifacts         Creation includes initial revision
+GET         /projects/{id}/artifacts        Aggregated by session's current project association
 GET         /artifacts/{id}
-GET, POST   /artifacts/{id}/revisions        POST 需 expected_latest_revision_id
+GET, POST   /artifacts/{id}/revisions        POST requires expected_latest_revision_id
 GET         /artifacts/{id}/revisions/{revision_id}
 GET         /artifacts/{id}/revisions/{revision_id}/content
 GET         /artifacts/{id}/revisions/{revision_id}/download
 ```
 
-ArtifactRevision 的元数据 GET 不带 content；`/content` 返回 `text/plain; charset=utf-8` 原始 UTF-8 字节；`/download` 返回 `application/octet-stream` 且 attachment。两者都带 `Cache-Control: no-store`。首版不支持范围下载。
+Metadata GET for ArtifactRevision does not include content; `/content` returns `text/plain; charset=utf-8` raw UTF-8 bytes; `/download` returns `application/octet-stream` and attachment. Both include `Cache-Control: no-store`. The initial version does not support range downloads.
 
-读取返回 200，创建返回 201，成功删除返回 204。沿用现 `invalid/unauthorized/forbidden/not_found/conflict/unavailable/internal`，不新增与现模型重复的一套错误码。冲突详情的 reason 候选为 `stale_version/source_changed/material_changed/scope_mismatch`，只含资源 ID、版本和必要的相对路径。
+Reads return 200, creates return 201, and successful deletions return 204. Continue using existing `invalid/unauthorized/forbidden/not_found/conflict/unavailable/internal`, without adding a duplicate set of error codes alongside the existing model. Candidate reason for conflict details is `stale_version/source_changed/material_changed/scope_mismatch`, containing only resource ID, version, and necessary relative paths.
 
-`GET /version` 增加可选 `capabilities` 对象，键和值示例：
+`GET /version` adds an optional `capabilities` object, with key and value examples:
 
 ```json
 {
@@ -161,15 +161,15 @@ ArtifactRevision 的元数据 GET 不带 content；`/content` 返回 `text/plain
 }
 ```
 
-只有已实现、通过迁移与初始化检查的完整能力才能出现。旧 daemon 缺字段视为均不支持；新 UI 隐藏对应写入口，继续提供旧会话、附件上传、消息副本导出。不能用版本字符串猜功能，不能向旧服务发送它不认识的字段。P3B 的 `workbench.changesets` 在后续完整实现前始终缺失。
+Only complete capabilities that are implemented and pass migration and initialization checks can appear. Missing fields on legacy daemons are treated as unsupported; the new UI hides corresponding write entry points and continues to provide legacy sessions, attachment uploads, and message copy exports. Feature guessing using version strings is prohibited, and fields unrecognized by legacy services must not be sent to them. P3B's `workbench.changesets` remains absent until subsequent complete implementation.
 
-新增事件：`project.created/updated`、`project.material.created/removed`、`draft.updated/deleted`、`artifact.created/revision.created`。只发 ID、version、来源 ID 等元数据，不发送草稿/文档全文、密钥或上传二进制。客户端收到事件后失效相应查询；只在对应资源重新读取成功后显示新版本。
+New events: `project.created/updated`, `project.material.created/removed`, `draft.updated/deleted`, `artifact.created/revision.created`. Emit only metadata such as ID, version, and source ID, without sending draft/document full text, secrets, or uploaded binaries. The client invalidates corresponding queries upon receiving events; new versions are displayed only after the corresponding resource is successfully re-read.
 
-保留既有 `session.*`、`run.*`、审批事件、全局 Seq、`hello.started_at`、`since` 与 `gap` 语义。daemon 重启必须丢弃旧 Seq 并全量刷新。新事件被旧客户端忽略即可，不复用 run.* 表示草稿自动保存。
+Retain existing `session.*`, `run.*`, approval events, global Seq, `hello.started_at`, `since`, and `gap` semantics. A daemon restart must discard the old Seq and perform a full refresh. New events are simply ignored by legacy clients, and run.* is not reused to represent draft auto-saving.
 
-## 6. P3A 仓储与消费者接口候选
+## 6. P3A Repository and Consumer Interface Candidates
 
-以下是拟在评审通过后加入的签名轮廓。Input/Filter 均在共享 workbench 类型中明确定义，不允许实现时悄悄增加另一套领域类型。
+Below are the signature outlines planned for inclusion after review approval. Input/Filter are explicitly defined within shared workbench types, and quietly adding another set of domain types during implementation is not permitted.
 
 ```go
 type ProjectRepo interface {
@@ -181,7 +181,7 @@ type ProjectRepo interface {
     CreateProjectMaterial(context.Context, *ProjectMaterial) error
     ListProjectMaterials(context.Context, string, Page) ([]*ProjectMaterial, error)
     GetProjectMaterial(context.Context, string) (*ProjectMaterial, error)
-    DeleteProjectMaterial(context.Context, string) error // 只删引用
+    DeleteProjectMaterial(context.Context, string) error // Only deletes reference
 }
 
 type DraftRepo interface {
@@ -212,102 +212,102 @@ type WorkbenchStore interface {
 }
 ```
 
-`store.Store` 同时满足原 Store 和 WorkbenchStore；WorkbenchTx 与现 Tx 共用事务实现，回调内不可重入、不持有网络请求或用户审批。新增仓储方法使用原有 CodeNotFound/CodeConflict 约定。附加的请求幂等记录只针对新创建资源，限主体与端点作用域，存请求摘要不存凭据。
+`store.Store` satisfies both the original Store and WorkbenchStore; WorkbenchTx shares transaction implementations with existing Tx, and within callbacks it is non-reentrant and holds no network requests or user approvals. New repository methods use existing CodeNotFound/CodeConflict conventions. Additional request idempotency records target only newly created resources, restricted to principal and endpoint scopes, storing request digests rather than credentials.
 
-`workbench` 消费者接口复用的能力：Agent lookup、Session lookup、Message lookup、工作区 `SaveInbound/ReadFile/Stat/Resolve`、事件总线、审计追加。文件读写由 app 注入的 workspace 适配器完成；现 HTTP handler 上传逻辑可提取共享 helper，但 server 不直接 import store。
+Capabilities reused by the `workbench` consumer interface: Agent lookup, Session lookup, Message lookup, workspace `SaveInbound/ReadFile/Stat/Resolve`, event bus, and audit appending. File reading and writing are performed by the workspace adapter injected by app; existing HTTP handler upload logic can extract shared helpers, but server does not directly import store.
 
-数据表建议为 `projects`、`project_materials`、`drafts`、`artifacts`、`artifact_revisions`、新资源请求幂等表，并为 sessions 增加 nullable project_id。文本内容可先使用 SQLite TEXT，避免本版同时引入外置 blob 的双写一致性；内容大小和总量必须有明示限制。revision 的内容只通过专门读取接口序列化。
+Recommended database tables are `projects`, `project_materials`, `drafts`, `artifacts`, `artifact_revisions`, and a new resource request idempotency table, along with adding a nullable project_id to sessions. Text content can initially use SQLite TEXT to avoid introducing dual-write consistency issues with external blobs in this version; content size and total volume must have explicit limits. Content of revisions is serialized only through dedicated read endpoints.
 
-项目归属必须保持同 Agent：领域校验之外，迁移通过组合约束或触发器防止跨 Agent 关联。项目无硬删除；Agent、Session 的既有删除语义仍生效，新增子记录按已确认外键级联，界面删除确认需说明草稿和成果也会删除。P3A 不自动清理已有磁盘 inbound 文件。会话从项目移出只改变关联，不删除成果；项目成果列表随会话归属变化。
+Project attribution must remain within the same Agent: beyond domain validation, migrations prevent cross-Agent associations via composite constraints or triggers. Projects have no hard deletion; existing deletion semantics for Agents and Sessions remain in effect, newly added child records cascade according to confirmed foreign keys, and UI deletion confirmations must explain that drafts and artifacts will also be deleted. P3A does not automatically clean up existing inbound files on disk. Moving a session out of a project only changes the association and does not delete artifacts; the project artifact list updates with session attribution changes.
 
-## 7. P3B 单文件 ChangeSet 契约
+## 7. P3B Single-File ChangeSet Contract
 
-用户于 2026-10-12 授权继续 P3B，采用独立持久 Operation 主体。首版限制为一个工作区内的普通 UTF-8 文本文件，最多 512 KiB，支持创建、完整替换及独立预览的撤销；创建的撤销按 destructive 删除审批。不支持多文件事务、目录、任意删除、改名、二进制、权限位修改、工作区外路径、脚本执行或自动发布。
+On 2026-10-12, the user authorized continuing P3B, adopting an independent persistent Operation subject. The initial version is restricted to ordinary UTF-8 text files within a workspace, up to 512 KiB, supporting creation, complete replacement, and undo with independent previews; undoing creation requires approval as destructive deletion. Multi-file transactions, directories, arbitrary deletion, renaming, binaries, permission bit modifications, out-of-workspace paths, script execution, or automatic publishing are not supported.
 
-候选 ChangeSet 字段：`id`、`session_id/agent_id`、`artifact_id/revision_id`、`target_path`（仅规范化相对路径）、`operation: create|replace`、`base_exists/base_sha256`、`proposed_sha256`、`preview_digest`、`version`、`status`、`created_by/created_at/expires_at`，以及完成后的 `applied_sha256/applied_at`、`undo_of?`。所有目标、基线和来源由服务端计算/验证；客户端传入的内容只从已保存 revision 读取，不接受 apply 时替换正文。
+Candidate ChangeSet fields: `id`, `session_id/agent_id`, `artifact_id/revision_id`, `target_path` (normalized relative path only), `operation: create|replace`, `base_exists/base_sha256`, `proposed_sha256`, `preview_digest`, `version`, `status`, `created_by/created_at/expires_at`, along with completed `applied_sha256/applied_at` and `undo_of?`. All targets, baselines, and sources are computed/validated by the server; content passed in by the client is read only from saved revisions and replacing body content at apply time is rejected.
 
-候选接口：
+Candidate endpoints:
 
 ```text
 POST /sessions/{id}/changesets
   { artifact_id, revision_id, target_path, operation }
-  → 201 ChangeSet，仅读取目标、记录快照和预览，未写目标
+  → 201 ChangeSet; only reads target, records snapshot and preview, does not write target
 GET /changesets/{id}
 GET /changesets/{id}/diff
 POST /changesets/{id}/apply
   { expected_version, preview_digest } + Idempotency-Key
-  → 202 操作受理；可能等待审批，不能立即显示已应用
+  → 202 Operation accepted; may await approval, cannot immediately display as applied
 POST /changesets/{id}/undo-preview
   { expected_version }
-  → 201 新的撤销预览 ChangeSet，只有当前目标仍匹配 applied_sha256 才创建
+  → 201 New undo preview ChangeSet; created only if the current target still matches applied_sha256
 POST /changesets/{undo_id}/apply
-  → 同一套执行、审批、基线验证，不设绕过路径
+  → The same execution, approval, and baseline validation pipeline, with no bypass paths provided
 ```
 
-撤销创建文件属于删除副作用，风险应提升为 destructive；若第一版不实现受控删除，则明确只开放 replace 的撤销，创建操作只提供保留文件的手动处理指引。不能用普通 write 风险掩盖删除。
+Undoing file creation is a deletion side effect, and its risk should be escalated to destructive; if controlled deletion is not implemented in the first version, explicitly open undo only for replace, and provide manual handling guidance for file retention on create operations. Ordinary write risk must not be used to mask deletion.
 
-状态候选：`prepared → awaiting_approval → applying → applied`；拒绝/超时为 `denied/expired`；基线变化为 `conflict`；写入或落账无法确定为 `recovery_required`。prepared 过期后必须重新预览。每个副作用独立 ChangeSet，undo 不是把 applied 记录篡改回 prepared。
+Candidate states: `prepared → awaiting_approval → applying → applied`; rejection/timeout is `denied/expired`; baseline change is `conflict`; indeterminable write or accounting is `recovery_required`. After prepared expires, preview must be redone. Each side effect is an independent ChangeSet; undo does not tamper an applied record back to prepared.
 
-preview_digest 绑定 Agent、会话、操作者、工作区真实根身份、目标相对路径、基线摘要、revision ID、提议摘要及过期时间；它是内容一致性摘要，不是访问令牌，也不能替代鉴权或审批。审批通过后再次核对全部绑定，不允许“预览 A、应用 B”。
+preview_digest binds Agent, session, operator, genuine workspace root identity, target relative path, baseline digest, revision ID, proposed digest, and expiration time; it is a content consistency digest, not an access token, nor can it replace authentication or approval. After approval passes, re-verify all bindings; "preview A, apply B" is disallowed.
 
-### 7.1 不能直接复用的审批条件
+### 7.1 Approval Conditions That Cannot Be Directly Reused
 
-现 Executor 以 RunID 找执行上下文，审批表的 run_id 又是非空外键。因此“拿到用户点击就直接调用 Workspace.WriteFile”与“造一个空 RunID 去调用 permission.Check”均不可接受。
+The existing Executor locates execution context by RunID, and run_id in the approval table is a non-null foreign key. Therefore, "directly calling Workspace.WriteFile upon user click" and "fabricating an empty RunID to call permission.Check" are both unacceptable.
 
-本轮采用方案一，避免扩张模型 Run 语义。原候选方案保留如下：
+This phase uses option one to avoid expanding model Run semantics. The original alternatives are retained below:
 
-1. 给内核增加正式的本机文件操作执行主体及其审批关联；Executor 支持该主体，permission 仍使用同一 guard/deny/rule/once-approval 逻辑，审批持久化能引用真实操作记录；旧运行审批列表与旧 SSE 语义不变。需要明确新增 Operation/Approval 共享字段或独立资源及 schema 迁移。
-2. 正式扩展 Run 为可表达非模型用户操作的运行，而不是伪造推理运行；需要明确 RunKind、上下文解析、消息/用量/统计、取消、重启恢复和旧客户端行为。然后才允许通过现 Executor 路径执行。该方案可能改动更多既有语义，不应在 P3A 顺手引入。
+1. Add a formal local file operation execution subject and its approval association to the kernel; Executor supports this subject, permission continues using the same guard/deny/rule/once-approval logic, and approval persistence can reference genuine operation records; legacy run approval lists and legacy SSE semantics remain unchanged. Shared fields for newly added Operation/Approval or independent resources and schema migrations must be clarified.
+2. Formally extend Run into a run capable of expressing non-model user operations instead of spoofing inference runs; RunKind, context resolution, messages/usage/statistics, cancellation, restart recovery, and legacy client behavior must be clarified. Only then can execution via the existing Executor path be allowed. This option may alter more existing semantics and should not be introduced incidentally in P3A.
 
-无论选择哪种，应用与撤销都必须进入 `tools.Executor`，以经鉴权的实际用户身份执行，使用同一工作区边界与权限引擎；不是新建一个只相信 boolean 的独立确认系统。旧规则中的 deny 和内核保护路径具有优先级。会话级/永久放行不能扩大本次已预览目标或使任意版本被自动替换。
+Whichever is chosen, apply and undo must enter `tools.Executor`, executing under authenticated actual user identity using the same workspace boundary and permission engine; not establishing an independent confirmation system that only trusts booleans. Deny rules in existing rules and kernel protected paths take precedence. Session-level or permanent passes cannot expand this previewed target or cause arbitrary versions to be automatically replaced.
 
-这里需要先评审的新增接口可以表述为 `ExecuteUserOperation(ctx, operationID, call)`，但 operationID 必须来自上述正式持久化主体；未完成模型、审批存储与解析器前，这个签名不能作为可运行旁路加入代码。
+The new interface requiring preliminary review here can be expressed as `ExecuteUserOperation(ctx, operationID, call)`, but operationID must come from the aforementioned formal persistent subject; before completing models, approval storage, and parsers, this signature cannot be added to the code as a runnable bypass.
 
-### 7.2 基线、原子写入与恢复职责
+### 7.2 Baseline, Atomic Writes, and Recovery Responsibilities
 
-ChangeSet 的来源、基线和状态迁移由 workbench 管理；实际副作用由受控工具调用 workspace 的条件写能力。候选 workspace 能力为：
+The source, baseline, and state transitions of ChangeSet are managed by workbench; actual side effects invoke the conditional write capabilities of workspace via controlled tools. Candidate workspace capabilities are:
 
 ```text
 Snapshot(ctx, rel, maxBytes) -> exists, sha256, fileIdentity, content
 ReplaceIfUnchanged(ctx, rel, expectedSnapshot, proposedContent) -> newSnapshot
-RemoveIfUnchanged(ctx, rel, expectedSnapshot) -> removedSnapshot  // 仅在批准删除撤销后
+RemoveIfUnchanged(ctx, rel, expectedSnapshot) -> removedSnapshot  // Only after delete undo is approved
 ```
 
-已有 WriteFile 不能代替 ReplaceIfUnchanged。需在工作区适配器统一串行化 daemon 对目标路径的写入，重新解析根与符号链接边界、核对当前内容摘要，写临时文件、fsync、原子替换并校验结果。所有相关工具路径也必须遵守同一协调机制。等待用户审批时不得持有文件锁或 SQL 事务。
+The existing WriteFile cannot replace ReplaceIfUnchanged. Target path writes by the daemon must be serialized centrally in the workspace adapter, re-resolving root and symlink boundaries, verifying current content digests, writing temp files, fsyncing, atomically replacing, and validating results. All relevant tool paths must also comply with the same coordination mechanism. File locks or SQL transactions must not be held while waiting for user approval.
 
-同进程锁不能阻止外部编辑器或外部进程并发写入。实现评审必须明确平台上“检查后、替换前”竞态的保障与限制，不能把“hash + rename”宣传成对任意外部写者的原子 CAS。未解决的路径/平台只能降级为另存副本，不能静默覆盖。符号链接替换、大小写别名、hard link、外部编辑和运行中的工具写入都要纳入测试及支持范围。
+Same-process locks cannot prevent concurrent writes by external editors or external processes. The implementation review must clarify platform-level guarantees and limitations for the race condition "after check, before replace"; "hash + rename" must not be advertised as an atomic CAS against arbitrary external writers. Unresolved paths/platforms can only degrade to saving as copies, not silent overwrites. Symlink replacement, case aliasing, hard links, external edits, and writes by running tools must all be included in testing and support scopes.
 
-数据库事务不能原子覆盖文件系统。执行前必须持久化操作意图与原文件前像，执行成功后落 applied 状态与审计；原图快照放内核受保护目录，不能放 Agent 可写的普通工作区里。崩溃恢复按目标实际 hash 判断：仍是 base 则未应用；等于 proposed 则补齐成功落账；两者都不是则 recovery_required，禁止自动覆盖或自动撤销。
+Database transactions cannot atomically overwrite the filesystem. Operation intent and the original file pre-image must be persisted before execution, and the applied state and audit must be recorded after successful execution; original image snapshots reside in a kernel-protected directory, not in an ordinary workspace writable by the Agent. Crash recovery is evaluated against the target's actual hash: if still base, it is not applied; if equal to proposed, backfill successful accounting; if neither, recovery_required, forbidding automatic overwrite or automatic undo.
 
-撤销必须以 applied hash 为新的基线，再进行预览和批准；发现其他编辑就返回 conflict，保留现文件和前像供用户比较。审计只记录资源 ID、相对目标、摘要、风险、操作者、结果与原因，不保存正文或令牌。应用成功必须在可重读的最终状态确认后显示，不能只凭 HTTP 202 显示。
+Undo must take the applied hash as the new baseline before preview and approval; if other edits are detected, return conflict and retain the current file and pre-image for user comparison. Audit logs record only resource IDs, relative targets, digests, risk, operator, result, and reason, without storing full bodies or tokens. Successful application must be displayed after confirming a re-readable final state, not solely based on HTTP 202.
 
-## 8. 兼容、迁移与备份
+## 8. Compatibility, Migration, and Backup
 
-保留 HashRouter、`/chat/:sessionId` 和旧 query；新项目入口只是补充导航。保留 sessionId、message seq、runId、Key 与 Origin；不因界面改名重建任何会话。P3A 不增加 IPC，打包版继续 app:// 同源代理注入令牌，开发版只在内存传递连接信息。新内容端点同样受 Host/Origin/Bearer 校验。
+Preserve HashRouter, `/chat/:sessionId`, and legacy queries; new project entry points serve only as supplementary navigation. Preserve sessionId, message seq, runId, Key, and Origin; do not rebuild any sessions due to UI renames. P3A introduces no new IPC; packaged editions continue injecting tokens via app:// same-origin proxy, and development editions pass connection information in memory only. New content endpoints are likewise subject to Host/Origin/Bearer validation.
 
-迁移执行前必须具备可验证的备份流程，而不是仅在发布说明写“可回滚”：
+A verifiable backup process must be in place prior to migration execution, rather than merely writing "rollback supported" in release notes:
 
-1. 在获得 daemon 单实例锁、尚未接收业务写入时，检测是否有待迁移 schema。现 Store.Open 会自动迁移，因此备份检查必须安排在该迁移之前；不能 Open 完再备份。
-2. 对现库使用 SQLite 一致性备份机制，或确保所有连接关闭并完成 WAL 处理后离线备份完整数据库状态；不能只复制活动的 `.db` 文件而漏掉 WAL。备份由 store/update 能力完成，HTTP 层不打开数据库。
-3. 备份目录 0700、文件 0600，记录 schema 版本、程序版本、备份时间、文件清单和校验和，不包含访问令牌明文。P3A 文本在 DB、已有 inbound 原位保留；需要备份的配置文件只包含恢复所必需项。
-4. 验证备份可打开及 `integrity_check`，失败就拒绝迁移。每个 SQL 版本沿用现有事务；失败不能启动新 capability。
-5. 演练使用备份和匹配旧内核恢复。迁移完成后旧内核拒绝新 schema 的现行为必须保留。旧代码能忽略字段不代表旧内核能打开新版本数据库。
-6. 回滚不是自动抹掉升级后的新工作：应先停写、保留当前数据副本并说明恢复点，再恢复已核验的匹配快照。P3B 还需备份操作记录/前像并先完成文件状态对账，不能靠单独回滚 DB 撤销已经修改的文件。
+1. Detect whether there are pending schema migrations after acquiring the daemon single-instance lock and before receiving business writes. Existing Store.Open automatically migrates, so the backup check must be scheduled before that migration; backups cannot be performed after Open completes.
+2. Use SQLite consistency backup mechanisms on the current database, or ensure all connections are closed and WAL processing is complete before performing an offline backup of the complete database state; do not copy only active `.db` files while missing the WAL. Backups are completed by store/update capabilities; the HTTP layer does not open the database.
+3. Backup directories 0700, files 0600, recording schema version, application version, backup timestamp, file manifest, and checksums, excluding plaintext access tokens. P3A text resides in DB, existing inbound files remain in place; configuration files requiring backup include only those necessary for recovery.
+4. Verify that the backup can be opened along with `integrity_check`; reject migration on failure. Each SQL version continues using existing transactions; failures must not start new capabilities.
+5. Rehearse recovery using the backup and a matching legacy kernel. The existing behavior where a legacy kernel rejects a new schema after migration completes must be preserved. Legacy code being able to ignore fields does not mean a legacy kernel can open a new-version database.
+6. Rollback is not automatically wiping post-upgrade new work: stop writes first, retain a copy of current data and explain the recovery point, then restore the verified matching snapshot. P3B also requires backing up operation records/pre-images and reconciling file states beforehand; modified files cannot be undone by rolling back the DB alone.
 
-P3A 只增加新表与可空字段，不扫文件重归属、不把既有消息全部复制成版本、不执行历史工具调用。删除旧 UI 偏好或回退前端不应影响内核草稿和成果。新客户端连接旧 daemon 时通过 capabilities 降级；能力调用失败保留当前编辑内容并提供导出，不清空草稿。
+P3A only adds new tables and nullable fields, without scanning files for re-attribution, copying all existing messages into versions, or executing historical tool calls. Deleting legacy UI preferences or rolling back frontends should not affect kernel drafts and artifacts. When a new client connects to an older daemon, it degrades via capabilities; capability call failures retain current edits and provide export, without clearing drafts.
 
-## 9. 实施顺序与验收
+## 9. Implementation Sequence and Acceptance
 
-建议按以下顺序拆分审核：
+Review splitting is recommended in the following order:
 
-1. 共享类型/API/架构评审，以及可恢复备份前置能力；无 UI 行为变化。
-2. 项目与材料索引、会话关联、严格归属校验；旧会话/上传回归通过后开启 projects/materials。
-3. Draft CAS、重启恢复、跨窗口冲突、失败保留；确认没有新编辑被旧发送响应清空后开启 drafts。
-4. Artifact 与不可变版本、来源验证、重新打开、读取下载、导出安全；完成最短用户路径后开启 artifacts。
-5. 单独评审 P3B 的执行主体与审批存储方案、文件条件写实现和竞态边界；通过后再实现 ChangeSet。没有这一决定就保留副本保存，不挂假的应用/撤销入口。
+1. Shared types/API/architecture review, plus recoverable backup prerequisite capabilities; no UI behavior changes.
+2. Project and material indexing, session association, strict attribution validation; enable projects/materials after legacy session/upload regressions pass.
+3. Draft CAS, restart recovery, cross-window conflicts, failure retention; enable drafts after confirming no new edits are cleared by legacy send responses.
+4. Artifact and immutable versions, provenance verification, reopen, read/download, export safety; enable artifacts after completing the shortest user journey.
+5. Separately review P3B execution subject and approval storage scheme, file conditional write implementations, and race condition boundaries; implement ChangeSet only after passing. Without this decision, retain copy saving and do not mount dummy apply/undo entry points.
 
-必须覆盖的 P3A 验收：旧数据库升级及备份恢复、旧客户端基本 CRUD、新客户端连接旧 daemon、跨 Agent 项目关联拒绝、无效材料整次发送失败、材料变化检测、同作用域并发草稿创建、两个窗口同版更新只有一个成功、发送期间新编辑保留、离线恢复不自动重发、成果源消息越权拒绝、部分输出标记、并发新版本冲突、下载字节/摘要一致、HTML 不在同源执行、删除会话的关联清理、SSE gap/重启重拉、不把全文/令牌放事件与日志。
+Mandatory P3A acceptance coverage: legacy database upgrades and backup recovery, legacy client basic CRUD, new clients connecting to older daemons, cross-Agent project association rejection, invalid material whole-transmission failure, material change detection, same-scope concurrent draft creation, only one success for same-version updates from two windows, retention of new edits during transmission, offline recovery without auto-resend, unauthorized artifact source message rejection, partial output flagging, concurrent new version conflicts, download byte/digest consistency, HTML not executing in same-origin, association cleanup on session deletion, SSE gap/restart refetching, not placing full text/tokens into events and logs.
 
-P3B 另需拒绝越界/符号链接/别名/保护路径、规则拒绝优先、审批目标与版本绑定、重复请求幂等、应用/撤销外部修改冲突、各崩溃切点恢复、取消与超时、失败审计、不同平台文件语义验证。没有这些证据不能宣称覆盖和撤销已安全完成。
+P3B additionally requires rejecting out-of-bounds/symlinks/aliases/protected paths, rule deny precedence, approval target and version binding, duplicate request idempotency, apply/undo external modification conflicts, recovery across crash cut-points, cancellation and timeouts, failure auditing, and cross-platform file semantics verification. Without such evidence, safe completion of coverage and undo cannot be claimed.
 
-2026-10-12 用户再次明确授权 P3B 文件预览、应用、撤销及兼容验证；独立 Operation、审批关联和共享契约均在该实施范围内。能力只在完成服务装配及恢复后声明。
+On 2026-10-12, the user again explicitly authorized P3B file preview, apply, undo, and compatibility verification; independent Operation, approval associations, and shared contracts all fall within this implementation scope. Capabilities are declared only after completing service assembly and recovery.

@@ -38,7 +38,7 @@ make e2e
 
 The end-to-end suite uses a real Python worker and a local fake model. It needs `uv`, not a paid key; confirm it ran instead of skipping. Run affected module tests first. CI also tests the Go core on Linux, macOS, and Windows.
 
-Commit format: `<type>(<scope>): <中文摘要>`, for example `fix(preview): 修复空文档预览`. If you do not write Chinese, explain the change clearly in your English PR; maintainers can help with the final squash message.
+Commit format: `<type>(<scope>): <English summary>`, for example `fix(preview): handle empty documents`. Public commit summaries and repository documentation use English. Describe the problem and verification clearly in your PR.
 
 ## Help maintain a module
 
@@ -48,4 +48,4 @@ Maintainers grant ongoing permissions after discussion; a contribution does not 
 
 Be respectful and specific. Critique code and evidence, not people. Harassment, discrimination, personal attacks, and publishing private information are unacceptable; maintainers may moderate disruptive contributions. Report vulnerabilities through [SECURITY.md](SECURITY.md). Contributions use the existing [MIT license](LICENSE).
 
-欢迎用中文或法文参与。第一次贡献无需承担整个模块，一个清晰、可验证的小改动就很有帮助。
+Contributions in Chinese or French are welcome. For your first contribution, you do not need to take on an entire module; a clear, verifiable small change is very helpful.

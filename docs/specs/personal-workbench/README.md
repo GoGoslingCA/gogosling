@@ -1,144 +1,142 @@
-# 模块规划：个人工作台
+# Module plan: Personal workbench
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案，对齐个人工作台 PRD v0.5 |
-| 日期 | 2026-10-12 |
-| 模块 | 个人工作台 |
-| 完整需求 | [PRD](../../prd/personal-workbench.md) |
-| 使用说明 | [使用说明](../../user/personal-workbench.md) |
+| Status | Draft, aligned with personal workbench PRD v0.5 |
+| Date | 2026-10-12 |
+| Module | Personal workbench |
+| Full requirements | [PRD](../../prd/personal-workbench.md) |
+| User guide | [Guide](../../user/personal-workbench.md) |
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 相关规范
-8. 假设与待确认
+1. Goal
+2. Responsibilities
+3. Key workflow
+4. Inputs and outputs
+5. Dependencies
+6. Potential failures
+7. Related specifications
+8. Assumptions and open questions
 
-流程细则见 [flows.md](flows.md)。问题清单见 [issues.md](issues.md)。排查与验证见 [troubleshooting.md](troubleshooting.md)。
+See [flows](flows.md), [issues](issues.md), and [troubleshooting/verification](troubleshooting.md).
 
 ---
 
-## 1. 目标
+## 1. Goal
 
-让一个人看清一件事从输入到成果的每一步。任何一步停下时，都能知道停在哪里、已经保住什么、没有发生什么、下一步只做哪一件。
+Make every step from input to result visible. When work stops, explain where, what was retained, what did not happen, and one next action.
 
-做到这些才算本模块达到目标：
-
-| 编号 | 目标 |
+| ID | Goal |
 |---|---|
-| G1 | 写好要求并选好资料后，一次确认完成创建、加入资料和提交。失败时停在具体一段，已完成的部分还在 |
-| G2 | 再次打开时能分别看到任务、未发送草稿、成果编辑、最近版本和运行状态。不自动重发未知结果 |
-| G3 | 保存版本、保存副本、导出、写回原文件是四个不同动作 |
-| G4 | 写回前可以看差异。文件在预览之后变了，就停止写入并保留外部内容 |
-| G5 | 有本轮 token 就分项显示。没有就显示尚未提供，不估算金额 |
+| G1 | One confirmation creates the task, adds selected materials, and submits requirements; a failure names its stage and retains completed work |
+| G2 | Reopening separately exposes task, unsent draft, result edits, latest version, and run state; unknown outcomes are not resent automatically |
+| G3 | Save version, save copy, export, and write-back are four different actions |
+| G4 | Inspect differences before write-back; stop and retain external edits if the file changed after preview |
+| G5 | Display returned token categories; otherwise not provided, without estimated charges |
 
-## 2. 职责边界
+## 2. Responsibilities
 
-| 本模块负责 | 本模块不负责 |
+| In scope | Out of scope |
 |---|---|
-| 开始页、任务列表、项目中的资料、任务和成果 | 模型地址、密钥和连通性本身 |
-| 发送前展示助手、模型、工作目录、本次资料、确认档位和本轮用量 | 修改助手后，其他任务因此发生的变化 |
-| 把一次开始分成创建、加入资料、提交 | 助手实际读了什么、执行了什么 |
-| 草稿是否已确认保存；冲突时两份都留着 | 多人同时编辑 |
-| 成果版本、副本、导出，以及它们和写回原文件的差别 | 工作区以外的文件 |
-| 文件修改的预览和状态 | 把一次批准变成长期规则 |
-| 优化提示词时不增加任务消息 | 句子优化得好不好 |
-| 预览失败时的原因和下载 | 把预览变成编辑，或重算表格 |
-| 排队时能看懂的名额状态 | 定时任务为什么在这个时刻启动 |
-| 旧服务没有某项能力时隐藏入口 | 升级或安装本机服务 |
+| Start page, tasks, project materials/tasks/results | Endpoint, credential, and connectivity validation |
+| Show assistant, model, workspace, selected materials, approval mode, and current usage | Effects of assistant changes on other tasks |
+| Separate creation, material addition, and submission | What the assistant actually read/executed |
+| Confirmed draft saves and retaining both conflict sides | Multiuser editing |
+| Result versions, copies, exports, and their distinction from write-back | Files outside the workspace |
+| File-change preview/state | Converting one approval into a lasting rule |
+| Enhance prompts without task messages | Enhancement quality |
+| Preview failure cause/download | Editing in preview or recalculating spreadsheets |
+| Understandable queue capacity | Why a scheduled job started at that time |
+| Hide unsupported entries for older services | Install/upgrade the local service |
 
-删除任务或助手时，本模块说明：消息、草稿和成果版本会去掉，工作区里的文件还在。
+Deleting a task/assistant removes messages, drafts, and result versions while retaining workspace files.
 
-本模块不提供消息连接、云同步、在线转换、分享链接、技能市场和获取网页。手机端只链到 [手机端应用](../mobile-link/README.md)。
+This module provides no messaging, cloud synchronization, online conversion, sharing links, skill market, or web retrieval. Mobile only links to [the mobile app](../mobile-link/README.md).
 
-## 3. 关键流程
+## 3. Key workflow
 
-1. **准备。** 没有可用助手时，开始页只去配置，不创建任务。
-2. **开始。** 创建任务，再加入资料，再提交要求。空白内容只创建任务。
-3. **处理。** 展示真实运行状态。人可以停止，可以先写下一条补充，也可以处理确认。
-4. **留下。** 人保存初稿之后才有正式成果。再保存是新版本。副本和导出另走。
-5. **写回。** 仅在当前系统提供该能力时：预览，申请，确认，直到状态成为「已应用」。预览本身不写文件。macOS 上的单个文本文件在本版承诺内。Windows 只保留副本和导出。Linux 未验收前同样不提供写回。
+1. **Prepare:** without a usable assistant, offer configuration without creating a task.
+2. **Start:** create, add materials, submit; blank input creates only an empty task.
+3. **Process:** show real run state; users may stop, draft a follow-up, or handle approval.
+4. **Retain:** a formal result exists after Save draft and edit; subsequent saves create versions; copies/exports are separate.
+5. **Write back:** only when available on the current system, preview, request, approve, and wait for Applied. Preview itself does not write. This version's commitment covers one text file on macOS. Windows retains copy/export; Linux write-back is not offered before acceptance.
 
-优化提示词和文件预览是旁路。它们失败时，任务不会因此变成已发送，文件也不会变成已写入。
+Enhancement and preview are side paths. Their failures do not send the task or write the file.
 
-## 4. 输入与输出
+## 4. Inputs and outputs
 
-| 输入 | 必须给出的输出 |
+| Input | Required output |
 |---|---|
-| 目标文字、所选助手、勾选的资料 | 一个任务，或停在创建、加入资料、提交中的一段。文字还在 |
-| 停止、批准一次、本会话内允许、拒绝 | 运行状态随之变化。拒绝后该次操作不执行 |
-| 成果编辑、保存新版本、保存副本、导出 | 只产生被点中的那一个结果 |
-| 文件修改的目标和已保存版本 | 一份预览，以及随后的文件状态。不是「已应用」就表示目标文件还没按这份预览改掉 |
-| 优化提示词 | 一份候选，或失败说明。任务消息条数不变 |
-| 打开预览 | 可读内容，或带原因的失败和下载 |
+| Goal, assistant, selected materials | Task or a specific creation/material/submission stop; text retained |
+| Stop, approve once, allow this session, deny | Corresponding run state; denied operation not executed |
+| Edit/save version/save copy/export | Only the selected result |
+| File target and saved version | Preview and file state; until Applied, target has not changed according to this preview |
+| Enhance prompt | Candidate or failure; task-message count unchanged |
+| Open preview | Readable content or reason/download |
 
-还没有任务时，输出里的任务名称写「尚未创建」。
+Before creation, the task name is Not created.
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 本模块交出 | 对方交回 | 交回不清时 |
+| Module | Sent | Returned | If unclear |
 |---|---|---|---|
-| 本机上的保存 | 草稿、版本和文件操作 | 已确认、冲突或失败 | 不显示已保存或已应用 |
-| [模型连接](../model-connection/README.md) | 当前助手所用的连接 | 连通与否；本轮 token 或未提供 | 连通失败停在准备。用量显示尚未提供 |
-| [助手](../assistant/README.md) | 选中的助手 | 名称、模型、工作目录、确认档位 | 没有助手时停在准备 |
-| 运行 | 一条待处理的要求 | 排队、处理、完成、未完成、停止或未知 | 未知时先核对，不自动再发 |
-| [确认](../approval/README.md) | 所属任务、动作和对象 | 批准一次、本会话内允许或拒绝 | 看不清属于哪件任务时，不替人决定 |
-| 工作区里的文件 | 资料、副本位置、写回目标 | 文件是否仍与预览时一致 | 不一致则「文件已变化」，不覆盖 |
-| [定时任务](../schedule/README.md) | 不交出正文。只共享执行名额 | 名额是否被占用 | 排队说明要点出占用来自哪里 |
-| [手机端应用](../mobile-link/README.md) | 打开链接 | 没有数据交回 | 链接失败不改变任务 |
-| 消息连接 | 不交接 | 不接收 | 导航和设置里不进入 |
+| Local persistence | Drafts, versions, file operations | Confirmed, conflict, failure | Never show Saved/Applied |
+| [Model connection](../model-connection/README.md) | Current assistant connection | Connectivity, tokens or absent usage | Connectivity failure remains in preparation; missing usage not provided |
+| [Assistant](../assistant/README.md) | Selection | Name, model, workspace, approval mode | Remain in preparation if missing |
+| Execution | Requirement | Queued, processing, completed, incomplete, stopped, unknown | Inspect unknown outcome; do not resend |
+| [Approval](../approval/README.md) | Owning task/action/target | Once/session/deny decision | Never decide with unclear task ownership |
+| Workspace files | Materials, copy location, write target | Whether file still matches preview | Changed file retained, not overwritten |
+| [Scheduled jobs](../schedule/README.md) | No body, shared slots only | Capacity occupied/free | Explain the source of waiting |
+| [Mobile app](../mobile-link/README.md) | Open link | No returned data | Link failure does not alter tasks |
+| Messaging | No handoff | No input | No navigation/settings entry |
 
-项目使用同一助手的工作区。勾选资料只决定这条消息带上哪些引用，不扩大也不收紧文件权限。
+Projects share their assistant's workspace. Material selection controls message references, not file permissions.
 
-## 6. 潜在异常
+## 6. Potential failures
 
-| 环节 | 异常 | 人立刻要看见的事实 |
+| Stage | Failure | Immediately visible fact |
 |---|---|---|
-| 连接 | 服务没开、令牌无效 | 还没有任务 |
-| 准备 | 没有助手，或模型测试失败 | 任务未创建 |
-| 开始 | 创建成功后上传失败 | 只有一个任务，文字还在 |
-| 开始 | 提交后不知道有没有发出 | 状态未知。不自动出现第二条相同要求 |
-| 运行 | 同一任务仍有未结束的一轮 | 新的一句留在输入区 |
-| 确认 | 确认框看不出任务 | 先不要批准 |
-| 草稿 | 尚未确认就离开 | 只有上次「已保存」可靠 |
-| 草稿 | 两份草稿冲突 | 两份都在，必须人来选 |
-| 成果 | 已有更新的正式版本 | 当前编辑还在 |
-| 文件 | 预览之后目标被改过 | 外部内容保留 |
-| 文件 | 写到一半无法确认 | 「需要核对」。不自动重写 |
-| 优化 | 结果为空、没写完，或名额已满 | 原文还在，消息条数不变 |
-| 能力 | 旧服务没有某项能力 | 入口隐藏。原来的发送和保存副本仍可用 |
-| 名额 | 名额被别的任务或定时任务占用 | 不把本任务说成已经在处理 |
-| 列表 | 超过 200 项，或只搜到已加载任务 | 说明没显示完。不说成已经没有 |
-| 开始 | 更换助手 | 输入区是这个助手自己的未发送草稿 |
-| 开始 | 结果迟到 | 内容留在原任务，不抢走当前页面 |
-| 资料 | 同名文件同时加入 | 每一份都在，内容各自正确 |
-| 成果 | 任务已结束 | 成果和预览仍可打开 |
-| 确认 | 两件任务同时等待 | 决定只属于提出它的那一件 |
-| 运行 | 只有开头、没有正文 | 状态未知，不自动再开一轮 |
+| Connection | Service down/invalid token | No task exists yet |
+| Preparation | No assistant/model test failed | Task not created |
+| Start | Upload fails after creation | Exactly one task; text retained |
+| Start | Submission outcome unknown | Unknown; no automatic duplicate requirement |
+| Execution | Same task already running | Follow-up remains in input |
+| Approval | Owning task unclear | Do not approve |
+| Draft | Leave before confirmation | Only the last confirmed save is reliable |
+| Draft | Conflicting copies | Both retained; user chooses |
+| Result | Newer formal version exists | Current edits retained |
+| File | Target changed after preview | External content retained |
+| File | Interrupted write cannot be verified | Needs review; no automatic rewrite |
+| Enhancement | Empty/incomplete result or no slot | Original retained; message count unchanged |
+| Capability | Older service lacks feature | Hide entry; legacy sending/copy remains |
+| Capacity | Other task/job occupies slots | Do not call this task processing |
+| List | Over 200 entries/search limited to loaded tasks | Explain incompleteness, not absence |
+| Start | Switch assistant | That assistant's own unsent draft |
+| Start | Late response | Content stays with original task; current page retained |
+| Material | Concurrent same-name files | Each retained with its own correct content |
+| Result | Task finished | Result/preview still readable |
+| Approval | Two tasks waiting | Decision belongs only to its requesting task |
+| Execution | Start signal without body | Unknown; no automatic new run |
 
-这些情况的提示句和验证步骤见 [troubleshooting.md](troubleshooting.md)。尚未统一做到的展示问题见 [issues.md](issues.md)。
+See [troubleshooting](troubleshooting.md) for wording/tests and [issues](issues.md) for incomplete presentation work.
 
-## 7. 相关规范
+## 7. Related specifications
 
-状态和四条主流程的规则见 [flows.md](flows.md)。
+States and four main flows are in [flows](flows.md).
 
-开始页三个示例只填入草稿，不自动发送。发送前应能看到助手、模型、工作目录、本次资料和确认档位。把示例改成更具体的任务名、在开始前选择项目、以及页脚核实说明，属于后续交互建议，尚未写入 PRD 的已决范围，本规范不把它们当成已经验收的功能。
+The three start examples populate drafts without sending. Assistant, model, workspace, materials, and approval mode must be visible before submission. More specific examples, pre-start project selection, and footer verification wording remain separate proposals outside the decided PRD scope, not accepted features.
 
-## 8. 假设与待确认
+## 8. Assumptions and open questions
 
-| 编号 | 内容 |
+| ID | Detail |
 |---|---|
-| A1 | 主要使用者是要写出文档或修改文件的个人。没有人数或行业分布 |
-| A2 | 一台电脑、一个使用者。不设计多人同时编辑 |
-| A7 | 唯一对外入口是手机端应用链接，不同步 |
-| A8 | 使用者自己的模型地址仍会通信。这不是本应用的云 |
-| Q-1 | 三种确认档位下，写回是否一律询问。现版只看有没有确认框、状态是不是「已应用」 |
-| Q-3 | 超过 200 条时，现版不能继续翻完。后续浏览和全文查找是两件分开的事，现在还不能用 |
-| Q-5 | 手机端正式地址未提供。未提供时不显示链接 |
+| A1 | Individuals producing documents/file changes; no population/industry data |
+| A2 | One computer/user; no multiuser editing |
+| A7 | Mobile link is the sole external entry, without synchronization |
+| A8 | User-supplied model endpoints communicate; this is not the app's cloud |
+| Q-1 | Whether every mode always asks for write-back is unresolved; inspect actual prompt and Applied state |
+| Q-3 | Current lists cannot paginate beyond 200; browsing and full-text search are separate future work |
+| Q-5 | No official mobile URL; hide the link until supplied |

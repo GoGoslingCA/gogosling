@@ -1,98 +1,98 @@
-# 模块规划：模型连接
+# Module plan: Model connection
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 模块 | 模型连接。设置中称为模型供应商 |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Module | Model connections, called model providers in Settings |
 
-本文件只规划模型连接。使用者自己的模型地址可以是远程的，也可以是本机的。这不等于本应用提供云服务。
+Plan the user's local or remote model endpoint. A chosen remote endpoint does not mean the app provides a cloud service.
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 验证
-8. 假设与待确认
+1. Goal
+2. Responsibilities
+3. Key workflow
+4. Inputs and outputs
+5. Dependencies
+6. Potential failures
+7. Verification
+8. Assumptions and open questions
 
 ---
 
-## 1. 目标
+## 1. Goal
 
-让人保存一个自己的模型服务，并在使用前看到连通测试的结果。密钥保存后不再显示出来。
+Save a model service and show a connectivity test before use. Saved credentials are never displayed again.
 
-## 2. 职责边界
+## 2. Responsibilities
 
-| 本模块负责 | 本模块不负责 |
+| In scope | Out of scope |
 |---|---|
-| 新建、编辑、测试和删除一条模型连接 | 某一轮回复的质量 |
-| 保存密钥且不回显 | 服务商账单 |
-| 测试连通，并列出发现到的模型 | 工作台里的任务草稿 |
-| 连接仍被助手使用时，拒绝删除 | 替人选择套餐 |
+| Create, edit, test, and delete connections | Quality of a particular reply |
+| Store credentials without echoing | Provider billing |
+| Test connectivity and list discovered models | Workbench task drafts |
+| Reject deletion while an assistant references it | Select a paid plan |
 
-没有用量数据时，本模块向工作台交回「尚未提供」。不交回 0，也不交回估算金额。
+Return not provided for absent usage, never zero or an estimated charge.
 
-## 3. 关键流程
+## 3. Key workflow
 
-1. 填写名称、类型、服务地址。需要密钥时填写密钥。
-2. 先保存，再测试连通。发现模型使用的是已保存的连接。
-3. 测试成功后，助手才能选这条连接。
-4. 再次编辑时，密钥留空表示不修改。填写则更换。
-5. 仍被助手使用时，删除失败，连接保持不变。
+1. Enter name, type, full service address, and a credential if required.
+2. Save before testing; discovery uses the saved connection.
+3. After successful testing, an assistant may select it.
+4. A blank credential during editing retains the saved one; supplying a value replaces it.
+5. Reject deletion while an assistant uses it and retain the connection.
 
-地址需要是完整的服务地址。不能在地址里夹带用户名、密码或其他附加片段。具体拒绝句以界面现有提示为准。
+Addresses must be complete, without embedded username/password or extra fragments. Use existing UI validation wording.
 
-## 4. 输入与输出
+## 4. Inputs and outputs
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
-| 名称、类型、地址、密钥、默认模型 | 一条已保存的连接，或说清哪一项不合法 |
-| 测试 | 连通正常及发现到的模型数量，或连通失败 |
-| 工作台询问本轮用量 | 输入、输出、缓存读取的 token，或尚未提供 |
+| Name, type, address, credential, default model | Saved connection or precise validation failure |
+| Test | Connectivity and discovered-model count, or failure |
+| Workbench usage request | Input/output/cache-read tokens, or not provided |
 
-密钥不是输出。任何页面都不回显已保存的密钥。
+Credentials are not outputs; no page echoes saved credentials.
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 关系 |
+| Module | Relationship |
 |---|---|
-| 助手 | 助手选用本模块的连接和模型名。连接停用后，助手需改选才能保存 |
-| 个人工作台 | 只读取模型名、连通结果和用量。工作台不保存第二份密钥 |
-| 优化提示词 | 使用当前助手的这条连接。失败时交回失败，不创建任务消息 |
+| Assistant | Uses its connection/model; reselect a disabled connection before saving |
+| Workbench | Reads model name, connectivity, and usage; no duplicate credential storage |
+| Prompt enhancement | Uses the current assistant connection; returns failure without task messages |
 
-本模块不连接消息通道、技能市场或在线文档转换。
+No messaging, skill-market, or online-conversion connection is added.
 
-## 6. 潜在异常
+## 6. Potential failures
 
-| 异常 | 人要看见的事实 |
+| Failure | Visible fact |
 |---|---|
-| 地址不完整或夹带不应出现的内容 | 不能保存。原连接不变 |
-| 测试失败 | 停在准备。不创建工作台任务。没有依据时不写成额度用完 |
-| 早先的失败还留在界面上 | 过程记录带时间。旧的失败不当成刚刚这次的结果 |
-| 密钥未填写且从未保存过 | 需要密钥的服务不能测通。留空只对「已有密钥、本次不改」成立 |
-| 用量没有返回 | 工作台显示尚未提供 |
-| 删除时仍有助手使用 | 删除失败 |
+| Invalid/incomplete address | Cannot save; previous connection intact |
+| Test fails | Remain in preparation; no task created; do not infer exhausted quota without evidence |
+| Old failure still visible | Timestamp the record; do not treat it as the latest test |
+| No credential ever saved | A credential-requiring service cannot connect; blank retention applies only to an existing credential |
+| No usage returned | Workbench says not provided |
+| Delete referenced connection | Deletion rejected |
 
-## 7. 验证
+## 7. Verification
 
-| 验证 | 通过时看到 |
+| Case | Expected result |
 |---|---|
-| 保存后查看页面 | 密钥不出现 |
-| 错误地址测试 | 连通失败，停在准备。不写成额度用完，也不当作任务已开始 |
-| 测试成功后再建助手 | 助手能选到这条连接 |
-| 服务不返回用量 | 工作台没有金额 0 |
-| 删除被使用的连接 | 删除失败，助手仍指向原连接 |
+| Inspect after saving | No credential displayed |
+| Test invalid address | Connectivity failure in preparation, neither quota-exhaustion claim nor task started |
+| Create assistant after successful test | Connection selectable |
+| Provider omits usage | No zero monetary value |
+| Delete referenced connection | Rejected; assistant still points to the original |
 
-## 8. 假设与待确认
+## 8. Assumptions and open questions
 
-| 编号 | 内容 |
+| ID | Detail |
 |---|---|
-| A4 | 本应用不销售套餐，不计算账单 |
-| A8 | 使用者填写的模型地址会按该地址通信。本地模型同样可以选用 |
-| Q-MC1 | 不同服务商的真实回复质量、速度和费用不作为本模块验收 |
+| A4 | The app neither sells plans nor calculates bills |
+| A8 | Communicate with the user-supplied endpoint; local models are selectable |
+| Q-MC1 | Real-provider quality, speed, and charges are outside this module's acceptance |

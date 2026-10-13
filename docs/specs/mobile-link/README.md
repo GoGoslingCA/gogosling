@@ -1,89 +1,89 @@
-# 模块规划：手机端应用
+# Module plan: Mobile app link
 
-| 项 | 内容 |
+| Item | Description |
 |---|---|
-| 状态 | 草案 |
-| 日期 | 2026-10-12 |
-| 模块 | 手机端应用链接 |
+| Status | Draft |
+| Date | 2026-10-12 |
+| Module | Mobile app link |
 
-这是本地开源版唯一保留的对外入口。它是一条链接，不是同步，也不是第二个工作台。
+The local open-source edition retains this one external entry. It is a link, not synchronization or another workbench.
 
 ---
 
-## 大纲
+## Outline
 
-1. 目标
-2. 职责边界
-3. 关键流程
-4. 输入与输出
-5. 依赖
-6. 潜在异常
-7. 验证
-8. 假设与待确认
+1. Goal
+2. Responsibilities
+3. Key workflow
+4. Inputs and outputs
+5. Dependencies
+6. Potential failures
+7. Verification
+8. Assumptions and open questions
 
 ---
 
-## 1. 目标
+## 1. Goal
 
-在正式地址公布之后，让人从桌面应用打开手机端应用的获取页面。电脑上的任务、草稿、成果和文件留在这台电脑上。
+After an official URL is published, open the mobile-app acquisition page from desktop. Desktop tasks, drafts, results, and files stay on this computer.
 
-## 2. 职责边界
+## 2. Responsibilities
 
-| 本模块负责 | 本模块不负责 |
+| In scope | Out of scope |
 |---|---|
-| 显示「手机端应用」这一行 | 登录、配对、扫码同步 |
-| 用系统浏览器打开公布的地址 | 在应用内打开该网页 |
-| 地址未公布时不显示入口 | 编造商店链接或二维码 |
-| 打开失败时说明链接没有打开 | 因此删除或上传任何任务 |
+| Display the Mobile app row | Login, pairing, QR synchronization |
+| Open the published URL in the system browser | Embed the page in the app |
+| Hide the entry until a URL is published | Invent store links or QR codes |
+| Explain an opening failure | Delete or upload tasks |
 
-不上传任务、草稿、成果或文件，也不把手机上的内容拉回电脑。
+Never upload tasks, drafts, results, or files, or pull mobile content onto the computer.
 
-## 3. 关键流程
+## 3. Key workflow
 
-1. 发布说明里还没有地址：设置和开始页都不显示这一行，也不显示空按钮。
-2. 地址公布后：设置的关于一栏，或开始页页脚，出现「手机端应用」。
-3. 人点击后，系统浏览器打开该地址。
-4. 浏览器没有打开：提示链接没有打开。回到工作台时，原来的任务仍在。
+1. Before publication of a URL, hide the row in Settings/start page and show no empty button.
+2. Once published, add Mobile app to Settings About or the start-page footer.
+3. Clicking opens that URL in the system browser.
+4. If opening fails, explain the link failed; returning to the workbench retains the original task.
 
-## 4. 输入与输出
+## 4. Inputs and outputs
 
-| 输入 | 输出 |
+| Input | Output |
 |---|---|
-| 已公布的地址 | 一行可点击的「手机端应用」 |
-| 没有地址 | 没有这一行 |
-| 点击 | 系统浏览器打开该地址，或一条失败提示 |
-| 工作台的任务与文件 | 不作为输入。链接不携带令牌、正文或文件 |
+| Published URL | Clickable Mobile app row |
+| No URL | No row |
+| Click | System browser opens, or a failure notice |
+| Workbench tasks/files | Not inputs; no token, body, or file is carried in the link |
 
-## 5. 依赖
+## 5. Dependencies
 
-| 对方 | 关系 |
+| Module | Relationship |
 |---|---|
-| 个人工作台 | 提供放置这一行的位置。工作台不把手机端写成任务来源 |
-| 桌面 | 关闭到托盘或退出，都不触发同步 |
-| 模型连接、助手、定时任务 | 无交接 |
+| Workbench | Places the row; mobile is not described as a task source |
+| Desktop | Tray closure/exit does not trigger synchronization |
+| Model connection, assistant, scheduled jobs | No handoff |
 
-消息连接、云同步和分享链接不是本模块的替代入口。
+Messaging connections, cloud synchronization, and sharing links are not substitute entries.
 
-## 6. 潜在异常
+## 6. Potential failures
 
-| 异常 | 人要看见的事实 |
+| Failure | Visible fact |
 |---|---|
-| 地址尚未公布 | 界面上没有入口。这不是故障 |
-| 浏览器未能打开 | 只说明链接没有打开。任务保持原样 |
-| 打开的页面无法访问 | 失败发生在浏览器里。电脑上的成果不会因此改变 |
+| URL unpublished | Entry absent; not a fault |
+| Browser fails to open | Only the link failed; tasks intact |
+| Destination inaccessible | Browser-side failure; desktop results unchanged |
 
-## 7. 验证
+## 7. Verification
 
-| 验证 | 通过时看到 |
+| Case | Expected result |
 |---|---|
-| 地址未公布 | 开始页和设置都没有「手机端应用」 |
-| 公布一个测试地址后点击 | 系统浏览器打开该地址。应用内没有登录页 |
-| 阻止浏览器打开 | 有失败提示。任务、草稿和文件还在 |
-| 检查链接所带内容 | 没有令牌、任务正文或文件 |
+| No published URL | No Mobile app row in Settings/start page |
+| Publish a test URL and click | System browser opens; no in-app login page |
+| Block browser opening | Notice appears; tasks/drafts/files remain |
+| Inspect link | No token, task body, or files |
 
-## 8. 假设与待确认
+## 8. Assumptions and open questions
 
-| 编号 | 内容 |
+| ID | Detail |
 |---|---|
-| A7 | 这条链接只用于获取或打开手机端应用 |
-| Q-5 | 正式地址尚未提供。确定前不显示链接，也不写假定的商店地址 |
+| A7 | Link only acquires or opens the mobile app |
+| Q-5 | Official URL not supplied; hide the link and do not assume a store address |

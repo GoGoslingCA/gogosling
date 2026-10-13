@@ -1,82 +1,82 @@
 # @gogosling/desktop
 
-Electron 桌面壳。壳只拥有操作系统能力（拉起/发现守护进程、窗口、托盘、开机自启动、深链），
-不拥有任何业务状态；界面是 `apps/web` 的同一份产物，通过本地 HTTP API 与 `gogoslingd` 通信。
-打包后页面只访问同源的 `app://gogosling/api/...`，由主进程代理到守护进程并注入令牌（令牌不进页面）；
-开发模式（`GOGOSLING_WEB_URL`）页面直连守护进程。
+Electron desktop shell. The shell only holds OS capabilities (launching/discovering daemon process, windows, tray, autostart, deep linking),
+holds no business state; the UI is the same artifact as `apps/web`, communicating with `gogoslingd` via local HTTP API.
+In production builds, the page only accesses same-origin `app://gogosling/api/...`, which is proxied by the main process to the daemon process and injected with a token (the token never enters the page);
+in development mode (`GOGOSLING_WEB_URL`), the page directly connects to the daemon process.
 
-## 结构
+## Structure
 
 ```
-src/main/        主进程（Node，CommonJS）
-  main.ts          入口：单实例锁、窗口、app:// 协议、CSP、托盘、自启动、深链、IPC
-  api-proxy.ts     app://gogosling/api/* → 守护进程的同源代理（注入令牌、流式响应）
-  autostart.ts     开机自启动的平台差异（Windows args 读写一致、macOS 登录启动隐藏）
-  deep-link.ts     ready 之前到达的深链暂存
-  daemon.ts        DaemonManager：发现/拉起/监管 gogoslingd（I/O 全部可注入）
-  daemon-logic.ts  纯逻辑：数据目录、可执行文件定位、daemon.json 解析、退避与重启决策
-  daemon-stop.ts   停止流程：身份确认 → POST /api/v1/system/shutdown → 回退信号（副作用注入）
-  app-protocol.ts  app://gogosling → apps/web/dist 的安全路径映射
+src/main/        Main process (Node, CommonJS)
+  main.ts          Entry point: single-instance lock, window, app:// protocol, CSP, tray, autostart, deep linking, IPC
+  api-proxy.ts     app://gogosling/api/* → Same-origin proxy to the daemon process (token injection, streaming responses)
+  autostart.ts     Platform differences for autostart (consistent read/write of Windows args, macOS login launch hidden)
+  deep-link.ts     Staging for deep links arriving before ready
+  daemon.ts        DaemonManager: Discover/launch/supervise gogoslingd (all I/O injectable)
+  daemon-logic.ts  Pure logic: data directory, executable location, daemon.json parsing, backoff and restart decisions
+  daemon-stop.ts   Stop workflow: identity verification → POST /api/v1/system/shutdown → fallback signal (side-effect injection)
+  app-protocol.ts  app://gogosling → secure path mapping for apps/web/dist
   csp.ts           Content-Security-Policy
-  shell-security.ts IPC 发送方校验、外链白名单、深链解析、开发地址解析
-  tray.ts          托盘菜单模型
-  i18n.ts          壳自身的 zh/en/fr 文案
-  png.ts           运行时生成托盘图标（无需提交二进制）
-  log.ts           脱敏日志（<dataDir>/logs/desktop.log，0600）
-src/preload/     预加载脚本（沙箱，单文件）：window.gogosling 四个函数
-src/shared/      主进程与 preload 共享的 IPC 契约（preload 只 import type）
-test/            vitest（不启动 Electron）
+  shell-security.ts IPC sender verification, external link whitelist, deep link parsing, dev server URL parsing
+  tray.ts          Tray menu model
+  i18n.ts          zh/en/fr copy for the shell itself
+  png.ts           Generates tray icon at runtime (no binary committing required)
+  log.ts           Sanitized logs (<dataDir>/logs/desktop.log, 0600)
+src/preload/     Preload script (sandboxed, single file): four functions under window.gogosling
+src/shared/      IPC contracts shared between main process and preload (preload imports types only)
+test/            vitest (without launching Electron)
 ```
 
-## 运行
+## Running
 
 ```bash
 npm install
-npm run build -w @gogosling/web          # 生成 apps/web/dist（app:// 协议从这里取文件）
+npm run build -w @gogosling/web          # Generate apps/web/dist (app:// protocol fetches files from here)
 npm run build -w @gogosling/desktop
 npm run start -w @gogosling/desktop
 ```
 
-环境变量：
+Environment variables:
 
-| 变量 | 作用 |
+| Variable | Description |
 |---|---|
-| `GOGOSLING_HOME` | 数据目录（默认 `~/.gogosling`），壳与守护进程共用 |
-| `GOGOSLING_DAEMON_PATH` | 守护进程可执行文件；未设置时依次找 `<resources>/bin/gogoslingd[.exe]` 与 `PATH` |
-| `GOGOSLING_RESOURCES` | 壳拉起随包分发的守护进程时自动设为 `<resources>/share/gogosling`（内置扩展在其下 `extensions/bundled`）；已设置时不覆盖 |
-| `GOGOSLING_WEB_URL` | 开发态指向 vite dev server（只接受回环地址），页面直连守护进程，CSP 相应放宽 |
+| `GOGOSLING_HOME` | Data directory (defaults to `~/.gogosling`), shared by shell and daemon |
+| `GOGOSLING_DAEMON_PATH` | Daemon executable; if unset, searches for `<resources>/bin/gogoslingd[.exe]` and `PATH` in order |
+| `GOGOSLING_RESOURCES` | Automatically set to `<resources>/share/gogosling` when shell launches bundled daemon (builtin extensions are under `extensions/bundled`); won't overwrite if already set |
+| `GOGOSLING_WEB_URL` | Points to Vite dev server in development (loopback addresses only), page connects directly to daemon, CSP relaxed accordingly |
 
-守护进程的发现规则：先读 `<dataDir>/daemon.json`，`GET /healthz` 为 200 且 `GET /api/v1/version` 接受其中的令牌，
-就复用它（退出时不终止）；否则由壳拉起。子进程崩溃按指数退避重启（500ms 起、15s 封顶、最多 5 次；稳定运行 60s 后重新计数）。
+Daemon discovery rules: Reads `<dataDir>/daemon.json` first; if `GET /healthz` returns 200 and `GET /api/v1/version` accepts its token,
+it will be reused (not terminated on exit); otherwise, it is launched by the shell. Child process crashes trigger exponential backoff restarts (starting at 500ms, capped at 15s, up to 5 attempts; count resets after 60s of stable running).
 
-停止守护进程（应用退出与托盘"重启守护进程"走同一条路径，见 `daemon-stop.ts`）：
+Stopping the daemon process (app exit and tray "Restart Daemon" follow the same path; see `daemon-stop.ts`):
 
-1. **壳拉起的实例**：先确认 daemon.json 的身份——句柄里的 pid 是子进程的 pid，且 `GET /api/v1/version` 用其中的令牌
-   返回 200、`started_at` 与句柄一致；确认后 `POST /api/v1/system/shutdown`，返回 202 就等它自己退出（最多 30s，
-   守护进程会自己删除 daemon.json），超时直接强制结束（SIGKILL / `taskkill /T /F`）。
-2. 身份未确认、关闭端点连不上或不是 202 时才回退到信号：POSIX `SIGTERM`，30s 内不退出再 `SIGKILL`；Windows 上
-   无窗口的控制台进程收不到温和信号，直接 `taskkill /PID <pid> /T /F`，不再先白等一轮。信号只发给壳自己 spawn 的子进程。
-3. 子进程确认退出后，仍写着它 pid 的 daemon.json 是残留（被强制结束时来不及删），由壳删除，令牌不留在磁盘上。
-4. **不是壳拉起的实例**（复用的，或只剩 daemon.json）：只确认身份。确认通过就断开连接、让它继续运行；令牌被拒、
-   `started_at` 不一致或端点连不上时，把 daemon.json 当残留文件删除，**不请求关闭、不发任何信号**；超时无法判断时保留原样。
+1. **Instances launched by shell**: First verify daemon.json identity—the pid in the handle matches the child process pid, and `GET /api/v1/version` using its token
+   returns 200 with `started_at` matching the handle; after confirmation, `POST /api/v1/system/shutdown`, if 202 is returned, wait for self-exit (up to 30s,
+   the daemon will delete daemon.json itself), or force kill on timeout (SIGKILL / `taskkill /T /F`).
+2. Fall back to signals only when identity is unverified, shutdown endpoint is unreachable, or response is not 202: POSIX `SIGTERM`, if not exited within 30s then `SIGKILL`; on Windows,
+   windowless console processes cannot receive gentle signals, so direct `taskkill /PID <pid> /T /F` is used without waiting. Signals are sent only to child processes spawned by the shell itself.
+3. After child process exit is confirmed, a daemon.json still bearing its pid is residual (killed before deletion) and deleted by the shell, leaving no token on disk.
+4. **Instances not launched by shell** (reused, or only daemon.json remains): Verify identity only. If verified, disconnect and allow it to keep running; if token rejected,
+   `started_at` mismatches, or endpoint unreachable, delete daemon.json as a stale file **without requesting shutdown or sending any signal**; keep as-is if timeout prevents determination.
 
-## 渲染进程可用的接口
+## Interfaces Available to the Renderer Process
 
 ```ts
-// 打包后：{ endpoint: "app://gogosling", token: "", mode: "proxy" }；开发模式：{ endpoint, token, mode: "direct" }
+// In production build: { endpoint: "app://gogosling", token: "", mode: "proxy" }; Dev mode: { endpoint, token, mode: "direct" }
 window.gogosling.getConnection(): Promise<{ endpoint: string; token: string; mode: "proxy" | "direct" } | null>
 window.gogosling.onDaemonStatus(cb: (status: DaemonStatus) => void): () => void
-window.gogosling.openExternal(url: string): Promise<void>   // 仅 http / https / mailto
+window.gogosling.openExternal(url: string): Promise<void>   // http / https / mailto only
 window.gogosling.getVersion(): Promise<ShellVersion>
 ```
 
-类型见 `src/shared/ipc.ts`。
+See `src/shared/ipc.ts` for types.
 
-## 验证
+## Verification
 
 ```bash
 npm run typecheck -w @gogosling/desktop
 npm run test -w @gogosling/desktop
 npm run build -w @gogosling/desktop
-npm run package -w @gogosling/desktop     # electron-builder，不签名；需要先构建 web
+npm run package -w @gogosling/desktop     # electron-builder, unsigned; requires web to be built first
 ```

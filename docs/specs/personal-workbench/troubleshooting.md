@@ -1,82 +1,80 @@
-# 个人工作台：排查与验证
+# Personal workbench: Troubleshooting and verification
 
-日期：2026-10-12。其他模块的规则保持原样。这里只规定工作台如何把交接显示清楚。
-
----
-
-## 大纲
-
-1. 错误提示
-2. 过程记录
-3. 排查路径
-4. 验证
+Date: 2026-10-12. Other module rules remain intact. This document defines clear workbench handoffs only.
 
 ---
 
-## 1. 错误提示
+## Outline
 
-每条失败提示用这四句，事实与 [流程与状态](flows.md) 一致。
+1. Failure notices
+2. Process records
+3. Diagnostic path
+4. Verification
 
-1. 停在哪一环：连接、准备、开始、运行、确认、草稿、成果、文件、优化、能力、名额。
-2. 已经保住什么。
-3. 没有发生什么。例如没有第二个任务、没有改原文件、没有新的消息。
-4. 下一步只做一件事。
+---
 
-对方只交回「失败」而没有事实时，显示「这一环的结果未知」。不用猜测填上成功或零。
+## 1. Failure notices
 
-## 2. 过程记录
+Use four factual statements consistent with [flows/states](flows.md):
 
-过程记录是屏幕上可以抄下来的四项：时间、环节、任务名称、状态。状态只用「完成、失败、未知」，再加上流程规范里已有的状态词。
+1. The stopping stage: connection, preparation, start, execution, approval, draft, result, file, enhancement, capability, or capacity.
+2. What was retained.
+3. What did not happen, such as another task, original-file write, or new message.
+4. One next action.
 
-同一次操作的多条提示，这四项必须相同。记录里不放要求全文、成果全文、密钥、令牌和文件内容。
+If a module returns only Failure without facts, show that stage's outcome as Unknown, rather than guessing success or zero.
 
-现版若还没有集中的过程记录，就从当前提示里摘这四项。缺的项写「提示里没有」，不能编造。这是 [问题清单](issues.md) 里的 K2，尚未全部做到。
+## 2. Process records
 
-## 3. 排查路径
+Record four inspectable screen values: time, stage, task name, and state. Use Completed/Failed/Unknown plus existing flow states. Notices for the same operation must agree on all four.
 
-从上到下，停在第一行符合的地方。
+Exclude full requirements/results, credentials, tokens, and file contents. If no centralized record exists, extract visible values from current notices; missing values remain Not shown. This is the incomplete K2 item in [issues](issues.md).
 
-| 顺序 | 看到什么 | 判断 | 下一步 |
+## 3. Diagnostic path
+
+Stop at the first matching row.
+
+| Order | Observation | Stage | Next action |
 |---|---|---|---|
-| 1 | 无法连接或令牌无效 | 停在连接 | 核对本机是否可打开。不创建任务 |
-| 2 | 要求配置助手或连通失败 | 停在准备 | 到模型连接看测试结果，再到助手看是否启用 |
-| 3 | 创建、加入资料或提交有一段失败或未知 | 停在开始 | 打开已有任务核对。未知时不再点开始 |
-| 4 | 排队、处理、未完成、停止、状态未知 | 停在运行 | 看状态。回复质量不在本模块 |
-| 5 | 出现确认框 | 停在确认 | 核对任务名称、动作和对象。名称对不上就拒绝 |
-| 6 | 草稿保存失败或冲突 | 停在草稿 | 留在窗口内重试或二选一 |
-| 7 | 版本冲突或副本失败 | 停在成果 | 先留着编辑。这不表示原文件已改 |
-| 8 | 文件状态不是「已应用」 | 停在文件 | 需要核对或未知时只刷新，不再申请 |
-| 9 | 只有优化提示失败 | 停在优化 | 看原文是否还在、消息有没有增加 |
-| 10 | 入口本身没有 | 停在能力 | 确认是旧服务隐藏了能力，还是当前系统本来就不提供写回 |
+| 1 | Connection failure/invalid token | Connection | Check local service; create no task |
+| 2 | Assistant configuration requested/connectivity failure | Preparation | Inspect model test, then assistant enabled state |
+| 3 | Creation/material/submission failure or unknown | Start | Inspect existing task; do not click Start again while unknown |
+| 4 | Queued/processing/incomplete/stopped/unknown | Execution | Inspect state; reply quality outside scope |
+| 5 | Approval prompt | Approval | Check task/action/target; deny mismatched ownership |
+| 6 | Draft failure/conflict | Draft | Keep window open to retry or choose a side |
+| 7 | Version conflict/copy failure | Result | Retain edits; no original-file write implied |
+| 8 | File state not Applied | File | Refresh only when review/unknown; no new request |
+| 9 | Enhancement alone failed | Enhancement | Check original retained/message count unchanged |
+| 10 | Entry absent | Capability | Check old-service capability or platform write-back support |
 
-手机端链接打不开时，任务、草稿和文件仍留在这台电脑上。
+Mobile-link failure retains desktop tasks, drafts, and files.
 
-## 4. 验证
+## 4. Verification
 
-用练习模型和练习文件。某一项对不上，先改本模块的提示或状态，不改相邻模块来凑结果。
+Use a practice model and synthetic files. Fix this module's notice/state when a case fails; do not alter neighboring rules to force a pass.
 
-| 验证 | 怎么做 | 通过时看到 |
+| Case | Action | Expected result |
 |---|---|---|
-| 连接 | 使用无效令牌打开 | 停在连接，没有新任务 |
-| 准备 | 不建助手就打开开始页 | 只有去配置的入口 |
-| 开始中断 | 在加入资料时失败 | 只有一个任务，文字还在，提示停在加入资料 |
-| 结果未知 | 提交后不给结果 | 出现核对提示。不自动出现第二条 |
-| 确认归属 | 让确认框出现 | 能读到任务名称、动作和对象。拒绝后操作不执行 |
-| 草稿 | 保存尚未确认时看提示 | 不显示已保存。失败后字还在 |
-| 成果 | 保存副本失败 | 提示写的是副本，编辑还在，原文件不变 |
-| 文件 | 预览后改动目标再批准 | 状态为文件已变化，外部内容还在 |
-| 文件未知 | 申请后不给最终状态 | 显示未知或正在核对。再点一次不会变成第二次写入 |
-| 优化 | 让优化失败或取消 | 消息条数不变，原文还在 |
-| 名额 | 把同时执行调到 1，并让另一项占着 | 后来的任务显示排队，并能区分不是「正在处理」 |
-| 能力 | 连接到没有这些能力的服务 | 新入口不出现，旧的发送和副本仍可用 |
-| 本地边界 | 在开始页、任务、项目和设置中查找 | 看不到消息连接、云同步、在线转换、分享链接和获取网页 |
-| 手机端 | 地址尚未公布时打开设置和开始页 | 不出现空的「手机端应用」按钮 |
-| 更换助手 | 助手甲写下未发送的字后改选助手乙 | 输入区变为乙自己的草稿。甲的未发送内容不留在乙的输入区 |
-| 迟到结果 | 开始后立刻打开另一件任务 | 当前页面留在后打开的任务。先开始的内容仍在原任务里 |
-| 同名资料 | 同时加入两份同名、内容不同的文件 | 两份都在，各自内容正确，没有互相覆盖 |
-| 结束后预览 | 任务已停止后再打开已保存成果 | 可以阅读。不提示必须先有正在运行的助手 |
-| 两件确认 | 两件任务同时等待确认，只处理其中一件 | 另一件仍等待，决定不会记到当前打开的任务上 |
-| 只有开头没有正文 | 运行已受理但没有后续内容 | 状态为未知或仍在处理。不自动再开一轮 |
-| 离开页面 | 运行已受理后关掉窗口到托盘 | 该轮不因此变成已停止 |
-| 设置仍在 | 把同时执行改为 1 并看到已保存，再打开 | 仍是 1 |
-| 失败正文 | 一轮未完成且正文尚未确认保存时离开再回来 | 尚未确认的失败内容还在，或明确写着未能恢复。不静默变成空白成功 |
+| Connection | Open with invalid token | Connection stage, no new task |
+| Preparation | Start page without assistant | Configuration entry only |
+| Interrupted start | Fail material addition | One task, retained text, precise stage |
+| Unknown result | Withhold submission outcome | Inspection notice, no automatic duplicate |
+| Approval ownership | Trigger approval | Readable task/action/target; denial prevents operation |
+| Draft | Observe unconfirmed save | No Saved claim; failed text retained |
+| Result | Fail saving copy | Copy named; edits retained, original unchanged |
+| File | Edit target after preview, then approve | File changed; external content retained |
+| Unknown file outcome | Withhold final state | Unknown/checking; another click does not become another write |
+| Enhancement | Fail/cancel optimization | Original retained, message count unchanged |
+| Capacity | Limit 1 occupied by other work | Later task queued, distinguishable from processing |
+| Capability | Connect to older service | New entries absent, legacy send/copy retained |
+| Local boundary | Inspect start/tasks/projects/settings | No messaging/cloud synchronization/online conversion/sharing/web retrieval |
+| Mobile | No official URL | No empty Mobile app button |
+| Assistant switch | Draft under assistant A, switch to B | B's draft shown; A's input does not leak into B |
+| Late result | Start, then open another task | Current page retained; earlier content remains in original task |
+| Same-name materials | Add differing files concurrently | Both retained with correct independent content |
+| Preview after ending | Open saved result after Stop | Readable without an active assistant requirement |
+| Two approvals | Decide only one waiting task | Other remains waiting; decision not assigned to currently open task |
+| Start without body | Accept run, withhold content | Unknown or still processing; no automatic rerun |
+| Leave page | Hide accepted run to tray | Does not become Stopped |
+| Persistent settings | Save limit 1, reopen | Still 1 |
+| Failed body | Leave/reopen unconfirmed failed output | Retained or explicit recovery failure; never silently empty success |
