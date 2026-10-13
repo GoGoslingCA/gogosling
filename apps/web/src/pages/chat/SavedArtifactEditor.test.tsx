@@ -172,6 +172,9 @@ describe("SavedArtifactEditor 版本与草稿一致性", () => {
     expect(editor()?.value).toBe("B的新修改");
     expect(api.workbench.createRevision).toHaveBeenCalledWith("a", expect.objectContaining({ content: "A的修改" }));
     expect(artifacts.get("b")?.latest_revision_id).toBe("b-r2");
+    await ready(() => expect([...drafts.values()].some((draft) => draft.artifact_id === "a")).toBe(false));
+    await mount("a", "s1"); await ready(() => expect(editor()?.value).toBe("A的修改"));
+    expect(host.querySelector(".draft-conflict")).toBeNull();
   });
 
   it("成果不属于当前会话时不读取正文且不给编辑入口", async () => {

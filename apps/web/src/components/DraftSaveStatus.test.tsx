@@ -6,7 +6,7 @@ import { DraftSaveStatus } from "./DraftSaveStatus";
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 function state(): ReturnType<typeof usePersistentDraft> {
   const token = { editVersion: 0, fingerprint: "draft" };
-  return { content: { text: "本地输入" }, hydrated: true, status: "unsupported", dirty: true, anyDirty: true, restored: true, error: null, conflict: null, restoreEpoch: 1, capture: () => token, saveNow: async () => token, clearAfterSend: async () => undefined, discard: async () => undefined, resolveConflict: async () => undefined, setBaseRevision: () => undefined };
+  return { content: { text: "本地输入" }, hydrated: true, status: "unsupported", dirty: true, anyDirty: true, restored: true, error: null, conflict: null, restoreEpoch: 1, capture: () => token, retainOperation: () => () => undefined, setContent: () => undefined, addAttachment: () => undefined, subscribeReleased: () => () => undefined, saveNow: async () => token, clearAfterSend: async () => undefined, discard: async () => undefined, resolveConflict: async () => undefined, setBaseRevision: () => undefined };
 }
 function render(draft: ReturnType<typeof usePersistentDraft>) { const host = document.createElement("div"); host.innerHTML = renderToStaticMarkup(<DraftSaveStatus draft={draft} localFiles />); return host; }
 

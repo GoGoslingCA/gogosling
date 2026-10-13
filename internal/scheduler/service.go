@@ -94,6 +94,11 @@ type Service struct {
 	running map[string]struct{}
 	// lastTick 是上一次节拍的时间，用于休眠与时钟跳变检测；零值表示尚未执行过节拍。
 	lastTick time.Time
+	// nextDue 仅缓存最早到期时间，不保存另一份任务或调度顺序。
+	// 任务或触发时间变更时使缓存失效，正常空闲节拍无需遍历全部任务。
+	nextDue      time.Time
+	hasNextDue   bool
+	nextDueValid bool
 	// runCtx 是执行任务用的上下文：Start 之后为 Start 的 ctx，之前为 Background。
 	runCtx  context.Context
 	started bool
@@ -178,6 +183,7 @@ func (s *Service) Create(ctx context.Context, spec JobSpec) (*model.Job, error) 
 		return nil, err
 	}
 	s.entries[job.ID] = &entry{job: job, sched: sched}
+	s.nextDueValid = false
 	s.log.Info("定时任务已创建", "job_id", job.ID, "agent_id", job.AgentID, "schedule", job.Schedule,
 		"timezone", job.Timezone, "enabled", job.Enabled)
 	return clone(job), nil
@@ -242,6 +248,7 @@ func (s *Service) Update(ctx context.Context, id string, patch JobPatch) (*model
 	}
 	e.job = next
 	e.sched = sched
+	s.nextDueValid = false
 	s.log.Info("定时任务已更新", "job_id", id, "schedule", next.Schedule, "timezone", next.Timezone, "enabled", next.Enabled)
 	return clone(next), nil
 }
@@ -276,6 +283,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	delete(s.entries, id)
+	s.nextDueValid = false
 	s.log.Info("定时任务已删除", "job_id", id)
 	return nil
 }
@@ -294,6 +302,7 @@ func (s *Service) Forget(agentID string) {
 		}
 	}
 	if n > 0 {
+		s.nextDueValid = false
 		s.log.Info("已移除被删除智能体的定时任务", "agent_id", agentID, "jobs", n)
 	}
 }
@@ -331,6 +340,7 @@ func (s *Service) lookupLocked(ctx context.Context, id string) (*entry, error) {
 		e.sched = sched
 	}
 	s.entries[id] = e
+	s.nextDueValid = false
 	return e, nil
 }
 

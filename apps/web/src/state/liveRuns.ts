@@ -9,7 +9,7 @@
 //
 // 增量状态的处理规则：
 //   - 以服务端 Seq 做幂等（同一运行收到的旧事件直接丢弃），不用 content.startsWith(prev) 之类的启发式对账；
-//   - 一个运行一个条目，不需要 toolCallIdIndex / idx-<n> 回退键；
+//   - 一个运行一个条目，工具严格按实际 call.id 对齐，不创建 idx-<n> 回退键；
 //   - 断线丢事件（gap）显式标记 truncated，由界面提示并在终态后用持久化消息替换。
 
 import type { ApiEvent, ApprovalRequest, RunEvent, RunStatus, ToolCall, ToolResult, Usage } from "../api/types";
@@ -92,6 +92,32 @@ function withRun(state: LiveRunsState, run: LiveRun): LiveRunsState {
 
 const USAGE_FIELDS = ["input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens"] as const;
 
+// 派生索引不持有数组或运行的强引用。更新后转移到新数组，旧快照分叉时重新构建，
+// 因而不会让旧状态读到未来工具，也不会改变 reducer 的结果或不可变快照。
+const toolPositions = new WeakMap<LiveToolCall[], Map<string, number>>();
+
+function updateToolCall(calls: LiveToolCall[], id: string, create: () => LiveToolCall, update: (call: LiveToolCall) => LiveToolCall): LiveToolCall[] {
+  let positions = toolPositions.get(calls);
+  if (!positions) {
+    positions = new Map();
+    for (let i = 0; i < calls.length; i++) {
+      const entry = calls[i]!;
+      if (!positions.has(entry.call.id)) positions.set(entry.call.id, i);
+    }
+  }
+  const index = positions.get(id);
+  const next = calls.slice();
+  if (index === undefined) {
+    positions.set(id, next.length);
+    next.push(create());
+  } else {
+    next[index] = update(calls[index]!);
+  }
+  toolPositions.delete(calls);
+  toolPositions.set(next, positions);
+  return next;
+}
+
 /** 把一次模型调用的用量增量加到已有用量上；delta 缺失时原样返回。 */
 export function addUsage(base: Usage | null, delta: Usage | undefined): Usage | null {
   if (!delta) return base;
@@ -121,24 +147,18 @@ function applyRunEvent(run: LiveRun, ev: RunEvent, seq: number): LiveRun {
     case "tool.call.started": {
       if (!ev.tool_call) return next;
       const call = ev.tool_call;
-      const idx = run.toolCalls.findIndex((c) => c.call.id === call.id);
-      const entry: LiveToolCall = { call, startedAt: ev.at };
-      next.toolCalls = idx === -1 ? [...run.toolCalls, entry] : run.toolCalls.map((c, i) => (i === idx ? { ...c, call } : c));
+      next.toolCalls = updateToolCall(run.toolCalls, call.id,
+        () => ({ call, startedAt: ev.at }),
+        (entry) => ({ ...entry, call }));
       return next;
     }
     case "tool.call.completed": {
       if (!ev.tool_result) return next;
       const result = ev.tool_result;
-      const idx = run.toolCalls.findIndex((c) => c.call.id === result.call_id);
-      if (idx === -1) {
+      next.toolCalls = updateToolCall(run.toolCalls, result.call_id,
         // 没看到 started（例如在缺口中丢失）：补一条占位，名称未知。
-        next.toolCalls = [
-          ...run.toolCalls,
-          { call: { id: result.call_id, name: "", arguments: {} }, result, startedAt: ev.at, completedAt: ev.at },
-        ];
-      } else {
-        next.toolCalls = run.toolCalls.map((c, i) => (i === idx ? { ...c, result, completedAt: ev.at } : c));
-      }
+        () => ({ call: { id: result.call_id, name: "", arguments: {} }, result, startedAt: ev.at, completedAt: ev.at }),
+        (entry) => ({ ...entry, result, completedAt: ev.at }));
       if (run.status === "awaiting_approval") next.status = "running";
       return next;
     }

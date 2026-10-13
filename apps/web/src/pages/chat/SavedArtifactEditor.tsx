@@ -52,17 +52,22 @@ function SavedArtifactBody({ artifact, initialRevision, initialContent, visible,
   const save = useMutation({
     mutationFn: async () => {
       const snapshot = { content: text, filename: safeArtifactFilename(filename, artifact.filename), expected_latest_revision_id: baseRevision, media_type: artifact.media_type };
-      const draftToken = await persistent.saveNow();
-      const revision = await api.workbench.createRevision(artifact.id, snapshot);
-      return { revision, snapshot, draftToken };
+      const releaseDraft = persistent.retainOperation();
+      try {
+        const draftToken = await persistent.saveNow();
+        const revision = await api.workbench.createRevision(artifact.id, snapshot);
+        return { revision, snapshot, draftToken, releaseDraft };
+      } catch (error) { releaseDraft(); throw error; }
     },
-    onSuccess: async ({ revision, snapshot, draftToken }) => {
-      client.setQueryData([...queryKeys.revisions(artifact.id), revision.id, "content"], snapshot.content);
-      setBaseRevision(revision.id); setBaseFilename(snapshot.filename);
-      await persistent.clearAfterSend(draftToken).catch(() => undefined);
-      persistent.setBaseRevision(revision.id);
-      void client.invalidateQueries({ queryKey: queryKeys.artifacts });
-      toast.show(t("versions.saved", { n: revision.number }), "ok");
+    onSuccess: async ({ revision, snapshot, draftToken, releaseDraft }) => {
+      try {
+        client.setQueryData([...queryKeys.revisions(artifact.id), revision.id, "content"], snapshot.content);
+        setBaseRevision(revision.id); setBaseFilename(snapshot.filename);
+        await persistent.clearAfterSend(draftToken).catch(() => undefined);
+        persistent.setBaseRevision(revision.id);
+        void client.invalidateQueries({ queryKey: queryKeys.artifacts });
+        toast.show(t("versions.saved", { n: revision.number }), "ok");
+      } finally { releaseDraft(); }
     },
     onError: async (error) => {
       if (ApiError.is(error, "conflict")) {

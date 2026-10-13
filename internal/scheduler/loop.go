@@ -89,6 +89,7 @@ func (s *Service) load(ctx context.Context) error {
 		}
 	}
 	s.entries = entries
+	s.nextDueValid = false
 	s.log.Info("定时任务已加载", "total", len(jobs), "scheduled", scheduled)
 	return nil
 }
@@ -108,16 +109,54 @@ func (s *Service) tickOnce(ctx context.Context) {
 		s.log.Info("检测到休眠唤醒或时钟跳变，将重算所有任务的下次触发时间", "gap", gap)
 	}
 
-	for _, id := range s.sortedIDsLocked() {
-		e := s.entries[id]
-		if !e.job.Enabled || e.sched == nil || e.job.NextRunAt == nil || e.job.NextRunAt.After(now) {
-			continue
-		}
+	// 保留每个节拍的墙钟检查，不能因缓存跳过启动、休眠或回拨后的重算。
+	if !first && !woke && s.nextDueValid && (!s.hasNextDue || s.nextDue.After(now)) {
+		return
+	}
+	for _, e := range s.dueEntriesLocked(now) {
 		s.handleDueLocked(ctx, e, now)
 	}
 	if first || woke {
 		s.resyncLocked(ctx, now)
 	}
+	s.refreshNextDueLocked()
+}
+
+// dueEntriesLocked 只排序到期子集，保留创建时间和 ID 的触发顺序。调用方持有 s.mu。
+func (s *Service) dueEntriesLocked(now time.Time) []*entry {
+	var due []*entry
+	for _, e := range s.entries {
+		if e.job.Enabled && e.sched != nil && e.job.NextRunAt != nil && !e.job.NextRunAt.After(now) {
+			due = append(due, e)
+		}
+	}
+	if len(due) > 1 {
+		sort.Slice(due, func(i, j int) bool {
+			a, b := due[i].job, due[j].job
+			if !a.CreatedAt.Equal(b.CreatedAt) {
+				return a.CreatedAt.Before(b.CreatedAt)
+			}
+			return a.ID < b.ID
+		})
+	}
+	return due
+}
+
+// refreshNextDueLocked 从权威副本更新最早时间；写库失败留下的到期项仍会在下个节拍重试。
+// 调用方持有 s.mu。
+func (s *Service) refreshNextDueLocked() {
+	s.nextDue = time.Time{}
+	s.hasNextDue = false
+	for _, e := range s.entries {
+		if !e.job.Enabled || e.sched == nil || e.job.NextRunAt == nil {
+			continue
+		}
+		if !s.hasNextDue || e.job.NextRunAt.Before(s.nextDue) {
+			s.nextDue = *e.job.NextRunAt
+			s.hasNextDue = true
+		}
+	}
+	s.nextDueValid = true
 }
 
 // handleDueLocked 处理一条到期任务：并发保护、错过策略、推进 NextRunAt 并启动执行。调用方持有 s.mu。

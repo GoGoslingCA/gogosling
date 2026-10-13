@@ -1,7 +1,7 @@
 // 草稿的本地编辑状态与服务端 CAS 分离；串行保存，迟到响应不得覆盖新的输入。
 import { ApiError } from "../api/client";
 import type { WorkbenchApi } from "../api/modules/workbench";
-import type { Draft, DraftContent, DraftScope } from "../api/types";
+import type { Attachment, Draft, DraftContent, DraftScope } from "../api/types";
 
 export type DraftStatus = "loading" | "unsupported" | "idle" | "saving" | "saved" | "error" | "conflict";
 export interface DraftSaveToken { draftId?: string; version?: number; editVersion: number; fingerprint: string }
@@ -65,6 +65,8 @@ export class DraftController {
   private queue: Promise<unknown> = Promise.resolve();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private disposed = false;
+  private operations = 0;
+  private heldOperations = 0;
 
   constructor(private scope: DraftScope, initial: DraftContent, private readonly debounceMs = 600) {
     const content = normalizeDraft(initial);
@@ -81,6 +83,35 @@ export class DraftController {
     if (update.content && update.content !== this.snapshot.content) this.currentFingerprint = undefined;
     this.snapshot = { ...this.snapshot, ...update };
     for (const listener of this.listeners) listener();
+  }
+  /** 只回收内核已有副本的空闲状态；旧内核、未保存内容和所有操作都必须保留。 */
+  canRelease(): boolean {
+    return !this.disposed && this.available && this.snapshot.hydrated && !this.snapshot.dirty
+      && (this.snapshot.status === "saved" || this.snapshot.status === "idle")
+      && !this.snapshot.conflict && !this.snapshot.error && !this.loading && !this.timer
+      && this.operations === 0 && this.heldOperations === 0
+      && (this.acknowledged !== null || !contentPresent(this.snapshot.content));
+  }
+  /** 显式用户操作尚未结束时，离开编辑页仍须保护窗口关闭。 */
+  hasPendingOperation(): boolean { return this.heldOperations > 0; }
+  /** 上传完成后合并来源作用域的最新内容，不用旧界面闭包覆盖重新打开后的输入。 */
+  addAttachment(attachment: Attachment) {
+    if (this.disposed || this.snapshot.content.attachments?.some((item) => item.path === attachment.path)) return;
+    this.setContent({ ...this.snapshot.content, attachments: [...this.snapshot.content.attachments ?? [], attachment] });
+    this.emit({ restoreEpoch: this.snapshot.restoreEpoch + 1 });
+  }
+  /** 发送/保存成果与草稿 API 之间的等待也占有控制器，释放函数可重复调用。 */
+  retainOperation(): () => void {
+    this.ensureActive();
+    this.heldOperations += 1;
+    for (const listener of this.listeners) listener();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.heldOperations -= 1;
+      for (const listener of this.listeners) listener();
+    };
   }
   private ensureActive() { if (this.disposed) throw new DOMException("", "AbortError"); }
   private isDirty(content: DraftContent) {
@@ -157,7 +188,7 @@ export class DraftController {
           this.schedule();
         }
       } catch (error) { this.emit({ status: "error", error, dirty: contentPresent(this.snapshot.content) }); throw error; }
-      finally { this.loading = null; }
+      finally { this.loading = null; for (const listener of this.listeners) listener(); }
     })();
     return this.loading;
   }
@@ -167,7 +198,11 @@ export class DraftController {
     return { draftId: this.acknowledged?.id, version: this.acknowledged?.version, editVersion: this.editVersion, fingerprint: this.currentFingerprint };
   }
   private serial<T>(operation: () => Promise<T>): Promise<T> {
-    const next = this.queue.then(() => { this.ensureActive(); return operation(); });
+    this.operations += 1;
+    const next = this.queue.then(() => { this.ensureActive(); return operation(); }).finally(() => {
+      this.operations -= 1;
+      for (const listener of this.listeners) listener();
+    });
     this.queue = next.catch(() => undefined);
     return next;
   }

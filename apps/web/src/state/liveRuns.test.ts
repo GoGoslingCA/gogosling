@@ -53,6 +53,73 @@ describe("liveRunsReducer", () => {
     expect(calls[1]?.result?.is_error).toBe(true);
   });
 
+  it("索引更新保留旧快照；旧状态分叉、重复开始和占位回填不串联未来工具", () => {
+    const base = reduce([ev("tool.call.started", "r1", { tool_call: { id: "a", name: "read_file", arguments: {} } })]);
+    const initialCall = base.runs.r1!.toolCalls[0]!;
+    const branch = reduce([ev("tool.call.completed", "r1", { tool_result: { call_id: "b", content: "branch" } })], base);
+    const other = reduce([ev("tool.call.started", "r1", { tool_call: { id: "c", name: "list_files", arguments: {} } })], base);
+    const done = reduce([
+      ev("tool.call.completed", "r1", { tool_result: { call_id: "a", content: "base result" } }),
+      ev("tool.call.started", "r1", { tool_call: { id: "b", name: "known_tool", arguments: { filled: true } } }),
+    ], branch);
+    expect(base.runs.r1!.toolCalls).toEqual([initialCall]);
+    expect(initialCall.result).toBeUndefined();
+    expect(other.runs.r1!.toolCalls.map(entry => entry.call.id)).toEqual(["a", "c"]);
+    expect(branch.runs.r1!.toolCalls[0]).toBe(initialCall);
+    expect(done.runs.r1!.toolCalls.map(entry => [entry.call.id, entry.result?.content])).toEqual([["a", "base result"], ["b", "branch"]]);
+    expect(done.runs.r1!.toolCalls[1]!.call.name).toBe("known_tool");
+    expect(done.runs.r1!.toolCalls[1]!.startedAt).toBe(branch.runs.r1!.toolCalls[1]!.startedAt);
+    const revisit = reduce([ev("tool.call.completed", "r1", { tool_result: { call_id: "c", content: "other result" } })], other);
+    expect(revisit.runs.r1!.toolCalls.map(entry => [entry.call.id, entry.result?.content])).toEqual([["a", undefined], ["c", "other result"]]);
+  });
+
+  it("外部旧状态含重复工具 ID 时仍更新第一条，与原查找规则一致", () => {
+    const base = reduce([ev("tool.call.started", "r1", { tool_call: { id: "same", name: "first", arguments: {} } })]);
+    const first = base.runs.r1!.toolCalls[0]!;
+    const state = { ...base, runs: { ...base.runs, r1: { ...base.runs.r1!, toolCalls: [first, { ...first, call: { ...first.call, name: "second" } }] } } };
+    const next = reduce([ev("tool.call.completed", "r1", { tool_result: { call_id: "same", content: "ok" } })], state);
+    expect(next.runs.r1!.toolCalls.map(entry => [entry.call.name, entry.result?.content])).toEqual([["first", "ok"], ["second", undefined]]);
+  });
+
+  it("随机乱序完成、重复开始和旧快照分叉与线性查找语义一致", () => {
+    const snapshots = [reduce([ev("run.started", "r1")])];
+    let seed = 731;
+    const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed; };
+    for (let index = 0; index < 1200; index++) {
+      const base = snapshots[index % 17 === 0 ? random() % snapshots.length : snapshots.length - 1]!;
+      const id = `call-${random() % 80}`;
+      const start = random() % 3 === 0;
+      const call = { id, name: `tool-${index}`, arguments: { index } };
+      const result = { call_id: id, content: `result-${index}` };
+      const event = ev(start ? "tool.call.started" : "tool.call.completed", "r1", start ? { tool_call: call } : { tool_result: result });
+      const before = base.runs.r1!.toolCalls;
+      const expected = before.slice();
+      const found = before.findIndex(entry => entry.call.id === id);
+      if (found < 0) expected.push(start ? { call, startedAt: event.at } : { call: { id, name: "", arguments: {} }, result, startedAt: event.at, completedAt: event.at });
+      else expected[found] = start ? { ...before[found]!, call } : { ...before[found]!, result, completedAt: event.at };
+      const next = reduce([event], base);
+      expect(next.runs.r1!.toolCalls).toEqual(expected);
+      expect(base.runs.r1!.toolCalls).toBe(before);
+      for (let position = 0; position < before.length; position++) if (position !== found) expect(next.runs.r1!.toolCalls[position]).toBe(before[position]);
+      snapshots.push(next);
+    }
+  });
+
+  it("长工具循环中保留全部调用和结果，审批与终态不等待列表刷新", () => {
+    const events: ApiEvent[] = [];
+    for (let index = 0; index < 1500; index++) {
+      events.push(ev("tool.call.started", "r1", { tool_call: { id: `c-${index}`, name: "read_file", arguments: { index } } }));
+      events.push(ev("tool.call.completed", "r1", { tool_result: { call_id: `c-${index}`, content: `result-${index}` } }));
+    }
+    const state = reduce(events);
+    expect(state.runs.r1!.toolCalls).toHaveLength(1500);
+    expect(state.runs.r1!.toolCalls.every((entry, index) => entry.call.id === `c-${index}` && entry.result?.content === `result-${index}`)).toBe(true);
+    const waiting = reduce([ev("approval.requested", "r1")], state);
+    expect(waiting.runs.r1!.status).toBe("awaiting_approval");
+    expect(waiting.runs.r1!.toolCalls).toBe(state.runs.r1!.toolCalls);
+    expect(reduce([ev("run.completed", "r1")], waiting).runs.r1!.status).toBe("completed");
+  });
+
   it("审批：requested 切到 awaiting_approval 并保存请求；resolved 清空并恢复 running", () => {
     const approval = {
       id: "ap1",

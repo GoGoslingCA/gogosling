@@ -5,13 +5,15 @@ import { forwardRef, useEffect, useLayoutEffect, useImperativeHandle, useRef, us
 import { useTranslation } from "react-i18next";
 import { Badge, Spinner } from "../../components/ui";
 import { formatMessageTime } from "../../lib/time";
-import { prettyJson, truncate } from "../../lib/json";
+import { prettyJson, previewJson } from "../../lib/json";
 import type { Attachment, Message, Part, RunStatus, ToolCall, ToolResult } from "../../api/types";
 import type { LiveRun, LiveToolCall } from "../../state/liveRuns";
 import { extractArtifacts, artifactLanguageLabel } from "../../lib/artifacts";
 import { isTerminal } from "../../state/liveRuns";
 import { Markdown } from "./Markdown";
 import { CopyButton } from "./CopyButton";
+import { ToolHistoryPage } from "./ToolHistoryPage";
+import { indexToolResults, type ToolResultIndex } from "./toolResults";
 
 /** 实时视图里没有、但服务端报告仍在进行的运行（status 为 null 表示还在查询）。 */
 export interface RecoveredRun {
@@ -48,9 +50,10 @@ export const MessageList = forwardRef<
       stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 40;
     };
 
-    const results = useMemo(() => new Map(messages.flatMap((message) => message.parts.flatMap((part) => part.tool_result ? [[part.tool_result.call_id, part.tool_result] as const] : []))), [messages]);
+    const results = useMemo(() => indexToolResults(messages), [messages]);
     // 已经被持久化消息覆盖的终态运行由父组件移除；这里只渲染剩下的。
-    const visibleRuns = liveRuns.filter((r) => !isTerminal(r.status) || r.status !== "completed" || !messages.some((m) => m.run_id === r.runId && m.role === "assistant"));
+    const completedMessages = useMemo(() => new Set(messages.filter(m => m.role === "assistant").map(m => m.run_id)), [messages]);
+    const visibleRuns = liveRuns.filter((r) => r.status !== "completed" || !completedMessages.has(r.runId));
 
     return (
       <div className="messages" ref={el} onScroll={onScroll}>
@@ -68,14 +71,15 @@ export const MessageList = forwardRef<
   },
 );
 
-const MessageBubble = memo(function MessageBubble({ message, timeZone, onOpenArtifact, results, persistResults, onOpenFile }: { message: Message; timeZone: string | undefined; onOpenArtifact?: (messageId: string, codeIndex?: number) => void; persistResults?: boolean; onOpenFile?: (attachment: Attachment) => void; results: Map<string, ToolResult> }) {
+const MessageBubble = memo(function MessageBubble({ message, timeZone, onOpenArtifact, results, persistResults, onOpenFile }: { message: Message; timeZone: string | undefined; onOpenArtifact?: (messageId: string, codeIndex?: number) => void; persistResults?: boolean; onOpenFile?: (attachment: Attachment) => void; results: ToolResultIndex }) {
   const { t } = useTranslation();
   const partial = message.meta?.partial === true;
+  const groups = useMemo(() => groupToolParts(message.parts), [message.parts]);
   return (
     <div className={`msg ${message.role}`}>
-      {message.parts.map((p, i) => (
-        <PartView key={i} part={p} result={p.tool_call ? results.get(p.tool_call.id) : undefined} markdown={message.role === "assistant"} onOpenFile={onOpenFile} />
-      ))}
+      {groups.map(group => group.kind === "tools"
+        ? <HistoricalToolParts key={group.index} parts={group.parts} historyLimit={group.historyLimit} results={results} runId={message.run_id} />
+        : <PartView key={group.index} part={group.part} result={group.part.tool_call ? results.results.get(results.key(group.part.tool_call.id, message.run_id)) : undefined} markdown={message.role === "assistant"} onOpenFile={onOpenFile} />)}
       {message.role === "assistant" && onOpenArtifact && message.parts.some((part) => part.type === "text" && part.text) ? <button className="btn sm result-open" onClick={() => onOpenArtifact(message.id)}>{t(persistResults ? "versions.openAndSave" : "work.reviewArtifact")} →</button> : null}
       {persistResults && onOpenArtifact && message.role === "assistant" ? extractArtifacts([message]).filter((item) => item.kind === "code").map((item) => <button key={item.id} className="btn sm result-open" onClick={() => onOpenArtifact(message.id, item.index)}>{t("versions.openCode", { language: artifactLanguageLabel(item.language), n: item.index })}</button>) : null}
       <div className="msg-meta">
@@ -85,7 +89,50 @@ const MessageBubble = memo(function MessageBubble({ message, timeZone, onOpenArt
       </div>
     </div>
   );
-});
+}, (previous, next) => previous.message === next.message && previous.timeZone === next.timeZone
+  && previous.onOpenArtifact === next.onOpenArtifact && previous.persistResults === next.persistResults
+  && previous.onOpenFile === next.onOpenFile
+  && (previous.results === next.results || next.message.parts.every(part => !part.tool_call
+    || previous.results.results.get(previous.results.key(part.tool_call.id, next.message.run_id)) === next.results.results.get(next.results.key(part.tool_call.id, next.message.run_id)))));
+
+type PartGroup = { kind: "part"; index: number; part: Part } | { kind: "tools"; index: number; parts: Part[]; historyLimit: number };
+
+function groupToolParts(parts: Part[]): PartGroup[] {
+  const groups: PartGroup[] = [];
+  // 常显预算属于整条消息，不能让每段进度文字重新获得二十条工具记录配额。
+  let historyRemaining = Math.max(0, parts.reduce((total, part) => total + Number(part.type === "tool_call" || part.type === "tool_result"), 0) - 20);
+  for (let index = 0; index < parts.length;) {
+    const start = index;
+    while (index < parts.length && (parts[index]!.type === "tool_call" || parts[index]!.type === "tool_result")) index++;
+    if (index > start && historyRemaining > 0) {
+      const historyLimit = Math.min(historyRemaining, index - start);
+      groups.push({ kind: "tools", index: start, parts: parts.slice(start, index), historyLimit });
+      historyRemaining -= historyLimit;
+    }
+    else for (let position = start; position < index; position++) groups.push({ kind: "part", index: position, part: parts[position]! });
+    if (index < parts.length) { groups.push({ kind: "part", index, part: parts[index]! }); index++; }
+  }
+  return groups;
+}
+
+function HistoricalToolParts({ parts, historyLimit, results, runId }: { parts: Part[]; historyLimit: number; results: ToolResultIndex; runId?: string }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  let historyCount = historyLimit;
+  for (let index = 0; index < historyCount; index++) {
+    const call = parts[index]!.tool_call;
+    if (call && !results.results.has(results.key(call.id, runId))) { historyCount = index; break; }
+  }
+  const history = useMemo(() => parts.slice(0, historyCount).map((part, index) => ({ part, index })), [parts, historyCount]);
+  const renderPart = ({ part, index }: { part: Part; index: number }) => <PartView key={index} part={part} result={part.tool_call ? results.results.get(results.key(part.tool_call.id, runId)) : undefined} markdown={false} />;
+  return <>
+    {historyCount ? <details className="tool-history" onToggle={event => setOpen(event.currentTarget.open)}>
+      <summary>{t("compact.olderToolRecords", { n: historyCount })}</summary>
+      {open ? <ToolHistoryPage items={history} renderItem={renderPart} /> : null}
+    </details> : null}
+    {parts.slice(historyCount).map((part, offset) => renderPart({ part, index: historyCount + offset }))}
+  </>;
+}
 
 function PartView({ part, markdown, result, onOpenFile }: { part: Part; markdown: boolean; result?: ToolResult; onOpenFile?: (attachment: Attachment) => void }) {
   switch (part.type) {
@@ -115,17 +162,39 @@ export const ToolCallCard = memo(function ToolCallCard({ call, live, persistedRe
   const [open, setOpen] = useState(false);
   const result = live?.result ?? persistedResult;
   const done = result !== undefined;
+  const argumentPreview = useMemo(() => previewJson(call.arguments, 70), [call.arguments]);
+  const fullArguments = useMemo(() => open ? prettyJson(call.arguments) : "", [open, call.arguments]);
   return (
     <details className="tool-card" onToggle={event => setOpen(event.currentTarget.open)}>
       <summary>
         <Badge tone={done ? (result.is_error ? "bad" : "ok") : "warn"}>{done ? (result.is_error ? t("chat.toolError") : t("chat.toolDone")) : t(historical ? "work.noStepResult" : "chat.toolRunning")}</Badge>
         <code>{call.name || t("common.unknown")}</code>
         {done && result.truncated ? <Badge tone="warn">{t("chat.resultTruncated")}</Badge> : null}
-        <span className="status-item">{truncate(prettyJson(call.arguments), 70)}</span>
+        <span className="status-item">{argumentPreview}</span>
       </summary>
-      {open ? <><pre>{prettyJson(call.arguments)}</pre>{done ? <ToolResultContent result={result} /> : null}</> : null}
+      {open ? <><pre>{fullArguments}</pre>{done ? <ToolResultContent result={result} /> : null}</> : null}
     </details>
   );
+});
+
+const LiveToolList = memo(function LiveToolList({ calls }: { calls: LiveToolCall[] }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  // 仅折叠已经完成的连续前缀，尚未回传结果的工具始终可见。
+  const historyCount = useMemo(() => {
+    const limit = Math.max(0, calls.length - 20);
+    for (let i = 0; i < limit; i++) if (!calls[i]!.result) return i;
+    return limit;
+  }, [calls]);
+  const history = useMemo(() => calls.slice(0, historyCount), [calls, historyCount]);
+  const renderCall = (tc: LiveToolCall) => <ToolCallCard key={tc.call.id} call={tc.call} live={tc} />;
+  return <>
+    {historyCount ? <details className="tool-history" onToggle={event => setOpen(event.currentTarget.open)}>
+      <summary>{t("compact.olderSteps", { n: historyCount })}</summary>
+      {open ? <ToolHistoryPage items={history} renderItem={renderCall} /> : null}
+    </details> : null}
+    {calls.slice(historyCount).map(renderCall)}
+  </>;
 });
 
 function ToolResultCard({ result }: { result: ToolResult }) {
@@ -206,9 +275,7 @@ const LiveRunBubble = memo(function LiveRunBubble({ run }: { run: LiveRun }) {
     <div className="msg assistant">
       {run.truncated ? <div className="banner warn">{t("chat.streamTruncated")}</div> : null}
       {run.reasoning ? <ReasoningBlock text={run.reasoning} live={!isTerminal(run.status) && !run.text} /> : null}
-      {run.toolCalls.map((tc) => (
-        <ToolCallCard key={tc.call.id} call={tc.call} live={tc} />
-      ))}
+      <LiveToolList calls={run.toolCalls} />
       {run.text ? <Markdown text={run.text} /> : null}
       {!isTerminal(run.status) ? <span className="cursor" aria-hidden="true" /> : null}
       {run.error ? <div className="banner error" style={{ marginTop: 6, marginBottom: 0 }}>{run.error}</div> : null}

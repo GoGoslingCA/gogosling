@@ -1,8 +1,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Attachment } from "../../api/types";
+import type { Attachment, Draft as PersistedDraft, DraftInput, DraftUpdateInput } from "../../api/types";
 import { Composer } from "./Composer";
+import { DraftContext, DraftRegistry } from "../../state/DraftProvider";
+import { ApiError } from "../../api/client";
 
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
@@ -17,9 +19,11 @@ const attachment: Attachment = { name: "notes.txt", path: "inbound/notes.txt", s
 let root: Root;
 let container: HTMLDivElement;
 let props: Parameters<typeof Composer>[0];
+let registry: DraftRegistry | null;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  registry = null;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -27,10 +31,11 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount());
+  registry?.dispose();
   container.remove();
   vi.restoreAllMocks();
 });
-async function render() { await act(async () => root.render(<Composer {...props} />)); }
+async function render() { await act(async () => root.render(<DraftContext.Provider value={registry}><Composer {...props} /></DraftContext.Provider>)); }
 function textarea() { return container.querySelector("textarea")!; }
 function sendButton() { return Array.from(container.querySelectorAll("button")).find((button) => ["chat.send", "chat.sending"].includes(button.textContent ?? ""))!; }
 async function type(value: string) {
@@ -277,5 +282,118 @@ describe("Composer 的异步草稿与附件", () => {
     const unguarded = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(unguarded);
     expect(unguarded.defaultPrevented).toBe(false);
+  });
+});
+
+function persistentComposer() {
+  const initial: PersistedDraft = { id: "draft-a", agent_id: "agent-a", session_id: "session-a", kind: "composer", text: "A 已保存正文", version: 1, owner_id: "local", created_at: "2026-10-13T00:00:00Z", updated_at: "2026-10-13T00:00:00Z" };
+  const drafts = new Map([[initial.session_id!, initial]]);
+  const api = {
+    listDrafts: vi.fn(async (query: { session_id?: string } = {}) => [...drafts.values()].filter((draft) => draft.session_id === query.session_id)),
+    getDraft: vi.fn(async (id: string) => [...drafts.values()].find((draft) => draft.id === id)!),
+    createDraft: vi.fn(async (input: DraftInput) => { const saved = { ...initial, ...input, id: `draft-${input.session_id}`, version: 1 }; drafts.set(input.session_id!, saved); return saved; }),
+    updateDraft: vi.fn(async (id: string, input: DraftUpdateInput) => {
+      const current = [...drafts.values()].find((draft) => draft.id === id);
+      if (!current || current.version !== input.expected_version) throw new ApiError("conflict", "");
+      const saved = { ...current, ...input, version: input.expected_version + 1 }; drafts.set(input.session_id!, saved); return saved;
+    }),
+    deleteDraft: vi.fn(async (id: string, version: number) => {
+      const current = [...drafts.values()].find((draft) => draft.id === id);
+      if (current && current.version !== version) throw new ApiError("conflict", "");
+      if (current) drafts.delete(current.session_id!);
+    }),
+  };
+  registry = new DraftRegistry(); registry.configure(api, true, false); props.agentId = "agent-a";
+  return { drafts, api, initial };
+}
+
+async function ready(assertion: () => void) {
+  await vi.waitFor(async () => { await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); }); assertion(); }, { timeout: 2000, interval: 10 });
+}
+
+describe("持久草稿的界面副本回收", () => {
+  it("已保存会话切走后释放界面副本，重进读取外部新版本而不误报冲突", async () => {
+    const f = persistentComposer(); await render(); await ready(() => expect(textarea().value).toBe(f.initial.text));
+    props.draftKey = "session-b"; await render();
+    f.drafts.set("session-a", { ...f.initial, text: "外部更新 A", version: 4 });
+    props.draftKey = "session-a"; await render(); await ready(() => expect(textarea().value).toBe("外部更新 A"));
+    expect(container.querySelector(".draft-conflict")).toBeNull();
+    await type("A 第五版");
+    await act(async () => registry!.get({ kind: "composer", agent_id: "agent-a", session_id: "session-a" }, { text: "" }).saveNow());
+    expect(f.api.updateDraft).toHaveBeenCalledWith("draft-a", expect.objectContaining({ expected_version: 4, text: "A 第五版" }));
+  });
+
+  it("已保存会话上传期间切页仍保留原文，迟到附件不能被回收通知删掉", async () => {
+    const f = persistentComposer(), upload = deferred<Attachment>(); props.upload = vi.fn(() => upload.promise);
+    await render(); await ready(() => expect(textarea().value).toBe(f.initial.text)); await chooseFile();
+    props.draftKey = "session-b"; await render();
+    await act(async () => upload.resolve(attachment));
+    props.draftKey = "session-a"; await render();
+    await ready(() => expect(container.querySelector(".attachment-chip")?.textContent).toContain("notes.txt"));
+    expect(textarea().value).toBe(f.initial.text); expect(f.api.deleteDraft).not.toHaveBeenCalled();
+  });
+
+  it("发送跨切页保留操作占用，成功只清除来源会话，目标页未保存内容不变", async () => {
+    const f = persistentComposer(), request = deferred<void>(); props.onSend = vi.fn(() => request.promise);
+    await render(); await ready(() => expect(textarea().value).toBe(f.initial.text));
+    await act(async () => sendButton().click());
+    props.draftKey = "session-b"; await render(); await type("B 不能丢失");
+    await act(async () => request.resolve());
+    await ready(() => expect(f.api.deleteDraft).toHaveBeenCalledWith("draft-a", 1));
+    expect(textarea().value).toBe("B 不能丢失");
+    props.draftKey = "session-a"; await render(); await ready(() => expect(textarea().value).toBe(""));
+    props.draftKey = "session-b"; await render(); expect(textarea().value).toBe("B 不能丢失");
+  });
+});
+
+describe("离开输入页后的上传保护", () => {
+  it("上传切到 B 后仍标记操作占用，完成且保存失败时保留全局未保存状态和附件", async () => {
+    const f = persistentComposer(), upload = deferred<Attachment>(); props.upload = vi.fn(() => upload.promise);
+    await render(); await ready(() => expect(textarea().value).toBe(f.initial.text)); await chooseFile();
+    props.draftKey = "session-b"; await render();
+    expect(registry!.getSnapshot()).toBe(true);
+    const before = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(before); expect(before.defaultPrevented).toBe(true);
+    await act(async () => upload.resolve(attachment));
+    const source = registry!.get({ kind: "composer", agent_id: "agent-a", session_id: "session-a" }, { text: "" });
+    vi.mocked(f.api.updateDraft).mockRejectedValueOnce(new Error("save failed"));
+    await act(async () => { await expect(source.saveNow()).rejects.toThrow("save failed"); });
+    expect(registry!.getSnapshot()).toBe(true);
+    expect(source.getSnapshot()).toMatchObject({ status: "error", dirty: true, content: { attachments: [attachment] } });
+    const after = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(after); expect(after.defaultPrevented).toBe(true);
+    props.draftKey = "session-a"; await render(); expect(textarea().value).toBe(f.initial.text);
+    expect(container.querySelector(".attachment-chip")?.textContent).toContain(attachment.name);
+  });
+
+  it("旧 Composer 上传完成后合并新 Composer 的输入，同一轮输入不会被恢复旧文字", async () => {
+    const f = persistentComposer(), upload = deferred<Attachment>(); props.upload = vi.fn(() => upload.promise);
+    await render(); await ready(() => expect(textarea().value).toBe(f.initial.text)); await chooseFile();
+    await act(async () => root.render(<DraftContext.Provider value={registry}><div>settings</div></DraftContext.Provider>));
+    await render(); await ready(() => expect(textarea().value).toBe(f.initial.text));
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(textarea(), "新界面刚输入的正文");
+      textarea().dispatchEvent(new Event("input", { bubbles: true }));
+      upload.resolve(attachment);
+    });
+    expect(textarea().value).toBe("新界面刚输入的正文");
+    expect(container.querySelector(".attachment-chip")?.textContent).toContain(attachment.name);
+    expect(registry!.get({ kind: "composer", agent_id: "agent-a", session_id: "session-a" }, { text: "" }).getSnapshot().content).toMatchObject({ text: "新界面刚输入的正文", attachments: [attachment] });
+  });
+});
+
+describe("会话路由加载间隙的回收订阅", () => {
+  it("切换路由时 agentId 暂缺也能回收已保存界面副本，回到 A 恢复最新版本且无冲突", async () => {
+    const f = persistentComposer();
+    await render(); await ready(() => expect(textarea().value).toBe(f.initial.text));
+    props = { ...props, draftKey: "session-b", agentId: undefined, disabled: true };
+    await render(); expect(textarea().value).toBe("");
+    props = { ...props, agentId: "agent-a", disabled: false }; await render();
+    f.drafts.set("session-a", { ...f.initial, text: "RECOVERED-REMOTE-VERSION", version: 2 });
+    props = { ...props, draftKey: "session-a", agentId: undefined, disabled: true }; await render();
+    props = { ...props, agentId: "agent-a", disabled: false }; await render();
+    await ready(() => expect(textarea().value).toBe("RECOVERED-REMOTE-VERSION"));
+    expect(container.querySelector(".draft-conflict")).toBeNull();
+    await type("在第二版继续编辑");
+    await act(async () => registry!.get({ kind: "composer", agent_id: "agent-a", session_id: "session-a" }, { text: "" }).saveNow());
+    expect(f.api.updateDraft).toHaveBeenCalledWith("draft-a", expect.objectContaining({ expected_version: 2 }));
   });
 });

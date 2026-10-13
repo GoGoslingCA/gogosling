@@ -19,7 +19,7 @@ const versions = await Promise.all(sources.map(async ([label, directory]) => {
   const provider = await readFile(join(directory, "DraftProvider.tsx"), "utf8");
   const controllerModule = asModule(controller.replace('from "../api/client"', `from "${client}"`));
   // Run the real registry class, excluding the React provider component and hooks.
-  const registrySource = provider.slice(provider.indexOf("export class DraftRegistry"), provider.indexOf("export const DraftContext"));
+  const registrySource = provider.slice(provider.includes("const releasedSnapshot:") ? provider.indexOf("const releasedSnapshot:") : provider.indexOf("export class DraftRegistry"), provider.indexOf("export const DraftContext"));
   const registryModule = asModule(`import { DraftController, draftScopeKey } from "${controllerModule}";\n${registrySource}`);
   return { label, ...(await import(controllerModule)), ...(await import(registryModule)), sourceSha256: createHash("sha256").update(controller).update(provider).digest("hex") };
 }));

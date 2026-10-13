@@ -1,0 +1,1374 @@
+{
+  "schemaVersion": 1,
+  "project": "Gogosling.ca",
+  "recordedDate": "2026-10-14",
+  "dateTimeZone": "Asia/Shanghai",
+  "baseCommit": "5bf5530c88d5766ccb12c10c62c1d8e8b77b1637",
+  "finalCommit": null,
+  "ciStatus": "Not asserted in this pre-commit evidence record.",
+  "scope": {
+    "publicAPIChanged": false,
+    "openAPIChanged": false,
+    "databaseSchemaChanged": false,
+    "newRuntimeDependencies": false,
+    "internalInterfaces": "Draft reader subscriptions, snapshot invalidation, operation leases, and attachment merge helpers are frontend implementation details."
+  },
+  "changes": [
+    {
+      "area": "Tool event updates",
+      "problem": "Long runs repeatedly scanned and mapped the entire tool array.",
+      "cause": "Every start and completion searched by ID and executed an update callback for every entry.",
+      "change": "Transfer a derived weak-keyed ID index to each immutable successor array; rebuild it for an older snapshot branch.",
+      "expectedEffect": "Fewer lookups and callbacks while preserving order, complete results, first-match behavior, and immutable snapshots. Array copies remain O(n)."
+    },
+    {
+      "area": "Tool history rendering",
+      "problem": "Hidden histories still mounted hundreds of cards and progress rows.",
+      "cause": "All records rendered inside collapsed sections; interleaved progress text could multiply per-section display budgets.",
+      "change": "Share a 20-record budget across each persisted message; mount older records on demand in 40-record pages. Keep live unfinished tools visible and recent progress at four rows.",
+      "expectedEffect": "Bound common-case DOM work without removing records, reordering text or attachments, or delaying approval controls."
+    },
+    {
+      "area": "Stream updates and argument summaries",
+      "problem": "Text deltas repeated work unrelated to the changing reply.",
+      "cause": "Tool lists and progress derived data rebuilt on every delta; closed cards serialized complete arguments.",
+      "change": "Memoize by tool/message identity, preserve current callbacks, and generate a bounded argument preview. Serialize complete arguments only when opened.",
+      "expectedEffect": "Reduce repeated computation and large temporary strings while keeping complete parameters available."
+    },
+    {
+      "area": "Tool result identity",
+      "problem": "Different runs reusing a call ID could display another run’s result.",
+      "cause": "The result index used call ID alone.",
+      "change": "Scope results by run and call ID; infer a missing legacy run ID only when its ownership is unique.",
+      "expectedEffect": "Preserve independent histories and prevent an old success from masking a current pending approval."
+    },
+    {
+      "area": "Idle scheduling",
+      "problem": "An idle scheduler sorted all jobs on every tick.",
+      "cause": "The loop checked every entry even when no trigger was due.",
+      "change": "Cache the earliest due time with mutation invalidation; retain wall-clock jump checks and sort only the due subset. Count valid fixed intervals arithmetically.",
+      "expectedEffect": "O(1) normal idle checks and O(n + k log k) due work, with existing ordering, missed-run policy, and persistence-failure retry behavior."
+    },
+    {
+      "area": "Saved draft retention",
+      "problem": "Visited saved drafts remained in controllers, query cache, and composer copies.",
+      "cause": "There was no reader-aware release path or exact saved-copy cleanup.",
+      "change": "Release only unobserved, recoverable, clean controllers with no pending operation; invalidate stale snapshots and remove idle unobserved query entries and matching inactive UI copies.",
+      "expectedEffect": "Allow saved bodies to be collected while retaining dirty, conflicting, failed, active, and legacy in-memory drafts."
+    },
+    {
+      "area": "Draft safety during routing and uploads",
+      "problem": "Route gaps could miss release notifications; late uploads could remain only in an inactive component.",
+      "cause": "Connection-wide subscriptions switched to local fallback, and upload completion updated local component state without protecting its source controller.",
+      "change": "Keep connection subscriptions stable, combine local and connection dirty state, hold explicit operation leases, merge attachments into the latest source snapshot, and maintain a connection-lifetime close guard.",
+      "expectedEffect": "Preserve unsaved text and attachments across route loading, settings navigation, failed saves, and asynchronous completion."
+    }
+  ],
+  "environment": {
+    "cpu": "Apple M3",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v22.22.2",
+    "browserWorkload": "Built React client in a Chromium browser with a real local Go daemon and Python worker."
+  },
+  "microbenchmarks": {
+    "toolReducer": {
+      "runtime": "v22.22.2",
+      "platform": "darwin",
+      "arch": "arm64",
+      "sampleCount": 10,
+      "warmupCount": 2,
+      "sources": [
+        {
+          "label": "before",
+          "sourceSha256": "fffeecd4ed1fbf9a7b98f6ad99ec10390328e37d228bc4504f69166f601daa28"
+        },
+        {
+          "label": "after",
+          "sourceSha256": "8ee84df1631d8362fb611300e5afccffe6765dcfc1c2c98514bbca1ef9fd2357"
+        }
+      ],
+      "notes": [
+        "Synthetic production reducer measurements, not browser rendering, network latency, or whole-app memory.",
+        "Immutable array copies remain O(n); the index removes repeated ID scans and update callbacks without dropping entries.",
+        "All final snapshots must match the baseline SHA256, including the approval and terminal state.",
+        "P95 uses nearest rank; with 10 samples it is the observed maximum."
+      ],
+      "scenarios": [
+        {
+          "callCount": 100,
+          "eventCount": 203,
+          "equalOutputSha256": "0a56fc4b6dd36ca6fdf8aec4284d87682d945ea1519e9ef2fc86c39a1e54196f",
+          "results": [
+            {
+              "label": "before",
+              "elapsedMedianMs": 0.349,
+              "elapsedP95Ms": 1.093041,
+              "samples": [
+                {
+                  "elapsedMs": 0.397958,
+                  "cpuMs": 1.338
+                },
+                {
+                  "elapsedMs": 0.3615,
+                  "cpuMs": 1.215
+                },
+                {
+                  "elapsedMs": 0.681125,
+                  "cpuMs": 2.113
+                },
+                {
+                  "elapsedMs": 0.34125,
+                  "cpuMs": 1.414
+                },
+                {
+                  "elapsedMs": 0.349,
+                  "cpuMs": 1.499
+                },
+                {
+                  "elapsedMs": 1.093041,
+                  "cpuMs": 2.307
+                },
+                {
+                  "elapsedMs": 0.4385,
+                  "cpuMs": 1.425
+                },
+                {
+                  "elapsedMs": 0.252875,
+                  "cpuMs": 0.987
+                },
+                {
+                  "elapsedMs": 0.340375,
+                  "cpuMs": 1.458
+                },
+                {
+                  "elapsedMs": 0.307333,
+                  "cpuMs": 1.131
+                }
+              ]
+            },
+            {
+              "label": "after",
+              "elapsedMedianMs": 0.140333,
+              "elapsedP95Ms": 0.188958,
+              "samples": [
+                {
+                  "elapsedMs": 0.184208,
+                  "cpuMs": 0.56
+                },
+                {
+                  "elapsedMs": 0.132375,
+                  "cpuMs": 0.268
+                },
+                {
+                  "elapsedMs": 0.119083,
+                  "cpuMs": 0.555
+                },
+                {
+                  "elapsedMs": 0.13075,
+                  "cpuMs": 0.528
+                },
+                {
+                  "elapsedMs": 0.144292,
+                  "cpuMs": 0.688
+                },
+                {
+                  "elapsedMs": 0.154792,
+                  "cpuMs": 0.69
+                },
+                {
+                  "elapsedMs": 0.188958,
+                  "cpuMs": 0.779
+                },
+                {
+                  "elapsedMs": 0.140333,
+                  "cpuMs": 0.678
+                },
+                {
+                  "elapsedMs": 0.1215,
+                  "cpuMs": 0.127
+                },
+                {
+                  "elapsedMs": 0.141375,
+                  "cpuMs": 0.669
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "callCount": 1000,
+          "eventCount": 2003,
+          "equalOutputSha256": "f3ed0c6347a1fb9c6d114115d354bdd97e63cc1ed238e8a329b97510c4405638",
+          "results": [
+            {
+              "label": "before",
+              "elapsedMedianMs": 7.999792,
+              "elapsedP95Ms": 13.586458,
+              "samples": [
+                {
+                  "elapsedMs": 12.994541,
+                  "cpuMs": 14.348
+                },
+                {
+                  "elapsedMs": 13.586458,
+                  "cpuMs": 17.994
+                },
+                {
+                  "elapsedMs": 9.648292,
+                  "cpuMs": 13.684
+                },
+                {
+                  "elapsedMs": 7.865875,
+                  "cpuMs": 8.463
+                },
+                {
+                  "elapsedMs": 10.647834,
+                  "cpuMs": 17.521
+                },
+                {
+                  "elapsedMs": 7.262708,
+                  "cpuMs": 7.889
+                },
+                {
+                  "elapsedMs": 7.999792,
+                  "cpuMs": 8.046
+                },
+                {
+                  "elapsedMs": 11.969334,
+                  "cpuMs": 19.327
+                },
+                {
+                  "elapsedMs": 7.20175,
+                  "cpuMs": 7.837
+                },
+                {
+                  "elapsedMs": 7.584458,
+                  "cpuMs": 8.282
+                }
+              ]
+            },
+            {
+              "label": "after",
+              "elapsedMedianMs": 1.456833,
+              "elapsedP95Ms": 2.158667,
+              "samples": [
+                {
+                  "elapsedMs": 1.922167,
+                  "cpuMs": 5.399
+                },
+                {
+                  "elapsedMs": 1.162416,
+                  "cpuMs": 1.801
+                },
+                {
+                  "elapsedMs": 1.16375,
+                  "cpuMs": 1.804
+                },
+                {
+                  "elapsedMs": 1.838375,
+                  "cpuMs": 3.061
+                },
+                {
+                  "elapsedMs": 1.897333,
+                  "cpuMs": 5.04
+                },
+                {
+                  "elapsedMs": 1.623625,
+                  "cpuMs": 3.2
+                },
+                {
+                  "elapsedMs": 1.456833,
+                  "cpuMs": 3.432
+                },
+                {
+                  "elapsedMs": 1.319875,
+                  "cpuMs": 2.067
+                },
+                {
+                  "elapsedMs": 1.177917,
+                  "cpuMs": 1.85
+                },
+                {
+                  "elapsedMs": 2.158667,
+                  "cpuMs": 3.406
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "callCount": 5000,
+          "eventCount": 10003,
+          "equalOutputSha256": "42eba4db8e5a4dd42cfd1c73e94ba73bbc793535c8dd01591628326299f5f373",
+          "results": [
+            {
+              "label": "before",
+              "elapsedMedianMs": 185.37425,
+              "elapsedP95Ms": 193.369958,
+              "samples": [
+                {
+                  "elapsedMs": 184.4755,
+                  "cpuMs": 189.567
+                },
+                {
+                  "elapsedMs": 183.177584,
+                  "cpuMs": 187.043
+                },
+                {
+                  "elapsedMs": 188.936708,
+                  "cpuMs": 188.939
+                },
+                {
+                  "elapsedMs": 186.240083,
+                  "cpuMs": 190.464
+                },
+                {
+                  "elapsedMs": 193.369958,
+                  "cpuMs": 194.948
+                },
+                {
+                  "elapsedMs": 187.924375,
+                  "cpuMs": 188.054
+                },
+                {
+                  "elapsedMs": 185.37425,
+                  "cpuMs": 189.809
+                },
+                {
+                  "elapsedMs": 180.156959,
+                  "cpuMs": 184.138
+                },
+                {
+                  "elapsedMs": 180.334542,
+                  "cpuMs": 181.228
+                },
+                {
+                  "elapsedMs": 186.416083,
+                  "cpuMs": 191.26
+                }
+              ]
+            },
+            {
+              "label": "after",
+              "elapsedMedianMs": 17.936,
+              "elapsedP95Ms": 18.702791,
+              "samples": [
+                {
+                  "elapsedMs": 18.702791,
+                  "cpuMs": 24.044
+                },
+                {
+                  "elapsedMs": 18.638333,
+                  "cpuMs": 22.662
+                },
+                {
+                  "elapsedMs": 17.509083,
+                  "cpuMs": 18.263
+                },
+                {
+                  "elapsedMs": 17.948625,
+                  "cpuMs": 23.294
+                },
+                {
+                  "elapsedMs": 17.936,
+                  "cpuMs": 22.1
+                },
+                {
+                  "elapsedMs": 17.179417,
+                  "cpuMs": 17.96
+                },
+                {
+                  "elapsedMs": 18.481708,
+                  "cpuMs": 23.886
+                },
+                {
+                  "elapsedMs": 18.672292,
+                  "cpuMs": 22.752
+                },
+                {
+                  "elapsedMs": 17.286417,
+                  "cpuMs": 18.182
+                },
+                {
+                  "elapsedMs": 17.701791,
+                  "cpuMs": 22.972
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "savedDraftReclamation": {
+      "runtime": "v22.22.2",
+      "platform": "darwin",
+      "arch": "arm64",
+      "draftCount": 200,
+      "textBytes": 131072,
+      "sampleCount": 5,
+      "sources": [
+        {
+          "label": "before",
+          "sourceSha256": "37733b97a24447ac8d5379f1915aec5051291fd85961f141d955e375b58b4e46"
+        },
+        {
+          "label": "after",
+          "sourceSha256": "7d828b519a34e373154399153e25ec81e4fca1fdf2d99f763a6edafca95b1787"
+        }
+      ],
+      "notes": [
+        "Synthetic production registry/controller measurements. This is not browser or whole-app RSS, frame rate, or energy usage.",
+        "Each generated persisted draft contains 131072 ASCII bytes, below the default draft size limit. No network, database, credentials, or user content.",
+        "GC is forced before/after each sample to compare reachable heap, not expected operating-system RSS release timing.",
+        "The fake server generates bodies on demand without retaining them, so its storage cannot mask client retention.",
+        "Protected dirty, active, and legacy-memory drafts are separately asserted; they are not counted as reclaimable."
+      ],
+      "results": [
+        {
+          "label": "before",
+          "samples": [
+            {
+              "elapsedMs": 14.665667,
+              "retainedHeapDeltaBytes": 26324528,
+              "retainedControllers": 200
+            },
+            {
+              "elapsedMs": 13.062125,
+              "retainedHeapDeltaBytes": 26324512,
+              "retainedControllers": 200
+            },
+            {
+              "elapsedMs": 12.568834,
+              "retainedHeapDeltaBytes": 26329344,
+              "retainedControllers": 200
+            },
+            {
+              "elapsedMs": 10.757917,
+              "retainedHeapDeltaBytes": 26333840,
+              "retainedControllers": 200
+            },
+            {
+              "elapsedMs": 10.131,
+              "retainedHeapDeltaBytes": 26325224,
+              "retainedControllers": 200
+            }
+          ],
+          "retainedHeapMedianBytes": 26325224,
+          "elapsedMedianMs": 12.568834
+        },
+        {
+          "label": "after",
+          "samples": [
+            {
+              "elapsedMs": 11.253833,
+              "retainedHeapDeltaBytes": 26752,
+              "retainedControllers": 0
+            },
+            {
+              "elapsedMs": 10.592667,
+              "retainedHeapDeltaBytes": 7032,
+              "retainedControllers": 0
+            },
+            {
+              "elapsedMs": 10.503625,
+              "retainedHeapDeltaBytes": 5344,
+              "retainedControllers": 0
+            },
+            {
+              "elapsedMs": 11.305291,
+              "retainedHeapDeltaBytes": 13608,
+              "retainedControllers": 0
+            },
+            {
+              "elapsedMs": 10.8455,
+              "retainedHeapDeltaBytes": 15392,
+              "retainedControllers": 0
+            }
+          ],
+          "retainedHeapMedianBytes": 13608,
+          "elapsedMedianMs": 10.8455
+        }
+      ]
+    },
+    "scheduler": {
+      "environment": {
+        "cpu": "Apple M3",
+        "goos": "darwin",
+        "goarch": "arm64"
+      },
+      "command": "go test ./internal/scheduler -run '^$' -bench 'Benchmark(IdleTick|MixedDueTick|MissedFixedInterval)' -benchmem -count=3",
+      "method": "In-process benchmarks, not a full-daemon energy or memory profile. Idle cache is initialized before measurement. Mixed workload: 10 due entries among 10,000 jobs, skip policy with in-memory persistence; reset and invalidation are timed. Previous tick reproduces the former full-map sort; both sides share the same persistence and missed-count code. Fixed-interval comparison separately measures the exact former bounded iteration. No timer wait, OS sleep, database I/O, worker, or model is measured.",
+      "results": [
+        {
+          "case": "BenchmarkIdleTick/previous/jobs=100",
+          "median_ns_per_op": 17955.0,
+          "runs": [
+            {
+              "iterations": 63657,
+              "ns_per_op": 18452.0,
+              "bytes_per_op": 1848,
+              "allocations_per_op": 3
+            },
+            {
+              "iterations": 67527,
+              "ns_per_op": 17816.0,
+              "bytes_per_op": 1848,
+              "allocations_per_op": 3
+            },
+            {
+              "iterations": 67398,
+              "ns_per_op": 17955.0,
+              "bytes_per_op": 1848,
+              "allocations_per_op": 3
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkIdleTick/current/jobs=100",
+          "median_ns_per_op": 15.97,
+          "runs": [
+            {
+              "iterations": 76572326,
+              "ns_per_op": 16.03,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 76414260,
+              "ns_per_op": 15.88,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 75307111,
+              "ns_per_op": 15.97,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkIdleTick/previous/jobs=1000",
+          "median_ns_per_op": 298974.0,
+          "runs": [
+            {
+              "iterations": 4063,
+              "ns_per_op": 298974.0,
+              "bytes_per_op": 16440,
+              "allocations_per_op": 3
+            },
+            {
+              "iterations": 4082,
+              "ns_per_op": 292955.0,
+              "bytes_per_op": 16440,
+              "allocations_per_op": 3
+            },
+            {
+              "iterations": 4158,
+              "ns_per_op": 306494.0,
+              "bytes_per_op": 16440,
+              "allocations_per_op": 3
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkIdleTick/current/jobs=1000",
+          "median_ns_per_op": 15.95,
+          "runs": [
+            {
+              "iterations": 74158953,
+              "ns_per_op": 15.95,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 75911530,
+              "ns_per_op": 17.38,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 75986440,
+              "ns_per_op": 15.83,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkIdleTick/previous/jobs=10000",
+          "median_ns_per_op": 4278430.0,
+          "runs": [
+            {
+              "iterations": 284,
+              "ns_per_op": 4278430.0,
+              "bytes_per_op": 163896,
+              "allocations_per_op": 3
+            },
+            {
+              "iterations": 282,
+              "ns_per_op": 4274827.0,
+              "bytes_per_op": 163896,
+              "allocations_per_op": 3
+            },
+            {
+              "iterations": 289,
+              "ns_per_op": 4413096.0,
+              "bytes_per_op": 163896,
+              "allocations_per_op": 3
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkIdleTick/current/jobs=10000",
+          "median_ns_per_op": 15.88,
+          "runs": [
+            {
+              "iterations": 75037912,
+              "ns_per_op": 15.85,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 74455348,
+              "ns_per_op": 15.88,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 75477038,
+              "ns_per_op": 17.08,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkMixedDueTick/previous",
+          "median_ns_per_op": 4304696.0,
+          "runs": [
+            {
+              "iterations": 273,
+              "ns_per_op": 4304696.0,
+              "bytes_per_op": 171538,
+              "allocations_per_op": 103
+            },
+            {
+              "iterations": 272,
+              "ns_per_op": 4262537.0,
+              "bytes_per_op": 171541,
+              "allocations_per_op": 103
+            },
+            {
+              "iterations": 282,
+              "ns_per_op": 4566638.0,
+              "bytes_per_op": 171539,
+              "allocations_per_op": 103
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkMixedDueTick/current",
+          "median_ns_per_op": 247325.0,
+          "runs": [
+            {
+              "iterations": 3835,
+              "ns_per_op": 370898.0,
+              "bytes_per_op": 7906,
+              "allocations_per_op": 107
+            },
+            {
+              "iterations": 4948,
+              "ns_per_op": 226272.0,
+              "bytes_per_op": 7906,
+              "allocations_per_op": 107
+            },
+            {
+              "iterations": 5118,
+              "ns_per_op": 247325.0,
+              "bytes_per_op": 7906,
+              "allocations_per_op": 107
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkMissedFixedInterval/previous",
+          "median_ns_per_op": 12032.0,
+          "runs": [
+            {
+              "iterations": 99898,
+              "ns_per_op": 11996.0,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 100140,
+              "ns_per_op": 12032.0,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 100725,
+              "ns_per_op": 12070.0,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            }
+          ]
+        },
+        {
+          "case": "BenchmarkMissedFixedInterval/current",
+          "median_ns_per_op": 14.5,
+          "runs": [
+            {
+              "iterations": 82879842,
+              "ns_per_op": 14.5,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 82721778,
+              "ns_per_op": 14.57,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            },
+            {
+              "iterations": 83262501,
+              "ns_per_op": 14.48,
+              "bytes_per_op": 0,
+              "allocations_per_op": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "longTask": {
+    "method": {
+      "fileReads": 600,
+      "bytesPerFile": 512,
+      "readBatchSize": 20,
+      "progressTextBetweenBatches": true,
+      "approvalRequiredWrites": 1,
+      "modelSteps": 32,
+      "model": "Local scripted response replay; no hosted inference used in this workload.",
+      "execution": "Actual Go permission checks and filesystem tools requested by the actual Python worker. Approval was operated through the UI.",
+      "measurementPauseAfterReads": 400,
+      "browserForcedGC": false,
+      "notMeasured": [
+        "Native Electron total memory",
+        "Browser process RSS",
+        "GPU utilization",
+        "Device energy use"
+      ]
+    },
+    "browser": {
+      "hold": {
+        "before": {
+          "domElements": 5103,
+          "mountedToolCards": 400,
+          "mountedProgressRows": 400,
+          "heapBytes": {
+            "backingStorageSize": 1588482,
+            "embedderHeapUsedSize": 12815256,
+            "totalSize": 29065216,
+            "usedSize": 24985680
+          },
+          "inputTwoAnimationFramesMs": {
+            "sampleCount": 20,
+            "median": 34.75,
+            "p95NearestRank": 40.9,
+            "maximum": 79.7,
+            "samples": [
+              79.7,
+              29.5,
+              33.5,
+              33.4,
+              40.2,
+              34.2,
+              37.5,
+              29.3,
+              33.2,
+              35.1,
+              39.1,
+              34.7,
+              39.8,
+              32.3,
+              40.9,
+              34.8,
+              38.7,
+              34,
+              40,
+              34.6
+            ]
+          },
+          "inputCharacters": 32731,
+          "observedLongTaskDurationsMs": [
+            59
+          ]
+        },
+        "after": {
+          "domElements": 438,
+          "mountedToolCards": 20,
+          "mountedProgressRows": 4,
+          "heapBytes": {
+            "backingStorageSize": 1696629,
+            "embedderHeapUsedSize": 8853496,
+            "totalSize": 25378816,
+            "usedSize": 20302912
+          },
+          "inputTwoAnimationFramesMs": {
+            "sampleCount": 20,
+            "median": 36.05,
+            "p95NearestRank": 42.7,
+            "maximum": 59.5,
+            "samples": [
+              59.5,
+              30.6,
+              40.5,
+              35,
+              42.7,
+              26.8,
+              36.3,
+              26.2,
+              36.3,
+              42.3,
+              41.6,
+              41.1,
+              27.3,
+              35.4,
+              27.3,
+              36,
+              32.9,
+              36.3,
+              26.2,
+              36.1
+            ]
+          },
+          "inputCharacters": 32731,
+          "observedLongTaskDurationsMs": [
+            49
+          ]
+        }
+      },
+      "complete": {
+        "before": {
+          "domElements": 9957,
+          "mountedToolCards": 1202,
+          "mountedProgressRows": 601,
+          "heapBytes": {
+            "backingStorageSize": 1983838,
+            "embedderHeapUsedSize": 24881712,
+            "totalSize": 33275904,
+            "usedSize": 31094524
+          },
+          "uiCompleted": true,
+          "unsavedFollowupPreserved": true
+        },
+        "after": {
+          "domElements": 526,
+          "mountedToolCards": 20,
+          "mountedProgressRows": 4,
+          "heapBytes": {
+            "backingStorageSize": 1352104,
+            "embedderHeapUsedSize": 4145320,
+            "totalSize": 25919488,
+            "usedSize": 21119688
+          },
+          "uiCompleted": true,
+          "unsavedFollowupPreserved": true
+        }
+      }
+    },
+    "backendFirst400Reads": {
+      "method": "Sample the sum of daemon and worker-process RSS from the first model request through 400 reads, before the inspection hold or approval wait. Browser memory is excluded; shared pages may be counted more than once.",
+      "before": {
+        "windowDurationSeconds": 31.775,
+        "sampleCount": 30,
+        "median": 61.258,
+        "p95NearestRank": 71.281,
+        "maximum": 71.359,
+        "unit": "MiB",
+        "samples": [
+          {
+            "secondsSinceFirstModelRequest": 0.805,
+            "rssSumMiB": 61.25,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 1.831,
+            "rssSumMiB": 70.078,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 2.877,
+            "rssSumMiB": 70.078,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 3.926,
+            "rssSumMiB": 70.578,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 4.963,
+            "rssSumMiB": 71.281,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 5.988,
+            "rssSumMiB": 71.281,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 7.026,
+            "rssSumMiB": 71.359,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 8.07,
+            "rssSumMiB": 57.047,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 9.105,
+            "rssSumMiB": 56.688,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 10.144,
+            "rssSumMiB": 59.109,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 11.169,
+            "rssSumMiB": 59.516,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 12.209,
+            "rssSumMiB": 59.516,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 13.258,
+            "rssSumMiB": 59.969,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 14.315,
+            "rssSumMiB": 59.984,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 15.348,
+            "rssSumMiB": 60.078,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 16.395,
+            "rssSumMiB": 60.906,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 17.448,
+            "rssSumMiB": 61.0,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 18.477,
+            "rssSumMiB": 50.734,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 19.507,
+            "rssSumMiB": 56.25,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 20.542,
+            "rssSumMiB": 53.891,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 21.575,
+            "rssSumMiB": 60.453,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 22.667,
+            "rssSumMiB": 61.453,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 23.701,
+            "rssSumMiB": 61.453,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 24.734,
+            "rssSumMiB": 61.812,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 25.777,
+            "rssSumMiB": 61.266,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 26.812,
+            "rssSumMiB": 61.312,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 27.851,
+            "rssSumMiB": 61.656,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 28.89,
+            "rssSumMiB": 62.812,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 29.948,
+            "rssSumMiB": 62.641,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 30.991,
+            "rssSumMiB": 62.922,
+            "processCount": 3
+          }
+        ]
+      },
+      "after": {
+        "windowDurationSeconds": 31.56,
+        "sampleCount": 31,
+        "median": 77.156,
+        "p95NearestRank": 79.547,
+        "maximum": 79.672,
+        "unit": "MiB",
+        "samples": [
+          {
+            "secondsSinceFirstModelRequest": 0.273,
+            "rssSumMiB": 78.0,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 1.315,
+            "rssSumMiB": 78.0,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 2.357,
+            "rssSumMiB": 79.547,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 3.39,
+            "rssSumMiB": 77.406,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 4.432,
+            "rssSumMiB": 77.406,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 5.49,
+            "rssSumMiB": 73.797,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 6.544,
+            "rssSumMiB": 77.812,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 7.588,
+            "rssSumMiB": 78.078,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 8.633,
+            "rssSumMiB": 78.344,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 9.671,
+            "rssSumMiB": 75.312,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 10.699,
+            "rssSumMiB": 78.578,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 11.753,
+            "rssSumMiB": 78.844,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 12.807,
+            "rssSumMiB": 78.859,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 13.861,
+            "rssSumMiB": 79.344,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 14.906,
+            "rssSumMiB": 79.484,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 15.943,
+            "rssSumMiB": 79.484,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 16.983,
+            "rssSumMiB": 79.672,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 18.035,
+            "rssSumMiB": 77.016,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 19.076,
+            "rssSumMiB": 76.438,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 20.132,
+            "rssSumMiB": 76.641,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 21.179,
+            "rssSumMiB": 76.719,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 22.207,
+            "rssSumMiB": 76.703,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 23.234,
+            "rssSumMiB": 76.766,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 24.256,
+            "rssSumMiB": 77.156,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 25.296,
+            "rssSumMiB": 77.016,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 26.336,
+            "rssSumMiB": 76.938,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 27.374,
+            "rssSumMiB": 64.938,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 28.414,
+            "rssSumMiB": 64.531,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 29.444,
+            "rssSumMiB": 65.266,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 30.487,
+            "rssSumMiB": 65.531,
+            "processCount": 3
+          },
+          {
+            "secondsSinceFirstModelRequest": 31.534,
+            "rssSumMiB": 65.516,
+            "processCount": 3
+          }
+        ]
+      }
+    },
+    "integrityAfter": {
+      "status": "completed",
+      "read_results_verified": 600,
+      "tool_result_count": 601,
+      "report_matches": true,
+      "model_steps": 32
+    },
+    "writeEvidence": {
+      "reportExists": true,
+      "reportMatchesExpected": true
+    },
+    "savedDraftBrowserVisits": {
+      "before": {
+        "draftVisits": 30,
+        "textBytesPerDraft": 131072,
+        "allDraftsRestoredAtExpectedLength": true,
+        "beforeVisitHeapBytes": {
+          "backingStorageSize": 1083842,
+          "embedderHeapUsedSize": 27670400,
+          "totalSize": 37978112,
+          "usedSize": 30788876
+        },
+        "immediateAfterVisitHeapBytes": {
+          "backingStorageSize": 1052637,
+          "embedderHeapUsedSize": 16517960,
+          "totalSize": 51970048,
+          "usedSize": 39478660
+        },
+        "method": "Actual React client, 30 saved 128KiB drafts visited; unforced CDP heap readings."
+      },
+      "afterFinalFix": {
+        "draftVisits": 30,
+        "textBytesPerDraft": 131072,
+        "allDraftsRestoredAtExpectedLength": true,
+        "beforeVisitHeapBytes": {
+          "backingStorageSize": 1911806,
+          "embedderHeapUsedSize": 4727744,
+          "totalSize": 23527424,
+          "usedSize": 18756776
+        },
+        "immediateAfterVisitHeapBytes": {
+          "backingStorageSize": 2407041,
+          "embedderHeapUsedSize": 144730744,
+          "totalSize": 79659008,
+          "usedSize": 58089028
+        },
+        "method": "Actual React client after route-gap fix, 30 saved 128KiB drafts visited; unforced CDP heap readings.",
+        "followUpObservation": {
+          "provenance": "Later observation recorded by the integration operator; not part of the immediate sample file.",
+          "forcedGC": false,
+          "elapsedSeconds": null,
+          "heapBytes": {
+            "usedSize": 28219492,
+            "embedderHeapUsedSize": 3321432
+          }
+        }
+      }
+    },
+    "safetyValidation": {
+      "delayedUploadSeconds": 3,
+      "navigateToSettingsWhileUploading": true,
+      "refreshPreservedPage": true,
+      "draftRetrySaved": true,
+      "textPreserved": true,
+      "attachmentPersisted": true,
+      "remoteDraftRestoredWithoutConflict": true,
+      "latestBuildCompletedTaskCards": 20,
+      "latestBuildUnsavedFollowupRestored": true
+    },
+    "finalBuildSpotCheck": {
+      "mountedToolCards": 20,
+      "unsavedFollowupRestored": true,
+      "unsavedFollowupSaved": true,
+      "domElements": 588,
+      "provenance": "Final build observation recorded by the integration operator.",
+      "comparisonLimit": "Thirty later draft sessions were added to the sidebar; 588 is not directly comparable with the earlier baseline DOM total."
+    }
+  },
+  "interpretation": [
+    "The 20 input samples measure input-event handling through two animation frames. Median changed from 34.75 to 36.05 ms and P95 from 40.9 to 42.7 ms; this does not demonstrate faster typing.",
+    "Backend RSS during the first 400 reads increased: median 61.258 to 77.156 MiB and peak 71.359 to 79.672 MiB. Do not claim lower whole-app or whole-device memory.",
+    "Completed-page JavaScript heap changed from 31094524 to 21119688 bytes at one unforced-GC observation per build. This is a point measurement, not a retained-memory guarantee.",
+    "The final 30-draft browser retest had a high immediate sample: 58089028 JavaScript bytes and 144730744 embedder bytes. A later natural-GC observation was 28219492 and 3321432 bytes. The exact interval was not recorded; this is not a controlled before/after reclamation rate.",
+    "The controlled Node experiment forces GC and confirms that 200 saved draft controllers can become unreachable. It does not predict browser GC timing or OS RSS release.",
+    "The backend replay deliberately spaces batches and pauses for inspection and approval. Total wall time is not a model-speed or task-throughput benchmark.",
+    "Microbenchmark source digests identify the measured implementation. Later correctness fixes are represented separately by the current source digests and integration tests.",
+    "Only synthetic fixture measurements are included. Personal paths, process IDs, session/run IDs, credentials, raw user content, and private API validation are excluded."
+  ],
+  "validation": {
+    "provenance": "Local verification results recorded by the integration operator before commit.",
+    "testsPassed": {
+      "web": 631,
+      "desktop": 384,
+      "packagingAndReleaseScripts": 29,
+      "worker": 240
+    },
+    "checksPassed": [
+      "TypeScript typecheck",
+      "Web and desktop production build",
+      "Go formatting",
+      "go vet ./...",
+      "Go tests",
+      "Scheduler race tests (go test -race ./internal/scheduler)",
+      "End-to-end tests with the real Python worker and a local model stub",
+      "go build ./..."
+    ],
+    "regressionsCovered": [
+      "Old immutable tool snapshots and branching",
+      "Repeated tool IDs across runs and ambiguous legacy IDs",
+      "Interleaved tool/text history pagination and orphan results",
+      "Approval, completion, failure, and unsaved-follow-up retention",
+      "Idle cache invalidation, clock jumps, disabled jobs, and write failure retry",
+      "Draft readers, concurrent rendering, scope gaps, explicit operation leases, failed saves, and late uploads"
+    ],
+    "commands": [
+      {
+        "directory": ".",
+        "command": "test -z \"$(gofmt -l cmd internal)\" && go vet ./... && go test ./... && go test -race ./internal/scheduler",
+        "result": "passed"
+      },
+      {
+        "directory": ".",
+        "command": "go build ./...",
+        "result": "passed"
+      },
+      {
+        "directory": ".",
+        "command": "npm run typecheck && npm test && npm run build",
+        "result": "passed"
+      },
+      {
+        "directory": "worker",
+        "command": "uv sync && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest",
+        "result": "passed"
+      },
+      {
+        "directory": ".",
+        "command": "make e2e",
+        "result": "passed"
+      }
+    ]
+  },
+  "currentSourceSHA256": {
+    "apps/web/src/state/liveRuns.ts": "8ee84df1631d8362fb611300e5afccffe6765dcfc1c2c98514bbca1ef9fd2357",
+    "apps/web/src/pages/chat/MessageList.tsx": "cfcbab1e275e49f3268257051e520e550349fe03cad52b3e6c716018c52c81ce",
+    "apps/web/src/pages/chat/TaskProgress.tsx": "080b5fc692172fceff82fb4d7fe520e50594e220f7352e3bec3438aa28bf7b06",
+    "apps/web/src/pages/chat/ToolHistoryPage.tsx": "9d3bef8443270e04bf1aa5a4d236826d572ab8251d1eb18acd65f43773195d04",
+    "apps/web/src/pages/chat/toolResults.ts": "7b3bed7f85c9e46b90120519b5af3a4e736172892e226c8d72c55454453e98f2",
+    "apps/web/src/lib/json.ts": "ecd5a314cd0379f87fcf87c66aebd3df63eed41e76e1b1f843e46dbd6b800342",
+    "apps/web/src/state/DraftProvider.tsx": "032e00a7e64220e6d78ae0c5ef80b87e8fdeb1c0ddf2195d40d04b12441a11ed",
+    "apps/web/src/state/draftController.ts": "5e58bcaa86fc73b8b14239842098225c152dc47ba4efc2c455eebc0075f3007b",
+    "apps/web/src/state/usePersistentDraft.ts": "580018d2f7e43b8415072668e9ec56eaf93b2a0dabe4b5b411316682b1fccca2",
+    "apps/web/src/pages/chat/Composer.tsx": "63808a1797de4e90d0a2211a13eb14c1b65360417bdcc835908d9e0b55cfa239",
+    "apps/web/src/pages/chat/StartPage.tsx": "4f731c9b83dc02f46bba504b2f2d866fcf8e18328b7bcad72fab65ad0bc5f2dc",
+    "apps/web/src/pages/chat/SavedArtifactEditor.tsx": "663d551c5d1a506dda9b3b606eee145a2ba3e5af59540c686cf0c9255ef02f44",
+    "internal/scheduler/loop.go": "a17572c648977ffb3e79e2a2247e76daa6c9e3442849b4b5396ccc7d5850e754",
+    "internal/scheduler/service.go": "afbf61165c7144a44462c40ea5f1c9f09b0ab22bea031b2f8e73ea3b1f2df558",
+    "internal/scheduler/schedule.go": "b9c0dcc55f6d9719a06ec38ed1a1b5d564b7cd6e6931e6e551669b5522c9c608",
+    "tests/benchmarks/tool-history.mjs": "5f3a48189dc9de876c4ab2d00af4056aca094714b8d00508a73a58f199fffeec",
+    "tests/benchmarks/draft-reclaim.mjs": "0b6e93e4496924e6b608b298a36b4791eac36e545cc18921bad3c46c637fd6b6",
+    "tests/benchmarks/long_task_fixture.py": "c55516d7a2739ec4816fd64f52cc63c0ac21997c9e064f1363b32b97fac15211",
+    "internal/scheduler/idle_benchmark_test.go": "70596fdb812ba62194ea5a747d4757a914534ff8fcac54fdf45ffa8420120df6"
+  }
+}

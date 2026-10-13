@@ -82,6 +82,7 @@ export function StartPage({ enhancementEnabled = false, agents, sessions, loadin
     setChosenAgent(agentId);
     setInProgress(true);
     setSubmissionError(null);
+    const releaseDraft = persistent.retainOperation();
     let draftToken = persistent.capture();
     try {
       try { draftToken = await persistent.saveNow(); } catch (error) { if (ApiError.is(error, "conflict")) return; }
@@ -95,6 +96,7 @@ export function StartPage({ enhancementEnabled = false, agents, sessions, loadin
       // 任一阶段失败都保留正文和 File 对象，重试仍由宿主决定是否复用已建会话。
       setSubmissionError(err);
     } finally {
+      releaseDraft();
       submitting.current = false;
       setInProgress(false);
     }

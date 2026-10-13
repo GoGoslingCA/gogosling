@@ -126,6 +126,18 @@ const maxMissedScan = 1000
 //
 // 结果为 0 表示 due 只是迟到了不到一个周期；大于 0 表示错过超过一个周期，应适用 MissedPolicy。
 func (s *Schedule) missedBetween(due, now time.Time) int {
+	if fixed, ok := s.sched.(cron.ConstantDelaySchedule); s.interval && ok && fixed.Delay > 0 && fixed.Delay%time.Second == 0 {
+		// Next 会去掉 due 的亚秒部分，必须先沿用它求出第一个时间点，再对整秒间隔计数。
+		first := s.Next(due)
+		if first.IsZero() || first.After(now) {
+			return 0
+		}
+		elapsed := now.Sub(first)
+		// time.Sub 超过约 292 年会饱和；这种极端时间范围仍用原来的有界推演，避免少计。
+		if elapsed < time.Duration(1<<63-1) {
+			return 1 + int(min(elapsed/fixed.Delay, time.Duration(maxMissedScan-1)))
+		}
+	}
 	count := 0
 	t := due
 	for count < maxMissedScan {

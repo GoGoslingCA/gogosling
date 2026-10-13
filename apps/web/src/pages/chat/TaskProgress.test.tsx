@@ -93,6 +93,20 @@ describe("任务进度使用真实运行证据", () => {
     expect(container.querySelector("li")?.textContent).not.toContain("chat.toolDone");
   });
 
+  it("运行重用工具 ID 时保留两步，不让旧轮次成功覆盖当前审批", async () => {
+    props.messages = [
+      { ...message("old-call", "assistant", [{ type: "tool_call", tool_call: toolCall }]), run_id: "old" },
+      { ...message("old-result", "tool", [{ type: "tool_result", tool_result: { call_id: toolCall.id, content: "old" } }]), run_id: "old" },
+    ];
+    props.activeRunId = "run-new"; props.activeStatus = "awaiting_approval";
+    props.liveRuns = [live("awaiting_approval", [{ call: toolCall, startedAt: "2026-10-12T01:00:00Z" }])];
+    await render();
+    const steps = container.querySelectorAll("li");
+    expect(steps).toHaveLength(2);
+    expect(steps[0]!.getAttribute("data-state")).toBe("done");
+    expect(steps[1]!.getAttribute("data-state")).toBe("approval");
+  });
+
   it("旧轮次未清理的实时失败状态不能覆盖后来已落库的新轮次完成", async () => {
     props.latestRunId = "run-later";
     props.latestStatus = "completed";
@@ -124,12 +138,54 @@ describe("任务进度使用真实运行证据", () => {
     props.liveRuns = [live("completed", Array.from({ length: 6 }, (_, index) => ({ call: { ...toolCall, id: `call-${index}`, name: `tool-${index}` }, result: { call_id: `call-${index}`, content: "真实结果" }, startedAt: "2026-10-12T01:00:00Z" })))];
     await render();
     expect(container.querySelectorAll(".execution-trail li")).toHaveLength(4);
-    expect(container.querySelectorAll(".execution-history li")).toHaveLength(2);
+    expect(container.querySelectorAll(".execution-history li")).toHaveLength(0);
     expect(container.querySelector(".execution-trail")?.textContent).not.toContain("tool-0");
     expect(container.querySelector(".execution-trail")?.textContent).toContain("tool-5");
     expect(container.querySelector<HTMLDetailsElement>(".progress-details")!.open).toBe(false);
     expect(container.querySelector(".task-goal")?.textContent).toContain("完整目标\n以及必须保留的约束");
     expect(container.querySelector('[role="progressbar"]')).toBeNull();
     expect(container.textContent).not.toContain("%");
+    const history = container.querySelector<HTMLDetailsElement>(".progress-details")!;
+    await act(async () => { history.open = true; history.dispatchEvent(new Event("toggle")); });
+    expect(container.querySelectorAll(".execution-history li")).toHaveLength(2);
+    expect(container.querySelector(".execution-history")?.textContent).toContain("tool-0");
+  });
+
+  it("长历史关闭时只挂载四步，展开按页可访问全部记录，关闭后释放历史节点", async () => {
+    props.liveRuns = [live("completed", Array.from({ length: 125 }, (_, index) => ({ call: { ...toolCall, id: `call-${index}`, name: `tool-${index}` }, result: { call_id: `call-${index}`, content: "result" }, startedAt: "2026-10-12T01:00:00Z" })))];
+    await render();
+    expect(container.querySelectorAll("li")).toHaveLength(4);
+    const history = container.querySelector<HTMLDetailsElement>(".progress-details")!;
+    await act(async () => { history.open = true; history.dispatchEvent(new Event("toggle")); });
+    expect(container.querySelectorAll(".execution-history li")).toHaveLength(40);
+    expect(container.querySelector(".execution-history")?.textContent).toContain("tool-0");
+    for (let page = 0; page < 3; page++) await act(async () => Array.from(container.querySelectorAll<HTMLButtonElement>(".tool-history-pages button")).find(button => button.textContent === "compact.nextSteps")!.click());
+    expect(container.querySelectorAll(".execution-history li")).toHaveLength(1);
+    expect(container.querySelector(".execution-history")?.textContent).toContain("tool-120");
+    await act(async () => { history.open = false; history.dispatchEvent(new Event("toggle")); });
+    expect(container.querySelectorAll("li")).toHaveLength(4);
+  });
+
+  it("纯文本增量不重读工具历史，审批变化即时显示且重试使用最新动作", async () => {
+    let toolReads = 0;
+    const entry = { call: { ...toolCall, get name() { toolReads++; return "read_file"; } }, startedAt: "2026-10-12T01:00:00Z" };
+    props.activeRunId = "run-new"; props.activeStatus = "running";
+    props.liveRuns = [live("running", [entry])];
+    await render(); toolReads = 0;
+    const retry = vi.fn();
+    for (let index = 0; index < 20; index++) {
+      props.liveRuns = [{ ...props.liveRuns[0]!, text: `${index}`, lastSeq: index + 21 }];
+      props.onRetry = retry;
+      await render();
+    }
+    expect(toolReads).toBe(0);
+    props.activeStatus = "awaiting_approval";
+    await render();
+    expect(status()).toContain("work.state_awaiting_approval");
+    expect(container.querySelector("li")?.getAttribute("data-state")).toBe("approval");
+    props.activeStatus = "failed";
+    await render();
+    await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+    expect(retry).toHaveBeenCalledOnce();
   });
 });
