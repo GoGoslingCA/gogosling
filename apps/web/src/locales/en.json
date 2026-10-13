@@ -622,7 +622,11 @@
     "unassigned": "No project",
     "invalidSelection": "Some selected materials are unavailable. Remove those references before starting; your draft text is retained.",
     "removeUnavailable": "Remove unavailable material {{n}}",
-    "archivedStart": "This project is archived. Restore it to start a new task here. Existing tasks can still continue."
+    "archivedStart": "This project is archived. Restore it to start a new task here. Existing tasks can still continue.",
+    "toggleTasks": "Expand or collapse tasks in {{name}}",
+    "retryLoading": "Reload",
+    "noEnabledAgent": "Enable an agent in Settings to create a project.",
+    "retryAgents": "Reload agents"
   },
   "versions": {
     "editor": "Saved result editor",

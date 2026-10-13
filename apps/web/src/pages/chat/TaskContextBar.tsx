@@ -41,6 +41,6 @@ export function TaskContextBar({ agent, messages, onAddMaterial, disabled, usage
         {materials.length ? <><p><strong>{t("phase2.taskMaterials",{n:materials.length})}</strong></p>{materials.map(attachment=><button type="button" disabled={disabled} className="context-material" key={attachment.path} onClick={()=>{onAddMaterial(attachment);setOpen(null);}}><span>{attachment.name}</span><Icon name="plus" size={14}/></button>)}</> : null}
       </ContextItem> : null}
     </> : null}
-    {part !== "context" ? <ContextItem {...shared} id="model" label={`${t("phase2.modelForTask")}: ${agent.model.model}`} title={agent.name} trigger={<><Icon name="spark" size={14}/><span className="context-model">{agent.model.model}</span><Icon name="chevron" size={11}/></>}><strong>{agent.name}</strong><p>{agent.model.model}</p><p className="muted">{t("phase2.agentModelHint")}</p><Link to="/agents" onClick={()=>setOpen(null)}>{t("preferences.manageAgents")}</Link></ContextItem> : null}
+    {part !== "context" ? <ContextItem {...shared} id="model" label={`${t("phase2.modelForTask")}: ${agent.model.model}`} title={agent.name} trigger={<><Icon name="chip" size={18}/><span className="context-model">{agent.model.model}</span><Icon name="chevron" size={11}/></>}><strong>{agent.name}</strong><p>{agent.model.model}</p><p className="muted">{t("phase2.agentModelHint")}</p><Link to="/agents" onClick={()=>setOpen(null)}>{t("preferences.manageAgents")}</Link></ContextItem> : null}
   </div>;
 }

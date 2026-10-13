@@ -622,7 +622,11 @@
     "unassigned": "Aucun projet",
     "invalidSelection": "Certains documents sélectionnés sont indisponibles. Retirez ces références avant de démarrer ; le texte de votre brouillon est conservé.",
     "removeUnavailable": "Retirer le document indisponible {{n}}",
-    "archivedStart": "Ce projet est archivé. Restaurez-le pour démarrer une nouvelle tâche ici. Les tâches existantes peuvent encore continuer."
+    "archivedStart": "Ce projet est archivé. Restaurez-le pour démarrer une nouvelle tâche ici. Les tâches existantes peuvent encore continuer.",
+    "toggleTasks": "Développer ou réduire les tâches de {{name}}",
+    "retryLoading": "Recharger",
+    "noEnabledAgent": "Activez un assistant dans les paramètres pour créer un projet.",
+    "retryAgents": "Recharger les assistants"
   },
   "versions": {
     "editor": "Éditeur du résultat enregistré",

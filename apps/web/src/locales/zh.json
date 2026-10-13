@@ -622,7 +622,11 @@
     "unassigned": "未归入项目",
     "invalidSelection": "部分已选资料已不可用。请先移除这些引用，再开始任务；正文草稿仍会保留。",
     "removeUnavailable": "移除不可用资料 {{n}}",
-    "archivedStart": "项目已归档。恢复项目后可在这里开始新任务，已有任务仍可继续。"
+    "archivedStart": "项目已归档。恢复项目后可在这里开始新任务，已有任务仍可继续。",
+    "toggleTasks": "展开或收起 {{name}} 的任务",
+    "retryLoading": "重新加载",
+    "noEnabledAgent": "请先在设置中启用一个助手，再创建项目。",
+    "retryAgents": "重新加载助手"
   },
   "versions": {
     "editor": "已保存成果编辑器",

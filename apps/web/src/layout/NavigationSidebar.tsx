@@ -14,6 +14,7 @@ import { readUiPreferences, writeUiPreferences } from "../lib/uiPreferences";
 import { useWorkbenchCapabilities } from "../state/useWorkbenchCapabilities";
 import type { Session, VersionInfo } from "../api/types";
 import { AvatarSettingsMenu } from "./AvatarSettingsMenu";
+import { SidebarProjects } from "./SidebarProjects";
 
 export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => void; modifier: string }) {
   const { t } = useTranslation();
@@ -32,6 +33,9 @@ export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => 
   const menuRef = useRef<HTMLDivElement>(null);
   const menuTrigger = useRef<HTMLElement | null>(null);
   const recent = useQuery({ queryKey: [...queryKeys.sessionsRoot, "sidebar"], queryFn: () => api.sessions.list({ status: "active", limit: 12 }) });
+  const currentSessionId = /^\/chat\/([^/]+)$/.exec(location.pathname)?.[1];
+  const currentSession = useQuery({ queryKey: queryKeys.session(currentSessionId ?? ""), queryFn: () => api.sessions.get(currentSessionId!), enabled: caps.projects && !!currentSessionId, staleTime: 30_000 });
+  const activeProjectId = location.pathname.startsWith("/projects/") ? location.pathname.split("/")[2] : new URLSearchParams(location.search).get("project") ?? (currentSession.data ? currentSession.data.project_id : recent.data?.find(session => session.id === currentSessionId)?.project_id);
   const pinQueries = useQueries({ queries: prefs.pinnedSessionIds.map((id) => ({ queryKey: queryKeys.session(id), queryFn: () => api.sessions.get(id), retry: false })) });
   const pinned = pinQueries.flatMap((query, index) => {
     const session = query.data ?? recent.data?.find((item) => item.id === prefs.pinnedSessionIds[index]);
@@ -73,7 +77,6 @@ export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => 
     <nav className="app-nav" aria-label={t("nav.label")}>
       <button type="button" className="btn primary new-task" onClick={() => void navigate("/chat")}><Icon name="plus" />{t("work.newTask")}<kbd>{modifier} N</kbd></button>
       <button className="nav-search" onClick={openSearch}><Icon name="search" />{t("work.searchTasks")}<kbd>{modifier} K</kbd></button>
-      {caps.projects ? <NavLink to="/projects"><Icon name="folder" />{t("projects.title")}</NavLink> : null}
       <NavLink to="/jobs"><Icon name="clock" />{t("nav.jobs")}</NavLink>
       <section className="nav-task-section" aria-label={t("phase2.recentTasks")}>
         <div className="nav-section-head"><button aria-expanded={prefs.taskListVisible} onClick={() => update({ taskListVisible: !prefs.taskListVisible })}><Icon name="chevron" size={13} />{t("phase2.recentTasks")}</button><button className="btn ghost sm" onClick={openSearch}>{t("phase2.all")}</button></div>
@@ -85,6 +88,7 @@ export function NavigationSidebar({ openSearch, modifier }: { openSearch: () => 
           {!recent.isPending && !recent.error && !pinned.length && !unpinned.length ? <p className="nav-task-empty">{t("phase2.noTasks")}</p> : null}
         </div> : null}
       </section>
+      {caps.projects ? <SidebarProjects activeProjectId={activeProjectId} onTaskMenu={showMenu} /> : null}
       <div className="nav-bottom"><AvatarSettingsMenu open={avatarOpen} onOpenChange={changeAvatarOpen} resourcesAvailable={!caps.error && client.getQueryData<VersionInfo>(queryKeys.version)?.capabilities?.["runtime.resources"] === 1} /></div>
     </nav>
     {menu ? createPortal(<div ref={menuRef} className="session-context-menu" role="menu" style={{ left: menu.x, top: menu.y }} aria-label={t("work.taskActions")} onKeyDown={(event) => {

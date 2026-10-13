@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
@@ -53,7 +53,7 @@ function fixture() {
   };
 }
 
-function LocationProbe() { const location = useLocation(); return <output aria-label="测试路由">{location.pathname}{location.search}</output>; }
+function LocationProbe() { const location = useLocation(); return <><output aria-label="测试路由">{location.pathname}{location.search}</output><Link to="/projects/project-a?view=tasks" aria-label="测试任务标签">query-navigation</Link></>; }
 function SessionControlFixture() {
   const current = useQuery({ queryKey: queryKeys.session(originalSession.id), queryFn: () => api.sessions.get(originalSession.id) });
   return current.data ? <><SessionProjectControl session={current.data} running={false} /><output aria-label="当前会话">{JSON.stringify(current.data)}</output></> : null;
@@ -165,6 +165,18 @@ describe("ProjectsPage 项目资料数据流程", () => {
     expect(scopeDetails.open).toBe(false);
     expect(scopeDetails.textContent).toContain("projects.scopeHint");
     expect(scopeDetails.textContent).toContain(agentA.workspace_dir);
+  });
+
+  it("项目任务深链接直接展示任务列表，并随同一项目的查询参数变化", async () => {
+    await mount("/projects/project-a?view=tasks");
+    await ready(() => expect(button("projects.tasks").getAttribute("aria-selected")).toBe("true"));
+    expect(host.querySelector(`a[href='/chat/${originalSession.id}']`)).not.toBeNull();
+    await act(async () => button("projects.materials").click());
+    expect(button("projects.materials").getAttribute("aria-selected")).toBe("true");
+    expect(currentRoute()).toBe("/projects/project-a");
+    await act(async () => host.querySelector<HTMLAnchorElement>('a[aria-label="测试任务标签"]')!.click());
+    expect(button("projects.tasks").getAttribute("aria-selected")).toBe("true");
+    expect(currentRoute()).toBe("/projects/project-a?view=tasks");
   });
 });
 

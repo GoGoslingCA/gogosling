@@ -3,18 +3,19 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Session, SessionPatchInput } from "../api/types";
+import type { Project, Session, SessionPatchInput } from "../api/types";
 import { readUiPreferences } from "../lib/uiPreferences";
 import { queryKeys } from "../state/queryKeys";
 import { NavigationSidebar } from "./NavigationSidebar";
 
-const { list, get, update, toast, version } = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), update: vi.fn(), toast: vi.fn(), version: vi.fn() }));
-vi.mock("../state/ConnectionContext", () => ({ useApi: () => ({ sessions: { list, get, update }, system: { version } }) }));
+const { list, get, update, listProjects, toast, version } = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), update: vi.fn(), listProjects: vi.fn(), toast: vi.fn(), version: vi.fn() }));
+vi.mock("../state/ConnectionContext", () => ({ useApi: () => ({ sessions: { list, get, update }, system: { version }, workbench: { listProjects } }) }));
 vi.mock("../components/Toast", () => ({ useToast: () => ({ show: toast }) }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string, values?: { title?: string; version?: string }) => values?.title ? `${key}: ${values.title}` : values?.version ? `版本：${values.version}` : key }) }));
 
 const SESSION_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const OTHER_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
+const PROJECT_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAA";
 const STORAGE_KEY = "gogosling.ui.v1";
 const dialogMethods = { showModal: Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "showModal"), close: Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "close") };
 let root: Root;
@@ -68,7 +69,8 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
   sessions = new Map([[SESSION_ID, session()], [OTHER_ID, session(OTHER_ID, "检查代码修改")]]);
-  list.mockReset().mockImplementation(async () => [...sessions.values()].filter((value) => value.status === "active"));
+  list.mockReset().mockImplementation(async (query?: { project_id?: string }) => [...sessions.values()].filter((value) => value.status === "active" && (!query?.project_id || value.project_id === query.project_id)));
+  listProjects.mockReset().mockResolvedValue([]);
   get.mockReset().mockImplementation(async (id: string) => sessions.get(id));
   update.mockReset().mockImplementation(async (id: string, patch: SessionPatchInput) => {
     const current = sessions.get(id);
@@ -102,6 +104,14 @@ afterEach(async () => {
 });
 
 describe("NavigationSidebar 兼容原入口与设备偏好", () => {
+  it("旧版本不显示项目区或请求项目接口，近期任务继续可用", async () => {
+    await render();
+    expect(host.querySelector("section[aria-label='projects.title']")).toBeNull();
+    expect(host.querySelector("a[href='/projects']")).toBeNull();
+    expect(listProjects).not.toHaveBeenCalled();
+    expect(taskLink()).not.toBeNull();
+  });
+
   it("主导航聚焦任务，管理能力统一收进设置，旧偏好可读取", async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ appearance: "dark", artifactWidth: 540, toolsExpanded: true }));
     await render();
@@ -125,7 +135,7 @@ describe("NavigationSidebar 兼容原入口与设备偏好", () => {
     expect(readUiPreferences().pinnedSessionIds).toEqual([SESSION_ID]);
     const storedText = localStorage.getItem(STORAGE_KEY)!;
     const stored = JSON.parse(storedText) as Record<string, unknown>;
-    expect(Object.keys(stored).sort()).toEqual(["appearance", "artifactWidth", "pinnedSessionIds", "taskListVisible", "toolsExpanded", "lastSessionId", "lastArtifactId"].sort());
+    expect(Object.keys(stored).sort()).toEqual(["appearance", "artifactWidth", "pinnedSessionIds", "taskListVisible", "projectListVisible", "expandedProjectId", "toolsExpanded", "lastSessionId", "lastArtifactId"].sort());
     expect(storedText).not.toContain("准备产品需求文档");
     expect(storedText).not.toContain(`session:${SESSION_ID}`);
     expect(get).toHaveBeenCalledWith(SESSION_ID);
@@ -152,6 +162,40 @@ describe("NavigationSidebar 兼容原入口与设备偏好", () => {
 });
 
 describe("NavigationSidebar 任务操作", () => {
+  it("项目下的任务复用重命名和归档，同时刷新近期任务与项目列表", async () => {
+    const project: Project = { id: PROJECT_ID, name: "产品计划", agent_id: "agent-a", status: "active", version: 1, created_at: "2026-10-13T00:00:00Z", updated_at: "2026-10-13T00:00:00Z" };
+    sessions.set(SESSION_ID, { ...session(), project_id: PROJECT_ID });
+    version.mockResolvedValue({ version: "test", capabilities: { "workbench.projects": 1 } });
+    listProjects.mockResolvedValue([project]);
+    await render();
+    const projectSection = host.querySelector("section[aria-label='projects.title']")!;
+    const projectTask = () => projectSection.querySelector<HTMLAnchorElement>(`a[href='/chat/${SESSION_ID}']`);
+    await vi.waitFor(async () => { await settle(); expect(projectTask()?.textContent).toContain("准备产品需求文档"); });
+    const openProjectMenu = async () => {
+      const trigger = projectTask()?.parentElement?.querySelector<HTMLButtonElement>("button");
+      if (!trigger) throw new Error("未找到项目任务菜单");
+      await act(async () => trigger.click());
+    };
+    await openProjectMenu();
+    await act(async () => button("chat.rename").click());
+    const input = host.querySelector<HTMLInputElement>("#sidebar-task-name")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "更新后的项目任务");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => button("common.save").click());
+    await vi.waitFor(async () => { await settle(); expect(projectTask()?.textContent).toContain("更新后的项目任务"); });
+    expect(taskLink()?.textContent).toContain("更新后的项目任务");
+    expect(sessions.get(SESSION_ID)?.project_id).toBe(PROJECT_ID);
+    expect(client.getQueryData<Session[]>([...queryKeys.sessionsRoot, "sidebar-project", PROJECT_ID])?.[0]?.title).toBe("更新后的项目任务");
+    await openProjectMenu();
+    await act(async () => button("chat.archive").click());
+    await vi.waitFor(async () => { await settle(); expect(projectTask()).toBeNull(); });
+    expect(taskLink()).toBeNull();
+    expect(sessions.get(SESSION_ID)).toMatchObject({ status: "archived", project_id: PROJECT_ID });
+    expect(update).toHaveBeenLastCalledWith(SESSION_ID, { title: undefined, status: "archived" });
+  });
+
   it("菜单重命名更新同一任务并刷新名称，不改变会话状态", async () => {
     await render();
     await openMenu();

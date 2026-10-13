@@ -79,7 +79,7 @@ describe("ChatPage 成果入口兼容与打开目标", () => {
     // 最后打开位置是UI偏好，允许只存资源ID；正文不能因此落入浏览器存储。
     for (const [key, value] of writes.mock.calls) {
       expect(key).toBe("gogosling.ui.v1");
-      expect(Object.keys(JSON.parse(String(value))).sort()).toEqual(["appearance", "artifactWidth", "pinnedSessionIds", "taskListVisible", "toolsExpanded", "lastSessionId", "lastArtifactId"].sort());
+      expect(Object.keys(JSON.parse(String(value))).sort()).toEqual(["appearance", "artifactWidth", "pinnedSessionIds", "taskListVisible", "projectListVisible", "expandedProjectId", "toolsExpanded", "lastSessionId", "lastArtifactId"].sort());
       expect(String(value)).not.toContain("历史回复A"); expect(String(value)).not.toContain("需要编辑的原稿");
     }
   });

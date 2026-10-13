@@ -58,7 +58,7 @@ export function PromptEnhancementControls(props: PromptEnhancementProps) {
   }, [props.revision, props.scope, props.agentId, props.disabled]);
   const close = () => { cancel(); setAdjusting(false); props.onFocus(); };
   return <>
-    <button type="button" className="btn ghost sm prompt-enhance-button" disabled={props.disabled || !props.value.trim() || busy} title={t(busy ? "enhance.loading" : "enhance.action")} aria-label={t(busy ? "enhance.loading" : "enhance.action")} onClick={() => run()}><Icon name="spark" size={17}/><span className={busy ? undefined : "sr-only"}>{t(busy ? "enhance.loading" : "enhance.action")}</span></button>
+    <button type="button" className="btn ghost sm prompt-enhance-button" disabled={props.disabled || !props.value.trim() || busy} title={t(busy ? "enhance.loading" : "enhance.action")} aria-label={t(busy ? "enhance.loading" : "enhance.action")} onClick={() => run()}><Icon name="improve" size={18}/><span className={busy ? undefined : "sr-only"}>{t(busy ? "enhance.loading" : "enhance.action")}</span></button>
     {busy && !adjusting ? <button type="button" className="btn ghost sm" onClick={cancel}>{t("common.cancel")}</button> : null}
     {unchanged && !busy ? <>
       <button type="button" className="btn ghost sm" disabled={props.disabled} onClick={() => { props.onChange(applied.original); setApplied(null); props.onFocus(); }}>{t("enhance.restore")}</button>

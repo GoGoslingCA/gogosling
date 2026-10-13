@@ -35,8 +35,8 @@ export function sessionsApi(client: ApiClient) {
     ).items ?? [];
 
   return {
-    list: async (query: SessionListQuery = {}): Promise<Session[]> =>
-      (await client.get<ListResponse<Session>>(base, { query: { ...query } })).items ?? [],
+    list: async (query: SessionListQuery = {}, signal?: AbortSignal): Promise<Session[]> =>
+      (await client.get<ListResponse<Session>>(base, { query: { ...query }, signal })).items ?? [],
     get: (id: string): Promise<Session> => client.get<Session>(`${base}/${encodeURIComponent(id)}`),
     create: (input: SessionCreateInput): Promise<Session> => client.post<Session>(base, input),
     update: (id: string, input: SessionPatchInput): Promise<Session> => client.patch<Session>(`${base}/${encodeURIComponent(id)}`, input),

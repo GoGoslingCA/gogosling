@@ -37,6 +37,14 @@ const ContentPreview = lazy(() => import("../../content/ContentPreview").then(m 
 const FileBrowser = lazy(() => import("../../content/FileBrowser").then(m => ({default:m.FileBrowser})));
 
 export function ChatPage() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const [search] = useSearchParams();
+  // 新建任务的文件、重试进度与检查点归属当前项目；切换项目后使用独立生命周期。
+  // 已有会话仍复用工作区，保留既有会话切换与成果编辑保护流程。
+  return <ChatWorkspace key={sessionId ? "conversation" : `start:${search.get("project") ?? ""}`} />;
+}
+
+function ChatWorkspace() {
   const { t } = useTranslation();
   const api = useApi();
   const caps = useWorkbenchCapabilities();
@@ -94,7 +102,11 @@ export function ChatPage() {
   const searchInput = useRef<HTMLInputElement>(null);
   const resizeStart = useRef<{ x: number; width: number } | null>(null);
 
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => !allowStartNavigation.current && ((artifactDirty && currentLocation.pathname !== nextLocation.pathname) || (homeDirty && currentLocation.pathname !== nextLocation.pathname) || (composerDirty && !nextLocation.pathname.startsWith("/chat"))));
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    const pathChanged = currentLocation.pathname !== nextLocation.pathname;
+    const startScopeChanged = !sessionId && (new URLSearchParams(currentLocation.search).get("project") ?? "") !== (new URLSearchParams(nextLocation.search).get("project") ?? "");
+    return !allowStartNavigation.current && ((artifactDirty && pathChanged) || (homeDirty && (pathChanged || startScopeChanged)) || (composerDirty && !nextLocation.pathname.startsWith("/chat")));
+  });
   useEffect(() => {
     if (blocker.state === "blocked") {
       if (window.confirm(t(artifactDirty ? "work.leaveUnsaved" : "work.leaveDraft"))) { setArtifactDirty(false); blocker.proceed(); }

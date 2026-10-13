@@ -19,7 +19,7 @@ export function workbenchApi(client: ApiClient) {
     undoChange: (c: ChangeSet): Promise<ChangeSet> => client.post(`/api/v1/changesets/${encodeURIComponent(c.id)}/undo-preview`, { expected_version: c.version }),
     cancelChange: (c: ChangeSet): Promise<ChangeSet> => client.post(`/api/v1/changesets/${encodeURIComponent(c.id)}/cancel`, { expected_version: c.version }),
     reconcileChange: (c: ChangeSet): Promise<ChangeSet> => client.post(`/api/v1/changesets/${encodeURIComponent(c.id)}/reconcile`, { expected_version: c.version }),
-    listProjects: async (query: PageQuery & { agent_id?: string; status?: Project["status"] } = {}): Promise<Project[]> => (await client.get<ListResponse<Project>>("/api/v1/projects", { query: { ...query } })).items ?? [],
+    listProjects: async (query: PageQuery & { agent_id?: string; status?: Project["status"] } = {}, signal?: AbortSignal): Promise<Project[]> => (await client.get<ListResponse<Project>>("/api/v1/projects", { query: { ...query }, signal })).items ?? [],
     getProject: (id: string): Promise<Project> => client.get(project(id)),
     createProject: (input: ProjectInput): Promise<Project> => client.post("/api/v1/projects", input),
     updateProject: (id: string, input: ProjectPatch): Promise<Project> => client.patch(project(id), input),

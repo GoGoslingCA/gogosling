@@ -1,12 +1,13 @@
 // 项目只组织同一助手的任务与资料；文件访问边界仍由守护进程决定。
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useApi } from "../state/ConnectionContext";
 import { useWorkbenchCapabilities } from "../state/useWorkbenchCapabilities";
 import { queryKeys } from "../state/queryKeys";
-import { Dialog, ErrorBanner, Spinner } from "../components/ui";
+import { ErrorBanner, Spinner } from "../components/ui";
+import { CreateProjectDialog, ProjectForm } from "../components/ProjectForm";
 import { Icon } from "../components/Icon";
 import { useToast } from "../components/Toast";
 import { describeError } from "../lib/errorMessage";
@@ -23,7 +24,14 @@ export function ProjectsPage() {
  useEffect(() => {setPreviewPath(null);},[projectId]);
   const [archived, setArchived] = useState(false); const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
-  const [tab, setTab] = useState<"materials" | "tasks" | "artifacts">("materials");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("view");
+  const tab = requestedTab === "tasks" || requestedTab === "artifacts" ? requestedTab : "materials";
+  const setTab = (nextTab: "materials" | "tasks" | "artifacts") => setSearchParams((previous) => {
+    const next = new URLSearchParams(previous);
+    if (nextTab === "materials") next.delete("view"); else next.set("view", nextTab);
+    return next;
+  }, { replace: true });
   const [selection, setSelection] = useState<Record<string, string[]>>({});
   const [uploading, setUploading] = useState(false); const uploadLock = useRef(false); const fileInput = useRef<HTMLInputElement>(null);
   const agents = useQuery({ queryKey: queryKeys.agents, queryFn: () => api.agents.list() });
@@ -41,7 +49,7 @@ export function ProjectsPage() {
   ] as const;
   const refresh = () => { void client.invalidateQueries({ queryKey: queryKeys.projects }); };
   const saveProject = useMutation({
-    mutationFn: ({ agentId, name, description }: { agentId: string; name: string; description: string }) => editing ? api.workbench.updateProject(editing.id, { expected_version: editing.version, name, description }) : api.workbench.createProject({ agent_id: agentId, name, description }),
+    mutationFn: ({ project: target, name, description }: { project: Project; name: string; description: string }) => api.workbench.updateProject(target.id, { expected_version: target.version, name, description }),
     onSuccess: (saved) => { client.setQueryData(queryKeys.project(saved.id), saved); refresh(); setCreating(false); setEditing(null); void navigate(`/projects/${saved.id}`); },
     onError: (error) => toast.show(describeError(error, t), "error"),
   });
@@ -98,16 +106,6 @@ export function ProjectsPage() {
       {tab === "artifacts" ? <section role="tabpanel" id="project-panel-artifacts" aria-labelledby="project-tab-artifacts" tabIndex={0}><ErrorBanner error={artifacts.error} />{artifacts.isPending ? <Spinner /> : null}<div className="project-task-list">{artifacts.data?.map((item) => <Link key={item.id} to={`/chat/${item.session_id}?artifact=${item.id}`}><Icon name={item.kind === "code" ? "code" : "document"} /><span>{item.title}<small>{item.filename}</small></span><span className="badge">{t("projects.version", { n: item.version })}</span></Link>)}</div>{!artifacts.isPending && !artifacts.error && !artifacts.data?.length ? <p className="empty">{t("projects.noArtifacts")}</p> : null}</section> : null}
     </> : null}
     {previewPath && project.data && caps.preview ? <div className="project-preview-container"><Suspense fallback={<Spinner/>}><ContentPreview agentId={project.data.agent_id} path={previewPath} layoutAvailable={caps.previewLayout} onClose={() => setPreviewPath(null)}/></Suspense></div> : null}
-    {creating ? <ProjectForm key={editing?.id ?? "new"} project={editing} agents={agents.data ?? []} busy={saveProject.isPending} onClose={() => setCreating(false)} onSubmit={(agentId, name, description) => saveProject.mutate({ agentId, name, description })} /> : null}
+    {creating ? editing ? <ProjectForm key={editing.id} project={editing} agents={agents.data ?? []} busy={saveProject.isPending} loadingAgents={agents.isFetching} agentError={agents.error} onRetryAgents={() => { void agents.refetch(); }} onClose={() => setCreating(false)} onSubmit={(_agentId, name, description) => saveProject.mutate({ project: editing, name, description })} /> : <CreateProjectDialog onClose={() => setCreating(false)} onCreated={(saved) => { setCreating(false); void navigate(`/projects/${saved.id}`); }} /> : null}
   </div>;
-}
-
-function ProjectForm({ project, agents, busy, onClose, onSubmit }: { project: Project | null; agents: {id: string; name: string; enabled: boolean}[]; busy: boolean; onClose: () => void; onSubmit: (agentId: string, name: string, description: string) => void }) {
-  const { t } = useTranslation(); const [name, setName] = useState(project?.name ?? ""); const [description, setDescription] = useState(project?.description ?? ""); const [agentId, setAgentId] = useState(project?.agent_id ?? agents.find((agent) => agent.enabled)?.id ?? "");
-  return <Dialog open title={t(project ? "projects.edit" : "projects.create")} dismissible={!busy} onClose={onClose} footer={<><button className="btn" disabled={busy} onClick={onClose}>{t("common.cancel")}</button><button className="btn primary" disabled={!name.trim() || !agentId || busy} onClick={() => onSubmit(agentId, name.trim(), description.trim())}>{t("common.save")}</button></>}>
-    <label className="field">{t("projects.name")}<input autoFocus className="input" value={name} maxLength={120} onChange={(event) => setName(event.target.value)} /></label>
-    <label className="field">{t("projects.description")}<textarea className="textarea" value={description} maxLength={2000} onChange={(event) => setDescription(event.target.value)} /></label>
-    <label className="field">{t("chat.agent")}<select className="select" value={agentId} disabled={!!project || busy} onChange={(event) => setAgentId(event.target.value)}>{agents.filter((agent) => agent.enabled || agent.id === agentId).map((agent) => <option value={agent.id} key={agent.id}>{agent.name}</option>)}</select></label>
-    <p className="muted">{t("projects.agentHint")}</p>
-  </Dialog>;
 }
