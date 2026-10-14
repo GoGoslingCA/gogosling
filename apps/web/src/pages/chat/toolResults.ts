@@ -1,7 +1,7 @@
 // 工具 ID 仅在一次运行中唯一；旧消息缺少 run_id 时，只在归属唯一时补用已知运行。
 import type { Message, ToolCall, ToolResult } from "../../api/types";
 
-interface ToolRun { runId: string; toolCalls: readonly { call: ToolCall }[] }
+interface ToolRun { runId: string; toolCalls: Iterable<{ call: ToolCall }> }
 
 export interface ToolResultIndex {
   key: (callId: string, runId?: string) => string;

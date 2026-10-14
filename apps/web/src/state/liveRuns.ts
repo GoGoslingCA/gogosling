@@ -14,6 +14,7 @@
 
 import type { ApiEvent, ApprovalRequest, RunEvent, RunStatus, ToolCall, ToolResult, Usage } from "../api/types";
 import { isRunStreamEvent } from "../api/types";
+import { writeList, type ReadonlyList } from "./persistentList";
 
 export interface LiveToolCall {
   call: ToolCall;
@@ -31,7 +32,7 @@ export interface LiveRun {
   text: string;
   /** 已拼接的思考内容（reasoning.delta）；只在实时视图展示，不进入持久化消息。 */
   reasoning: string;
-  toolCalls: LiveToolCall[];
+  toolCalls: ReadonlyList<LiveToolCall>;
   /** 等待用户决定的审批；resolved 后清空。 */
   approval: ApprovalRequest | null;
   /** 运行中为各次模型调用增量之和；终态后为 run.completed 给出的累计值。 */
@@ -94,24 +95,25 @@ const USAGE_FIELDS = ["input_tokens", "output_tokens", "cache_read_tokens", "cac
 
 // 派生索引不持有数组或运行的强引用。更新后转移到新数组，旧快照分叉时重新构建，
 // 因而不会让旧状态读到未来工具，也不会改变 reducer 的结果或不可变快照。
-const toolPositions = new WeakMap<LiveToolCall[], Map<string, number>>();
+const toolPositions = new WeakMap<ReadonlyList<LiveToolCall>, Map<string, number>>();
 
-function updateToolCall(calls: LiveToolCall[], id: string, create: () => LiveToolCall, update: (call: LiveToolCall) => LiveToolCall): LiveToolCall[] {
+function updateToolCall(calls: ReadonlyList<LiveToolCall>, id: string, create: () => LiveToolCall, update: (call: LiveToolCall) => LiveToolCall): ReadonlyList<LiveToolCall> {
   let positions = toolPositions.get(calls);
   if (!positions) {
     positions = new Map();
-    for (let i = 0; i < calls.length; i++) {
-      const entry = calls[i]!;
+    let i = 0;
+    for (const entry of calls) {
       if (!positions.has(entry.call.id)) positions.set(entry.call.id, i);
+      i++;
     }
   }
   const index = positions.get(id);
-  const next = calls.slice();
+  let next: ReadonlyList<LiveToolCall>;
   if (index === undefined) {
-    positions.set(id, next.length);
-    next.push(create());
+    positions.set(id, calls.length);
+    next = writeList(calls, calls.length, create());
   } else {
-    next[index] = update(calls[index]!);
+    next = writeList(calls, index, update(calls.at(index)!));
   }
   toolPositions.delete(calls);
   toolPositions.set(next, positions);

@@ -204,3 +204,43 @@ describe("草稿 CAS 与迟到响应", () => {
     expect(controller.getSnapshot().content.text).toBe("后继输入");
   });
 });
+
+describe("自动保存的正文分配", () => {
+  it("自动保存不创建发送指纹，显式捕获和清理仍使用完整且匹配的令牌", async () => {
+    const f = fixture(), controller = create(); controller.configure(f.api, true, false); await controller.hydrate();
+    const text = "draft line\n".repeat(13107);
+    const stringify = vi.spyOn(JSON, "stringify");
+    const fingerprintCalls = () => stringify.mock.calls.filter(([value]) => value && typeof value === "object" && Object.keys(value).join(",") === "text,filename,attachments,material_ids");
+    controller.setContent({ text }); await vi.advanceTimersByTimeAsync(600);
+    expect(controller.getSnapshot()).toMatchObject({ status: "saved", dirty: false });
+    expect(f.remote?.text).toBe(text); expect(fingerprintCalls()).toHaveLength(0);
+    const token = controller.capture();
+    expect(JSON.parse(token.fingerprint).text).toBe(text); expect(token.version).toBe(1);
+    expect(fingerprintCalls()).toHaveLength(1);
+    const savedAgain = await controller.saveNow();
+    expect(savedAgain).toEqual(token); expect(fingerprintCalls()).toHaveLength(1);
+    await controller.clearAfterSend(token);
+    expect(f.api.deleteDraft).toHaveBeenCalledWith("draft-a", 1); expect(controller.getSnapshot().content.text).toBe("");
+  });
+
+  it("服务端返回不同正文时不以提交原文替代，旧令牌不能删除不同内容", async () => {
+    const f = fixture(), controller = create(); controller.configure(f.api, true, false); await controller.hydrate();
+    f.api.createDraft.mockResolvedValueOnce(makeDraft({ text: "服务端不同内容" }));
+    controller.setContent({ text: "提交的原文" }); const token = await controller.saveNow();
+    await controller.clearAfterSend(token);
+    expect(f.api.deleteDraft).not.toHaveBeenCalled(); expect(controller.getSnapshot().content.text).toBe("提交的原文");
+  });
+
+  it("后台确认旧输入时保留新输入，下一次保存仍串行使用最新 CAS", async () => {
+    const f = fixture(), controller = create(), response = deferred<Draft>(); controller.configure(f.api, true, false); await controller.hydrate();
+    f.api.createDraft.mockReturnValueOnce(response.promise);
+    controller.setContent({ text: "后台保存的第一版" }); await vi.advanceTimersByTimeAsync(600);
+    controller.setContent({ text: "保存中写下的第二版" });
+    const saved = makeDraft({ text: "后台保存的第一版", version: 1 }); f.change(saved); response.resolve(saved);
+    await Promise.resolve(); await Promise.resolve();
+    expect(controller.getSnapshot()).toMatchObject({ dirty: true, content: { text: "保存中写下的第二版" } });
+    await vi.advanceTimersByTimeAsync(600);
+    expect(f.api.updateDraft).toHaveBeenCalledWith("draft-a", expect.objectContaining({ expected_version: 1, text: "保存中写下的第二版" }));
+    expect(controller.getSnapshot().dirty).toBe(false);
+  });
+});

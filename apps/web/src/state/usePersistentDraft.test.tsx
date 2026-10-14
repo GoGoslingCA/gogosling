@@ -204,3 +204,21 @@ describe("尚无 Agent 时的首页草稿保护", () => {
     expect(cleared.defaultPrevented).toBe(false);
   });
 });
+
+describe("缓存草稿恢复的单次交付", () => {
+  it("重新打开未保存的大草稿时只回写一次正文，StrictMode 不重复恢复", async () => {
+    const restored = vi.fn();
+    function TrackedEditor() {
+      const [text, setText] = useState("");
+      const draft = usePersistentDraft(scope, { text }, (content) => { restored(content); setText(content.text); });
+      return <><textarea value={text} onChange={event => setText(event.target.value)} /><output>{String(draft.dirty)}</output></>;
+    }
+    const render = async (visible: boolean) => { await act(async () => root.render(<StrictMode><QueryClientProvider client={client}><DraftProvider>{visible ? <TrackedEditor /> : <div>settings</div>}</DraftProvider></QueryClientProvider></StrictMode>)); };
+    await render(true); await ready(() => expect(input().value).toBe(initial.text));
+    const text = "draft line\n".repeat(13107); await type(text); await render(false);
+    restored.mockClear(); await render(true);
+    expect(input().value).toBe(text); expect(container.querySelector("output")?.textContent).toBe("true");
+    expect(restored).toHaveBeenCalledTimes(1);
+    expect(api.workbench.updateDraft).not.toHaveBeenCalled();
+  });
+});

@@ -123,6 +123,7 @@ class StdioTransport:
                 if not chunk or self._stop.is_set():
                     break
                 self._post(incoming.put_nowait, chunk)
+                del chunk
         except Exception:  # noqa: BLE001 - 读线程的异常等同于 EOF
             _log.debug("stdin 读取结束于异常", exc_info=True)
         finally:
@@ -141,6 +142,9 @@ class StdioTransport:
                 self._post(_resolve, future, exc)
             else:
                 self._post(_resolve, future, None)
+            finally:
+                # 回执回调持有 future 即可；阻塞等候下一项时释放已写出的完整正文。
+                del item, data, future
 
 
 def _fileno(stream: BinaryIO) -> int | None:

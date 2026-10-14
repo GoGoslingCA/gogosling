@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Message, Part } from "../../api/types";
 import type { LiveRun } from "../../state/liveRuns";
+import { PersistentList } from "../../state/persistentList";
 import { TaskProgress } from "./TaskProgress";
 
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
@@ -152,7 +153,7 @@ describe("任务进度使用真实运行证据", () => {
   });
 
   it("长历史关闭时只挂载四步，展开按页可访问全部记录，关闭后释放历史节点", async () => {
-    props.liveRuns = [live("completed", Array.from({ length: 125 }, (_, index) => ({ call: { ...toolCall, id: `call-${index}`, name: `tool-${index}` }, result: { call_id: `call-${index}`, content: "result" }, startedAt: "2026-10-12T01:00:00Z" })))];
+    props.liveRuns = [live("completed", PersistentList.from(Array.from({ length: 125 }, (_, index) => ({ call: { ...toolCall, id: `call-${index}`, name: `tool-${index}` }, result: { call_id: `call-${index}`, content: "result" }, startedAt: "2026-10-12T01:00:00Z" }))))];
     await render();
     expect(container.querySelectorAll("li")).toHaveLength(4);
     const history = container.querySelector<HTMLDetailsElement>(".progress-details")!;

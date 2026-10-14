@@ -34,7 +34,12 @@ export function usePersistentDraft(scope: DraftScope | null, content: DraftConte
     if (restoredEpoch.current?.controller !== controller) restoredEpoch.current = null;
     registry.activate(controller);
     const cached = registry.read(controller);
-    if (scope && provider && cached.hydrated && !sameDraftContent(cached.content, content)) restoreCallback.current(cached.content);
+    if (scope && provider && cached.hydrated && !sameDraftContent(cached.content, content)
+      && !(restoredEpoch.current?.controller === controller && restoredEpoch.current.epoch === cached.restoreEpoch)) {
+      // 缓存恢复与下方 epoch 恢复共用确认点，StrictMode 重挂载也只交付一次。
+      restoredEpoch.current = { controller, epoch: cached.restoreEpoch };
+      restoreCallback.current(cached.content);
+    }
   }, [registry, controller]);
   useEffect(() => {
     if (previousInput.current?.key !== key) { previousInput.current = { key, content: normalizeDraft(content) }; return; }

@@ -1,0 +1,1169 @@
+{
+  "schemaVersion": 1,
+  "title": "Desktop runtime efficiency and draft safety verification",
+  "date": "2026-10-14",
+  "timezone": "Asia/Shanghai",
+  "project": "gogosling",
+  "publisher": "Gogosling.ca",
+  "baselineCommit": "df748a02e1148eae1cf1c7c31296527bfc0c58ac",
+  "finalSource": {
+    "state": "Final retained working source before publication; file digests identify the measured mechanisms. This is not a CI status claim.",
+    "files": [
+      {"file": "persistentList.ts", "sha256": "b44fb1efe511f85bf5644e4ef0e52b4379c0573e71c4b04cd6d58d2ea9d14c5e"},
+      {"file": "liveRuns.ts", "sha256": "bab7da95fcc516e047f0723f542905967c7c293b532b3a582061fa27205eb068"},
+      {"file": "MessageList.tsx", "sha256": "28c3e4b9a02a7cc7af65a65897538faf75cffc6126a5a858588485d170484f23"},
+      {"file": "ToolHistoryPage.tsx", "sha256": "41a88fc4a83b9bd36f6bcc9e57026a16a00fcc82f4a6d5a7a723cb337d6964bf"},
+      {"file": "toolResults.ts", "sha256": "2c24e4aec71534312e7b4f235cac8f33e56f89eabd269f7959c4aea82735921e"},
+      {"file": "draftController.ts", "sha256": "1f5c7c4129d1e8f883315a5d91765cffbe9f986934d61249e18e063ad6ed8e86"},
+      {"file": "usePersistentDraft.ts", "sha256": "1913ea5f3781b3ad40d1c4ab515036630a5d3cacdd94fba679339c073bd8a2ac"},
+      {"file": "rpc.py", "sha256": "3ac7609dfbd2510172d92c3ae5e49280a8fe2e0064faab1bea353dcd20a286a7"},
+      {"file": "transport.py", "sha256": "bf716b03bf41cb1507cde8535dcf8438c85564da7ea14aa739e0410196f3e6cf"}
+    ],
+    "measuredDesktopProbeSha256": "7d6ea1d1098356087c8316fdd3f73e991d451a6001789b86e8594d1a173bc9b6",
+    "finalDesktopProbeSha256": "cd5f56d2fc6659a90cdb541f746d7398f41c8ba779354f444dcf7f0d42250861",
+    "probeDifference": "All three measurements used the same probe. The final script only removes an unused draft-state selector, requires an explicit isolated data directory, rejects the default user directory including symlink aliases after realpath resolution, and documents capture overhead."
+  },
+  "conclusion": {
+    "retained": ["Bounded structural copying for long tool histories", "Autosave without unused full-body send fingerprints", "Single delivery of cached draft restoration", "Release of completed RPC buffer references while idle"],
+    "desktopInputLatencyImproved": false,
+    "desktopMemoryPeakImproved": false,
+    "energySavingsEstablished": false,
+    "summary": "The isolated algorithm measurements improved. This single real-desktop comparison did not establish lower input latency or lower Electron memory peaks. Task completion, approvals, saved drafts, and native close protection were preserved.",
+    "inputMedianMs": {"baseline": 38.8, "after": 42.3},
+    "withdrawnCandidate": "Rebuilding only the textarea at each task boundary increased the clean-switch embedder and Electron RSS peaks. It was reverted; the retained code keeps the original textarea lifecycle."
+  },
+  "changes": [
+    {"area": "Long tool history state", "problem": "Each tool event copied the entire immutable call array; many retained snapshots multiplied those copies.", "cause": "Whole-array replacement remained linear in the number of prior calls even after call-position indexing.", "change": "Keep native arrays for small lists; above 128 items use immutable 32-way blocks and copy only the update path. Preserve ordered iteration, random access, JSON array output, branch isolation, and complete results. History paging reads only its current range.", "expectedEffect": "Lower allocation and update CPU for long histories, while earlier snapshots and every tool result remain readable. Existing full-history UI summary scans still limit end-to-end complexity."},
+    {"area": "Draft autosave and restoration", "problem": "Autosave created complete serialized send fingerprints that had no consumer, and reopening a cached draft could deliver the same restoration multiple times.", "cause": "Background persistence shared the token-returning send path; activation and restoration-epoch effects each invoked the restoration callback.", "change": "Use the same serialized CAS persistence path without generating a token for background saves. Keep explicit send tokens unchanged, share equal response text with submitted content, reuse normalized remote content, and record a shared restoration epoch before calling the UI.", "expectedEffect": "Avoid extra body serialization and redundant UI updates. Unsaved content, conflict choices, upload leases, legacy in-memory drafts, route-loading gaps, and close protection remain intact. This does not eliminate browser-native textarea layout allocations."},
+    {"area": "Idle worker RPC memory", "problem": "A completed large RPC frame remained referenced until another frame arrived.", "cause": "Reader and writer loop locals kept the last item or byte chunk alive across an idle await or queue wait.", "change": "Drop completed reader items, read chunks, and writer item/data/future locals after handing ownership to their existing consumer or acknowledgement callback.", "expectedEffect": "Reduce idle retained Python allocations without changing frame limits, ordering, error delivery, backpressure, or cancellation. Frame-processing allocation peaks remain unchanged in the microbenchmark."},
+    {"area": "Withdrawn textarea experiment", "problem": "The real desktop showed much larger embedder than JavaScript heap peaks during draft switching.", "cause": "A shared textarea might retain native editing state; this was a hypothesis, not a confirmed cross-task undo defect.", "change": "Tested a task key on the textarea only, preserving parent draft state. Reverted this change and its candidate-only tests after the desktop comparison.", "expectedEffect": "No retained behavior change. The candidate did not show a dependable resource benefit and introduced a focus/lifecycle tradeoff."}
+  ],
+  "measurementProtocol": {
+    "desktopRepetitionsPerImplementation": 1,
+    "desktopForcedGc": false,
+    "desktopSampleIntervalTargetSeconds": 1,
+    "task": "A real Go daemon and Python worker execute 600 local reads, pause for user approval, then complete one approved write; a controlled local model fixture supplies the repeatable task sequence.",
+    "draftWorkload": "Eleven saved 128 KiB drafts, fixture ordinals 02 through 12, are opened in sequence. Each is then revisited, extended by 18 characters via accessibility value replacement, and allowed to autosave.",
+    "memoryDefinitions": {"rendererJsHeap": "CDP Runtime.getHeapUsage.usedSize; not all process memory.", "rendererEmbedderHeap": "CDP Runtime.getHeapUsage.embedderHeapUsedSize; native/embedder allocations, not a complete attribution to textarea or a substitute for RSS.", "electronRss": "Sum of observed Browser, Tab, GPU, and Utility process RSS; backend processes excluded. Shared pages can be counted more than once.", "backendRss": "Separate sum of observed daemon and worker RSS. Backend and desktop clocks are independent."},
+    "limits": ["This is one before/after run on one local macOS arm64 machine, not a statistical desktop benchmark.", "Desktop phases contain setup, manual approval, and waiting time. Their durations differ; phase peaks are observations, not normalized work rates.", "The measurement wrapper repeats growing input, navigation, and long-task arrays in each sample, calls ps synchronously, and rewrites JSON every second. Capture overhead can increase main-process RSS, especially in longer runs; it cannot be attributed to the product.", "Only the designated input snapshots supply the ten latency samples. Repeated copies in later desktop samples are not counted again.", "The idle-home window starts at the first recorded empty home view, not at the phase-marker change. No forced collection is used in desktop or backend observations.", "Accessibility setValue can trigger full textarea replacement and layout. It is not physical keyboard input and does not establish native undo behavior.", "The first user-interfered exploratory instance was excluded entirely.", "No energy, battery, GPU-utilization, or universal speed claim follows from these measurements."]
+  },
+  "desktopRuns": {
+    "baseline": {
+      "role": "Baseline implementation",
+      "runtime": {"electron": "44.7.0", "chromium": "152.0.7977.130", "platform": "darwin", "arch": "arm64"},
+      "capturedSampleCount": 473,
+      "validRendererSampleCount": 473,
+      "captureFailureCount": 0,
+      "phaseNames": ["startup", "long_task_running", "hold400_input", "approval_and_completion", "clean_draft_switches", "edited_draft_switches", "drafts_released_idle"],
+      "phaseSummaries": [
+        {
+          "phase": "startup",
+          "sampleCount": 46,
+          "firstSampleElapsedMs": 1120.131,
+          "lastSampleElapsedMs": 47475.0,
+          "observedSpanSeconds": 46.355,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 7.062, "sampleElapsedMs": 30275.253},
+            "embedderHeapMiB": {"value": 2.9, "sampleElapsedMs": 25228.477},
+            "electronRssMiB": {"value": 428.062, "sampleElapsedMs": 2121.68}
+          }
+        },
+        {
+          "phase": "long_task_running",
+          "sampleCount": 25,
+          "firstSampleElapsedMs": 48488.428,
+          "lastSampleElapsedMs": 72806.008,
+          "observedSpanSeconds": 24.318,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 12.556, "sampleElapsedMs": 64647},
+            "embedderHeapMiB": {"value": 8.778, "sampleElapsedMs": 61643.712},
+            "electronRssMiB": {"value": 386.781, "sampleElapsedMs": 63646.048}
+          }
+        },
+        {
+          "phase": "hold400_input",
+          "sampleCount": 135,
+          "firstSampleElapsedMs": 73824.31,
+          "lastSampleElapsedMs": 209813.875,
+          "observedSpanSeconds": 135.99,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 9.932, "sampleElapsedMs": 104191.653},
+            "embedderHeapMiB": {"value": 103.512, "sampleElapsedMs": 113519.419},
+            "electronRssMiB": {"value": 429.406, "sampleElapsedMs": 113519.419}
+          }
+        },
+        {
+          "phase": "approval_and_completion",
+          "sampleCount": 85,
+          "firstSampleElapsedMs": 210815.352,
+          "lastSampleElapsedMs": 296627.533,
+          "observedSpanSeconds": 85.812,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 13.694, "sampleElapsedMs": 237283.775},
+            "embedderHeapMiB": {"value": 10.982, "sampleElapsedMs": 231249.214},
+            "electronRssMiB": {"value": 332.766, "sampleElapsedMs": 252545.264}
+          }
+        },
+        {
+          "phase": "clean_draft_switches",
+          "sampleCount": 39,
+          "firstSampleElapsedMs": 297703.371,
+          "lastSampleElapsedMs": 336292.12,
+          "observedSpanSeconds": 38.589,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 9.73, "sampleElapsedMs": 322110.992},
+            "embedderHeapMiB": {"value": 85.15, "sampleElapsedMs": 323111.961},
+            "electronRssMiB": {"value": 485.906, "sampleElapsedMs": 323111.961}
+          }
+        },
+        {
+          "phase": "edited_draft_switches",
+          "sampleCount": 64,
+          "firstSampleElapsedMs": 337293.227,
+          "lastSampleElapsedMs": 401332.084,
+          "observedSpanSeconds": 64.039,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 11.796, "sampleElapsedMs": 397254.143},
+            "embedderHeapMiB": {"value": 133.175, "sampleElapsedMs": 376888.95},
+            "electronRssMiB": {"value": 512.656, "sampleElapsedMs": 392173.054}
+          }
+        },
+        {
+          "phase": "drafts_released_idle",
+          "sampleCount": 79,
+          "firstSampleElapsedMs": 402343.597,
+          "lastSampleElapsedMs": 482256.358,
+          "observedSpanSeconds": 79.913,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 10.695, "sampleElapsedMs": 449144.43},
+            "embedderHeapMiB": {"value": 14.329, "sampleElapsedMs": 402343.597},
+            "electronRssMiB": {"value": 411.328, "sampleElapsedMs": 406415.355}
+          }
+        }
+      ],
+      "inputResponse": {
+        "method": "Native macOS accessibility AX setValue on the application textarea, observed input event to the second requestAnimationFrame callback.",
+        "selectionRule": "Only the last 10 length=32722 entries from this run's input-snapshot are used.",
+        "latencyClockStartsAt": "Renderer input event handler, not entry into the accessibility value setter.",
+        "sampleCount": 10,
+        "inputLengthCharacters": 32722,
+        "medianMs": 38.8,
+        "p95NearestRankMs": 48.4,
+        "sampleColumns": ["rendererEventAtMs", "inputLength", "twoFrameDelayMs"],
+        "samples": [
+          [191473.2, 32722, 46],
+          [192562, 32722, 36.2],
+          [193312.9, 32722, 35.2],
+          [194080.8, 32722, 34.4],
+          [194853.6, 32722, 46],
+          [195601.8, 32722, 48.4],
+          [196355.8, 32722, 44.3],
+          [197176.3, 32722, 41.4],
+          [197934.4, 32722, 35.1],
+          [198701.1, 32722, 34.2]
+        ],
+        "notMeasured": ["Physical keyboard-to-screen latency", "Per-keystroke typing latency", "Screen photon time", "Native undo performance"]
+      },
+      "checkpointSnapshots": {
+        "input": {
+          "elapsedMs": 209813.875,
+          "phase": "hold400_input",
+          "metrics": {"jsHeapMiB": 7.636, "embedderHeapMiB": 10.689, "electronRssMiB": 228.562, "mainProcessRssMiB": 91.891, "rendererRssMiB": 74.172},
+          "inputLength": 32722,
+          "toolCards": 20,
+          "documentElementCount": 492
+        },
+        "complete": {
+          "elapsedMs": 296627.533,
+          "phase": "approval_and_completion",
+          "metrics": {"jsHeapMiB": 7.849, "embedderHeapMiB": 3.932, "electronRssMiB": 213.516, "mainProcessRssMiB": 87.297, "rendererRssMiB": 66.469},
+          "inputLength": 56,
+          "toolCards": 20,
+          "documentElementCount": 580
+        },
+        "idle": {
+          "elapsedMs": 467450.594,
+          "phase": "drafts_released_idle",
+          "metrics": {"jsHeapMiB": 9.951, "embedderHeapMiB": 13.659, "electronRssMiB": 249.859, "mainProcessRssMiB": 108.953, "rendererRssMiB": 77.531},
+          "inputLength": 0,
+          "toolCards": 0,
+          "documentElementCount": 320
+        }
+      },
+      "homeIdleFirst30Seconds": {
+        "measured": true,
+        "selectionRule": "First captured drafts_released_idle sample with inputLength=0 and toolCards=0, then all valid samples in the next 30 seconds.",
+        "startElapsedMs": 417603.876,
+        "requestedWindowSeconds": 30,
+        "observedSpanSeconds": 29.489,
+        "sampleCount": 30,
+        "allSamplesRemainAtHome": true,
+        "first": {"jsHeapMiB": 10.023, "embedderHeapMiB": 13.488, "electronRssMiB": 386.094, "mainProcessRssMiB": 158.719, "rendererRssMiB": 147.969},
+        "last": {"jsHeapMiB": 10.652, "embedderHeapMiB": 13.533, "electronRssMiB": 328.812, "mainProcessRssMiB": 144.141, "rendererRssMiB": 113.375},
+        "minimum": {"jsHeapMiB": 10.023, "embedderHeapMiB": 13.488, "electronRssMiB": 317.078, "mainProcessRssMiB": 133.406, "rendererRssMiB": 112.844},
+        "maximum": {"jsHeapMiB": 10.652, "embedderHeapMiB": 13.533, "electronRssMiB": 386.094, "mainProcessRssMiB": 158.719, "rendererRssMiB": 147.969},
+        "sampleRowsAreIncludedInTimeline": true,
+        "forcedGc": false
+      },
+      "backendIdleAfterCompletion": {
+        "clock": "Backend probe elapsed seconds; independent of the desktop elapsed clock.",
+        "completionElapsedSeconds": 294.938,
+        "requestedWindowSeconds": 30,
+        "forcedGc": false,
+        "sampleColumns": ["secondsAfterFinalModelRequest", "backendRssSumMiB", "observedProcessCount"],
+        "samples": [
+          [0.747, 74.297, 3],
+          [1.779, 58.328, 3],
+          [2.816, 58.312, 3],
+          [3.856, 58.297, 3],
+          [4.902, 58.297, 3],
+          [5.94, 58.938, 3],
+          [6.979, 58.938, 3],
+          [8.017, 58.938, 3],
+          [9.057, 58.938, 3],
+          [11.24, 25.984, 3],
+          [12.303, 26.031, 3],
+          [13.353, 26.703, 3],
+          [14.395, 25.969, 3],
+          [15.429, 26.641, 3],
+          [16.461, 26.641, 3],
+          [17.498, 26.641, 3],
+          [18.533, 26.031, 3],
+          [19.574, 27.188, 3],
+          [20.607, 26.844, 3],
+          [21.646, 27.078, 3],
+          [22.689, 26.641, 3],
+          [23.74, 26.641, 3],
+          [24.78, 26.406, 3],
+          [25.821, 26.641, 3],
+          [26.869, 26.641, 3],
+          [27.922, 26.641, 3],
+          [28.971, 26.172, 3]
+        ],
+        "summary": {"sampleCount": 27, "firstSampleAfterCompletionSeconds": 0.747, "lastSampleAfterCompletionSeconds": 28.971, "firstRssMiB": 74.297, "lastRssMiB": 26.172, "minimumRssMiB": 25.969, "maximumRssMiB": 74.297},
+        "scope": "Sum of observed daemon and worker process RSS; kept separate from Electron. Shared memory may be counted more than once."
+      },
+      "taskIntegrity": {"readCount": 600, "allReadContentsMatch": true, "approvedWrites": 1, "reportMatches": true, "pendingApprovals": 0},
+      "editedDraftIntegrity": {
+        "draftCount": 11,
+        "initialBytesPerDraft": 131072,
+        "appendedCharactersPerDraft": 18,
+        "allSaved": true,
+        "savedLengthRangeCharacters": [131090, 131090],
+        "fixtureOrdinals": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      },
+      "timeline": {
+        "selection": "Every phase boundary and reported memory peak, plus every sample in the valid home idle window. Repeated event arrays and intermediate non-peak samples are omitted.",
+        "columns": ["elapsedMs", "phaseIndex", "rendererJsHeapBytes", "rendererEmbedderHeapBytes", "electronRssSumKiB", "mainRssKiB", "rendererRssKiB", "gpuRssKiB", "utilityRssKiB", "documentElementCount", "toolCardCount", "inputLength"],
+        "samples": [
+          [1120.131, 0, 7222228, 2751896, 426336, 177616, 121504, 80704, 46512, 320, 0, 0],
+          [2121.68, 0, 7248252, 2941536, 438336, 177792, 122912, 90720, 46912, 320, 0, 0],
+          [25228.477, 0, 7389072, 3041336, 284608, 123392, 79376, 46672, 35168, 320, 0, 0],
+          [30275.253, 0, 7404936, 3041336, 289008, 130032, 78736, 46544, 33696, 320, 0, 0],
+          [47475.0, 0, 5742396, 2418608, 317456, 131280, 96448, 55104, 34624, 323, 0, 76],
+          [48488.428, 1, 5745268, 2440696, 317296, 131104, 96464, 55104, 34624, 323, 0, 76],
+          [61643.712, 1, 7895128, 9204080, 391936, 138400, 157376, 59856, 36304, 478, 20, 0],
+          [63646.048, 1, 12904116, 8668544, 396064, 139536, 159824, 60208, 36496, 484, 20, 0],
+          [64647, 1, 13166144, 3994728, 388992, 135472, 158480, 59024, 36016, 486, 20, 0],
+          [72806.008, 1, 10156128, 6365272, 338352, 122864, 126816, 53472, 35200, 487, 20, 0],
+          [73824.31, 2, 10159000, 6365272, 324288, 119856, 116288, 53248, 34896, 487, 20, 0],
+          [104191.653, 2, 10414376, 6853208, 273392, 109232, 89824, 42944, 31392, 487, 20, 0],
+          [113519.419, 2, 8905004, 108539720, 439712, 129696, 221072, 55952, 32992, 492, 20, 32722],
+          [209813.875, 2, 8007080, 11208352, 234048, 94096, 75952, 37376, 26624, 492, 20, 32722],
+          [210815.352, 3, 8018920, 11208352, 219008, 84864, 71616, 36208, 26320, 492, 20, 32722],
+          [231249.214, 3, 7866796, 11515672, 241792, 93312, 81472, 40912, 26096, 492, 20, 56],
+          [237283.775, 3, 14358984, 8034152, 297280, 91152, 136224, 42992, 26912, 502, 20, 56],
+          [252545.264, 3, 7735896, 4031848, 340752, 109920, 141680, 59456, 29696, 580, 20, 56],
+          [296627.533, 3, 8230592, 4122640, 218640, 89392, 68064, 35776, 25408, 580, 20, 56],
+          [297703.371, 4, 8241796, 4122640, 215200, 86432, 67248, 36112, 25408, 580, 20, 56],
+          [322110.992, 4, 10202640, 56482968, 489632, 148576, 258912, 54224, 27920, 316, 0, 131072],
+          [323111.961, 4, 9782352, 89286192, 497568, 154096, 261344, 54208, 27920, 316, 0, 131072],
+          [336292.12, 4, 7493716, 14744792, 272528, 100736, 107520, 38880, 25392, 316, 0, 131072],
+          [337293.227, 5, 7507684, 14744792, 284368, 108896, 111296, 38864, 25312, 316, 0, 131072],
+          [376888.95, 5, 9565536, 139644000, 502992, 158576, 263008, 52896, 28512, 316, 0, 131090],
+          [392173.054, 5, 12253908, 69438464, 524960, 171408, 276960, 48048, 28544, 316, 0, 131090],
+          [397254.143, 5, 12368628, 69464272, 520160, 167888, 276288, 47456, 28528, 316, 0, 131090],
+          [401332.084, 5, 7728172, 15024592, 422400, 170912, 175520, 47440, 28528, 316, 0, 131090],
+          [402343.597, 6, 7750720, 15024592, 414688, 163824, 174992, 47376, 28496, 316, 0, 131090],
+          [406415.355, 6, 7842792, 15024592, 421200, 170304, 175136, 47264, 28496, 316, 0, 131090],
+          [417603.876, 6, 10509748, 14143392, 395360, 162528, 151520, 52848, 28464, 320, 0, 0],
+          [418615.375, 6, 10533812, 14143392, 374448, 156720, 136592, 52704, 28432, 320, 0, 0],
+          [419627.758, 6, 10556360, 14143392, 368752, 156784, 136624, 46912, 28432, 320, 0, 0],
+          [420629.133, 6, 10579800, 14143392, 372400, 160240, 136672, 47040, 28448, 320, 0, 0],
+          [421659.559, 6, 10602348, 14143392, 349840, 154784, 122048, 44720, 28288, 320, 0, 0],
+          [422660.857, 6, 10626940, 14143392, 343984, 148704, 122128, 44864, 28288, 320, 0, 0],
+          [423681.896, 6, 10649488, 14143392, 349232, 153888, 122144, 44896, 28304, 320, 0, 0],
+          [424702.617, 6, 10672036, 14143392, 348736, 153584, 121952, 44896, 28304, 320, 0, 0],
+          [425729.634, 6, 10694584, 14143392, 339120, 144016, 121904, 44896, 28304, 320, 0, 0],
+          [426749.037, 6, 10717132, 14143392, 339152, 144080, 121872, 44896, 28304, 320, 0, 0],
+          [427773.379, 6, 10739680, 14163784, 342608, 147456, 121952, 44896, 28304, 320, 0, 0],
+          [428774.561, 6, 10762228, 14163784, 340512, 147664, 120080, 44512, 28256, 320, 0, 0],
+          [429776.11, 6, 10784776, 14163784, 332448, 141696, 118192, 44368, 28192, 320, 0, 0],
+          [430789.188, 6, 10807324, 14163784, 326576, 138832, 115552, 44208, 27984, 320, 0, 0],
+          [431817.566, 6, 10829872, 14163784, 330160, 142384, 115584, 44208, 27984, 320, 0, 0],
+          [432828.211, 6, 10852420, 14163784, 334816, 146992, 115632, 44208, 27984, 320, 0, 0],
+          [433846.688, 6, 10875144, 14163784, 326960, 139104, 115664, 44208, 27984, 320, 0, 0],
+          [434864.665, 6, 10897692, 14163784, 330592, 142720, 115680, 44208, 27984, 320, 0, 0],
+          [435866.841, 6, 10921132, 14163784, 325712, 137584, 115920, 44208, 28000, 320, 0, 0],
+          [436886.246, 6, 10943680, 14163784, 332144, 143920, 115936, 44208, 28080, 320, 0, 0],
+          [437910.671, 6, 10966228, 14163784, 331648, 143504, 115856, 44208, 28080, 320, 0, 0],
+          [438932.353, 6, 10988776, 14163784, 335088, 146928, 115872, 44208, 28080, 320, 0, 0],
+          [439961.496, 6, 11011324, 14163784, 335104, 146928, 115888, 44208, 28080, 320, 0, 0],
+          [440983.521, 6, 11033872, 14163784, 338800, 150736, 115776, 44208, 28080, 320, 0, 0],
+          [441985.574, 6, 11056420, 14189928, 324688, 136608, 115792, 44208, 28080, 320, 0, 0],
+          [443006.474, 6, 11078968, 14189928, 328832, 140400, 116144, 44208, 28080, 320, 0, 0],
+          [444033.66, 6, 11101516, 14189928, 332672, 144224, 116176, 44192, 28080, 320, 0, 0],
+          [445058.576, 6, 11124064, 14189928, 332656, 143696, 116016, 44640, 28304, 320, 0, 0],
+          [446070.128, 6, 11146616, 14189928, 336672, 147600, 116064, 44704, 28304, 320, 0, 0],
+          [447092.677, 6, 11169164, 14189928, 336704, 147600, 116096, 44704, 28304, 320, 0, 0],
+          [449144.43, 6, 11214260, 14189928, 341456, 152096, 116320, 44736, 28304, 320, 0, 0],
+          [482256.358, 6, 10333400, 14343816, 233920, 94064, 77744, 35328, 26784, 320, 0, 0]
+        ]
+      }
+    },
+    "after": {
+      "role": "Final retained implementation",
+      "runtime": {"electron": "44.7.0", "chromium": "152.0.7977.130", "platform": "darwin", "arch": "arm64"},
+      "capturedSampleCount": 646,
+      "validRendererSampleCount": 646,
+      "captureFailureCount": 0,
+      "phaseNames": ["startup", "long_task_running", "hold400_input", "approval_and_completion", "clean_draft_switches", "edited_draft_switches", "drafts_released_idle", "safety_conflict"],
+      "phaseSummaries": [
+        {
+          "phase": "startup",
+          "sampleCount": 50,
+          "firstSampleElapsedMs": 1130.327,
+          "lastSampleElapsedMs": 50755.122,
+          "observedSpanSeconds": 49.625,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 6.774, "sampleElapsedMs": 30463.528},
+            "embedderHeapMiB": {"value": 3.337, "sampleElapsedMs": 23367.9},
+            "electronRssMiB": {"value": 439.922, "sampleElapsedMs": 1130.327}
+          }
+        },
+        {
+          "phase": "long_task_running",
+          "sampleCount": 21,
+          "firstSampleElapsedMs": 51777.18,
+          "lastSampleElapsedMs": 71949.38,
+          "observedSpanSeconds": 20.172,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 11.873, "sampleElapsedMs": 60818.524},
+            "embedderHeapMiB": {"value": 8.453, "sampleElapsedMs": 56815.336},
+            "electronRssMiB": {"value": 406.375, "sampleElapsedMs": 63821.553}
+          }
+        },
+        {
+          "phase": "hold400_input",
+          "sampleCount": 25,
+          "firstSampleElapsedMs": 72982.198,
+          "lastSampleElapsedMs": 97194.906,
+          "observedSpanSeconds": 24.213,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 11.172, "sampleElapsedMs": 79035.304},
+            "embedderHeapMiB": {"value": 11.32, "sampleElapsedMs": 82068.352},
+            "electronRssMiB": {"value": 385.969, "sampleElapsedMs": 86073.867}
+          }
+        },
+        {
+          "phase": "approval_and_completion",
+          "sampleCount": 175,
+          "firstSampleElapsedMs": 98211.555,
+          "lastSampleElapsedMs": 276774.044,
+          "observedSpanSeconds": 178.562,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 12.931, "sampleElapsedMs": 169577.399},
+            "embedderHeapMiB": {"value": 11.104, "sampleElapsedMs": 164557.183},
+            "electronRssMiB": {"value": 367.938, "sampleElapsedMs": 98211.555}
+          }
+        },
+        {
+          "phase": "clean_draft_switches",
+          "sampleCount": 47,
+          "firstSampleElapsedMs": 277788.852,
+          "lastSampleElapsedMs": 324756.845,
+          "observedSpanSeconds": 46.968,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 9.896, "sampleElapsedMs": 303146.531},
+            "embedderHeapMiB": {"value": 85.498, "sampleElapsedMs": 290020.613},
+            "electronRssMiB": {"value": 491.172, "sampleElapsedMs": 295029.08}
+          }
+        },
+        {
+          "phase": "edited_draft_switches",
+          "sampleCount": 44,
+          "firstSampleElapsedMs": 325772.153,
+          "lastSampleElapsedMs": 369359.402,
+          "observedSpanSeconds": 43.587,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 11.044, "sampleElapsedMs": 346122.656},
+            "embedderHeapMiB": {"value": 133.184, "sampleElapsedMs": 346122.656},
+            "electronRssMiB": {"value": 542.578, "sampleElapsedMs": 347127.857}
+          }
+        },
+        {
+          "phase": "drafts_released_idle",
+          "sampleCount": 132,
+          "firstSampleElapsedMs": 370372.224,
+          "lastSampleElapsedMs": 504025.596,
+          "observedSpanSeconds": 133.653,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 10.758, "sampleElapsedMs": 504025.596},
+            "embedderHeapMiB": {"value": 14.302, "sampleElapsedMs": 448978.43},
+            "electronRssMiB": {"value": 333.141, "sampleElapsedMs": 454032.74}
+          }
+        },
+        {
+          "phase": "safety_conflict",
+          "sampleCount": 152,
+          "firstSampleElapsedMs": 505041.433,
+          "lastSampleElapsedMs": 668854.575,
+          "observedSpanSeconds": 163.813,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 10.806, "sampleElapsedMs": 507063.708},
+            "embedderHeapMiB": {"value": 25.577, "sampleElapsedMs": 576438.621},
+            "electronRssMiB": {"value": 404.078, "sampleElapsedMs": 576438.621}
+          }
+        }
+      ],
+      "inputResponse": {
+        "method": "Native macOS accessibility AX setValue on the application textarea, observed input event to the second requestAnimationFrame callback.",
+        "selectionRule": "Only the last 10 length=32722 entries from this run's input-snapshot are used.",
+        "latencyClockStartsAt": "Renderer input event handler, not entry into the accessibility value setter.",
+        "sampleCount": 10,
+        "inputLengthCharacters": 32722,
+        "medianMs": 42.3,
+        "p95NearestRankMs": 63.8,
+        "sampleColumns": ["rendererEventAtMs", "inputLength", "twoFrameDelayMs"],
+        "samples": [
+          [78897.4, 32722, 63.8],
+          [79694, 32722, 48.2],
+          [80426.2, 32722, 32.8],
+          [81177.4, 32722, 32.9],
+          [81977.9, 32722, 33.7],
+          [82752.8, 32722, 41.6],
+          [83537.9, 32722, 43],
+          [84281.6, 32722, 47.1],
+          [85283.5, 32722, 48.6],
+          [86062.7, 32722, 34]
+        ],
+        "notMeasured": ["Physical keyboard-to-screen latency", "Per-keystroke typing latency", "Screen photon time", "Native undo performance"]
+      },
+      "checkpointSnapshots": {
+        "input": {
+          "elapsedMs": 97194.906,
+          "phase": "hold400_input",
+          "metrics": {"jsHeapMiB": 7.322, "embedderHeapMiB": 10.32, "electronRssMiB": 367.938, "mainProcessRssMiB": 135.453, "rendererRssMiB": 138.688},
+          "inputLength": 32722,
+          "toolCards": 20,
+          "documentElementCount": 492
+        },
+        "complete": {
+          "elapsedMs": 276774.044,
+          "phase": "approval_and_completion",
+          "metrics": {"jsHeapMiB": 8.147, "embedderHeapMiB": 3.828, "electronRssMiB": 253.969, "mainProcessRssMiB": 101.0, "rendererRssMiB": 82.0},
+          "inputLength": 56,
+          "toolCards": 20,
+          "documentElementCount": 580
+        },
+        "idle": {
+          "elapsedMs": 487716.629,
+          "phase": "drafts_released_idle",
+          "metrics": {"jsHeapMiB": 10.501, "embedderHeapMiB": 14.006, "electronRssMiB": 249.609, "mainProcessRssMiB": 106.859, "rendererRssMiB": 75.844},
+          "inputLength": 0,
+          "toolCards": 0,
+          "documentElementCount": 320
+        }
+      },
+      "homeIdleFirst30Seconds": {
+        "measured": true,
+        "selectionRule": "First captured drafts_released_idle sample with inputLength=0 and toolCards=0, then all valid samples in the next 30 seconds.",
+        "startElapsedMs": 453021.808,
+        "requestedWindowSeconds": 30,
+        "observedSpanSeconds": 29.597,
+        "sampleCount": 30,
+        "allSamplesRemainAtHome": true,
+        "first": {"jsHeapMiB": 9.954, "embedderHeapMiB": 13.847, "electronRssMiB": 332.922, "mainProcessRssMiB": 138.922, "rendererRssMiB": 111.797},
+        "last": {"jsHeapMiB": 10.421, "embedderHeapMiB": 14.006, "electronRssMiB": 252.203, "mainProcessRssMiB": 108.219, "rendererRssMiB": 77.844},
+        "minimum": {"jsHeapMiB": 9.954, "embedderHeapMiB": 13.781, "electronRssMiB": 245.312, "mainProcessRssMiB": 103.922, "rendererRssMiB": 76.328},
+        "maximum": {"jsHeapMiB": 10.421, "embedderHeapMiB": 14.006, "electronRssMiB": 333.141, "mainProcessRssMiB": 143.281, "rendererRssMiB": 111.797},
+        "sampleRowsAreIncludedInTimeline": true,
+        "forcedGc": false
+      },
+      "backendIdleAfterCompletion": {
+        "clock": "Backend probe elapsed seconds; independent of the desktop elapsed clock.",
+        "completionElapsedSeconds": 271.955,
+        "requestedWindowSeconds": 30,
+        "forcedGc": false,
+        "sampleColumns": ["secondsAfterFinalModelRequest", "backendRssSumMiB", "observedProcessCount"],
+        "samples": [
+          [0.467, 75.375, 3],
+          [1.498, 31.75, 3],
+          [2.525, 31.797, 3],
+          [3.559, 31.625, 3],
+          [4.603, 31.797, 3],
+          [5.652, 31.797, 3],
+          [6.725, 33.031, 3],
+          [7.782, 32.609, 3],
+          [8.829, 32.5, 3],
+          [9.873, 32.5, 3],
+          [10.917, 30.891, 3],
+          [11.96, 27.156, 3],
+          [13.005, 27.172, 3],
+          [14.054, 27.688, 3],
+          [15.086, 27.109, 3],
+          [16.134, 27.109, 3],
+          [17.183, 27.25, 3],
+          [18.228, 27.25, 3],
+          [19.266, 27.25, 3],
+          [20.295, 27.625, 3],
+          [21.321, 26.875, 3],
+          [22.373, 26.938, 3],
+          [23.408, 26.844, 3],
+          [24.451, 26.922, 3],
+          [25.498, 26.922, 3],
+          [26.54, 27.109, 3],
+          [27.579, 26.938, 3],
+          [28.628, 35.781, 3],
+          [29.682, 35.781, 3]
+        ],
+        "summary": {"sampleCount": 29, "firstSampleAfterCompletionSeconds": 0.467, "lastSampleAfterCompletionSeconds": 29.682, "firstRssMiB": 75.375, "lastRssMiB": 35.781, "minimumRssMiB": 26.844, "maximumRssMiB": 75.375},
+        "scope": "Sum of observed daemon and worker process RSS; kept separate from Electron. Shared memory may be counted more than once."
+      },
+      "taskIntegrity": {"readCount": 600, "allReadContentsMatch": true, "approvedWrites": 1, "reportMatches": true, "pendingApprovals": 0},
+      "editedDraftIntegrity": {
+        "draftCount": 11,
+        "initialBytesPerDraft": 131072,
+        "appendedCharactersPerDraft": 18,
+        "allSaved": true,
+        "savedLengthRangeCharacters": [131090, 131090],
+        "fixtureOrdinals": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      },
+      "timeline": {
+        "selection": "Every phase boundary and reported memory peak, plus every sample in the valid home idle window. Repeated event arrays and intermediate non-peak samples are omitted.",
+        "columns": ["elapsedMs", "phaseIndex", "rendererJsHeapBytes", "rendererEmbedderHeapBytes", "electronRssSumKiB", "mainRssKiB", "rendererRssKiB", "gpuRssKiB", "utilityRssKiB", "documentElementCount", "toolCardCount", "inputLength"],
+        "samples": [
+          [1130.327, 0, 6761648, 2728336, 450480, 178000, 140272, 86048, 46160, 320, 0, 0],
+          [23367.9, 0, 7088972, 3498648, 361456, 152368, 106032, 60544, 42512, 320, 0, 0],
+          [30463.528, 0, 7103504, 3498648, 373536, 164176, 105984, 60368, 43008, 320, 0, 0],
+          [50755.122, 0, 5600652, 2548632, 387232, 160704, 116560, 65808, 44160, 323, 0, 76],
+          [51777.18, 1, 5603012, 2567504, 387344, 160800, 116560, 65808, 44176, 323, 0, 76],
+          [56815.336, 1, 11486280, 8863544, 398240, 141152, 151984, 66384, 38720, 470, 20, 0],
+          [60818.524, 1, 12449440, 7392160, 405776, 141232, 159664, 65472, 39408, 481, 20, 0],
+          [63821.553, 1, 11677160, 5929752, 416128, 144368, 166768, 65376, 39616, 487, 20, 0],
+          [71949.38, 1, 11697028, 5968792, 381648, 131136, 154512, 58160, 37840, 487, 20, 0],
+          [72982.198, 2, 11699388, 5968792, 300704, 117504, 96240, 49296, 37664, 487, 20, 0],
+          [79035.304, 2, 11714460, 6019392, 309520, 126512, 95152, 50256, 37600, 487, 20, 0],
+          [82068.352, 2, 8442704, 11870240, 387568, 137616, 146864, 64832, 38256, 492, 20, 32722],
+          [86073.867, 2, 7314320, 5253672, 395232, 139888, 153008, 64080, 38256, 492, 20, 32722],
+          [97194.906, 2, 7677848, 10821800, 376768, 138704, 142016, 57744, 38304, 492, 20, 32722],
+          [98211.555, 3, 7683216, 10821800, 376768, 138704, 142016, 57744, 38304, 492, 20, 32722],
+          [164557.183, 3, 7758528, 11643712, 256704, 99008, 81104, 45680, 30912, 492, 20, 56],
+          [169577.399, 3, 13559008, 8717336, 341648, 107376, 151024, 50032, 33216, 502, 20, 56],
+          [276774.044, 3, 8542792, 4013704, 260064, 103424, 83968, 42368, 30304, 580, 20, 56],
+          [277788.852, 4, 8548452, 4013704, 247904, 97600, 79360, 41200, 29744, 580, 20, 56],
+          [290020.613, 4, 8330352, 89651200, 467248, 149312, 228096, 58736, 31104, 316, 0, 131072],
+          [295029.08, 4, 10305372, 89305504, 502960, 152992, 264656, 54528, 30784, 316, 0, 131072],
+          [303146.531, 4, 10377164, 89286912, 308320, 123808, 105664, 48560, 30288, 316, 0, 131072],
+          [324756.845, 4, 7645172, 14746400, 272752, 115968, 82144, 44720, 29920, 316, 0, 131072],
+          [325772.153, 5, 7654332, 14746400, 273680, 115936, 83104, 44720, 29920, 316, 0, 131072],
+          [346122.656, 5, 11580568, 139653344, 486512, 150832, 252112, 52528, 31040, 316, 0, 131090],
+          [347127.857, 5, 7603384, 25782144, 555600, 156864, 314368, 53184, 31184, 316, 0, 131072],
+          [369359.402, 5, 7588636, 14589736, 322640, 125792, 120976, 46032, 29840, 316, 0, 131090],
+          [370372.224, 6, 7605388, 14589736, 312416, 117536, 119744, 45312, 29824, 316, 0, 131090],
+          [448978.43, 6, 8272716, 14996464, 255280, 109072, 75696, 42576, 27936, 316, 0, 131090],
+          [453021.808, 6, 10437640, 14519904, 340912, 142256, 114480, 53120, 31056, 320, 0, 0],
+          [454032.74, 6, 10454564, 14519904, 341136, 144768, 112272, 53152, 30944, 320, 0, 0],
+          [455052.043, 6, 10471316, 14519904, 335936, 144912, 112416, 47648, 30960, 320, 0, 0],
+          [456076.013, 6, 10488068, 14519904, 337488, 146432, 112448, 47648, 30960, 320, 0, 0],
+          [457096.138, 6, 10504820, 14519904, 337840, 146576, 112512, 47552, 31200, 320, 0, 0],
+          [458097.266, 6, 10523548, 14519904, 336720, 145856, 112320, 47456, 31088, 320, 0, 0],
+          [459113.997, 6, 10540300, 14450112, 337520, 146720, 112208, 47440, 31152, 320, 0, 0],
+          [460146.807, 6, 10557052, 14450112, 331280, 141200, 111936, 47248, 30896, 320, 0, 0],
+          [461167.121, 6, 10573804, 14450112, 328848, 141696, 110064, 46016, 31072, 320, 0, 0],
+          [462213.063, 6, 10590556, 14450112, 326624, 140544, 109632, 45632, 30816, 320, 0, 0],
+          [463224.728, 6, 10607308, 14450112, 329664, 144272, 109024, 45472, 30896, 320, 0, 0],
+          [464227.003, 6, 10624060, 14450112, 326080, 140640, 109056, 45488, 30896, 320, 0, 0],
+          [465244.85, 6, 10640812, 14450112, 314304, 130544, 107600, 45376, 30784, 320, 0, 0],
+          [466245.878, 6, 10658456, 14450112, 309280, 124656, 108336, 45376, 30912, 320, 0, 0],
+          [467269.601, 6, 10675208, 14450112, 277040, 126096, 81456, 39520, 29968, 320, 0, 0],
+          [468316.053, 6, 10691960, 14450112, 268976, 118208, 80848, 39824, 30096, 320, 0, 0],
+          [469353.058, 6, 10708712, 14450112, 263968, 113184, 80896, 39664, 30224, 320, 0, 0],
+          [470375.903, 6, 10725464, 14450112, 257936, 108080, 80864, 39088, 29904, 320, 0, 0],
+          [471377.022, 6, 10742216, 14450112, 259152, 109488, 80816, 39088, 29760, 320, 0, 0],
+          [472417.324, 6, 10758968, 14450112, 266048, 115392, 80880, 39760, 30016, 320, 0, 0],
+          [473447.144, 6, 10775720, 14475456, 264240, 114464, 80656, 39216, 29904, 320, 0, 0],
+          [474471.709, 6, 10792472, 14475456, 261024, 111664, 80864, 38560, 29936, 320, 0, 0],
+          [475491.249, 6, 10809224, 14475456, 260688, 111472, 80928, 38592, 29696, 320, 0, 0],
+          [476506.287, 6, 10825976, 14580192, 266992, 116608, 80960, 39264, 30160, 320, 0, 0],
+          [477520.168, 6, 10842728, 14580192, 265760, 116112, 80848, 39200, 29600, 320, 0, 0],
+          [478522.15, 6, 10859480, 14580192, 259344, 111520, 79936, 38432, 29456, 320, 0, 0],
+          [479572.642, 6, 10876232, 14580192, 251200, 106560, 78160, 38288, 28192, 320, 0, 0],
+          [480583.395, 6, 10892984, 14580192, 255072, 106416, 80480, 38912, 29264, 320, 0, 0],
+          [481585.181, 6, 10910628, 14580192, 252832, 107440, 78336, 37616, 29440, 320, 0, 0],
+          [482619.13, 6, 10927380, 14686792, 258256, 110816, 79712, 39072, 28656, 320, 0, 0],
+          [504025.596, 6, 11280160, 14708304, 231632, 103360, 64272, 36272, 27728, 320, 0, 0],
+          [505041.433, 7, 11296912, 14708304, 237408, 108640, 64288, 37248, 27232, 320, 0, 0],
+          [507063.708, 7, 11330416, 14729528, 241744, 112928, 64320, 37264, 27232, 320, 0, 0],
+          [576438.621, 7, 9236204, 26819224, 413776, 156880, 174144, 51936, 30816, 316, 0, 131090],
+          [668854.575, 7, 9924872, 14440448, 273488, 130032, 77792, 38384, 27280, 316, 0, 59]
+        ]
+      },
+      "nativeSafetyVerification": {"real_native_quit_prompt": true, "continued_editing": true, "local_text_preserved": true, "conflict_resolved_saved": true, "version": 4}
+    },
+    "candidate": {
+      "role": "Withdrawn textarea-key experiment",
+      "runtime": {"electron": "44.7.0", "chromium": "152.0.7977.130", "platform": "darwin", "arch": "arm64"},
+      "capturedSampleCount": 285,
+      "validRendererSampleCount": 285,
+      "captureFailureCount": 0,
+      "phaseNames": ["startup", "hold400_input", "approval_and_completion", "clean_draft_switches", "edited_draft_switches", "drafts_released_idle"],
+      "phaseSummaries": [
+        {
+          "phase": "startup",
+          "sampleCount": 33,
+          "firstSampleElapsedMs": 1136.56,
+          "lastSampleElapsedMs": 33491.106,
+          "observedSpanSeconds": 32.355,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 16.715, "sampleElapsedMs": 23412.592},
+            "embedderHeapMiB": {"value": 38.624, "sampleElapsedMs": 24414.051},
+            "electronRssMiB": {"value": 492.875, "sampleElapsedMs": 25415.268}
+          }
+        },
+        {
+          "phase": "hold400_input",
+          "sampleCount": 28,
+          "firstSampleElapsedMs": 34512.4,
+          "lastSampleElapsedMs": 61931.431,
+          "observedSpanSeconds": 27.419,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 7.994, "sampleElapsedMs": 49789.611},
+            "embedderHeapMiB": {"value": 11.743, "sampleElapsedMs": 46764.589},
+            "electronRssMiB": {"value": 446.062, "sampleElapsedMs": 34512.4}
+          }
+        },
+        {
+          "phase": "approval_and_completion",
+          "sampleCount": 76,
+          "firstSampleElapsedMs": 62931.299,
+          "lastSampleElapsedMs": 139197.726,
+          "observedSpanSeconds": 76.266,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 11.151, "sampleElapsedMs": 99522.923},
+            "embedderHeapMiB": {"value": 7.992, "sampleElapsedMs": 88276.47},
+            "electronRssMiB": {"value": 439.844, "sampleElapsedMs": 63932.254}
+          }
+        },
+        {
+          "phase": "clean_draft_switches",
+          "sampleCount": 22,
+          "firstSampleElapsedMs": 140213.303,
+          "lastSampleElapsedMs": 161493.79,
+          "observedSpanSeconds": 21.28,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 11.178, "sampleElapsedMs": 154357.75},
+            "embedderHeapMiB": {"value": 119.737, "sampleElapsedMs": 154357.75},
+            "electronRssMiB": {"value": 579.609, "sampleElapsedMs": 155359.563}
+          }
+        },
+        {
+          "phase": "edited_draft_switches",
+          "sampleCount": 40,
+          "firstSampleElapsedMs": 162515.645,
+          "lastSampleElapsedMs": 202103.989,
+          "observedSpanSeconds": 39.588,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 11.661, "sampleElapsedMs": 180732.814},
+            "embedderHeapMiB": {"value": 129.953, "sampleElapsedMs": 184745.959},
+            "electronRssMiB": {"value": 555.312, "sampleElapsedMs": 188838.867}
+          }
+        },
+        {
+          "phase": "drafts_released_idle",
+          "sampleCount": 86,
+          "firstSampleElapsedMs": 203131.749,
+          "lastSampleElapsedMs": 290521.194,
+          "observedSpanSeconds": 87.389,
+          "sampledPeaks": {
+            "jsHeapMiB": {"value": 8.253, "sampleElapsedMs": 286990.646},
+            "embedderHeapMiB": {"value": 14.546, "sampleElapsedMs": 269730.333},
+            "electronRssMiB": {"value": 371.438, "sampleElapsedMs": 206165.463}
+          }
+        }
+      ],
+      "inputResponse": {
+        "method": "Native macOS accessibility AX setValue on the application textarea, observed input event to the second requestAnimationFrame callback.",
+        "selectionRule": "Only the last 10 length=32722 entries from this run's input-snapshot are used.",
+        "latencyClockStartsAt": "Renderer input event handler, not entry into the accessibility value setter.",
+        "sampleCount": 10,
+        "inputLengthCharacters": 32722,
+        "medianMs": 42.3,
+        "p95NearestRankMs": 64.8,
+        "sampleColumns": ["rendererEventAtMs", "inputLength", "twoFrameDelayMs"],
+        "samples": [
+          [42089.5, 32722, 64.8],
+          [43136.4, 32722, 42.6],
+          [43910.9, 32722, 34.5],
+          [44697.2, 32722, 43],
+          [45500.2, 32722, 47.8],
+          [46272.3, 32722, 42],
+          [47090.8, 32722, 41.6],
+          [47883.8, 32722, 33.2],
+          [48651.9, 32722, 49.3],
+          [49436.2, 32722, 30.7]
+        ],
+        "notMeasured": ["Physical keyboard-to-screen latency", "Per-keystroke typing latency", "Screen photon time", "Native undo performance"]
+      },
+      "checkpointSnapshots": {
+        "input": {
+          "elapsedMs": 61931.431,
+          "phase": "hold400_input",
+          "metrics": {"jsHeapMiB": 7.237, "embedderHeapMiB": 10.634, "electronRssMiB": 359.156, "mainProcessRssMiB": 133.562, "rendererRssMiB": 128.094},
+          "inputLength": 32722,
+          "toolCards": 20,
+          "documentElementCount": 492
+        },
+        "complete": {
+          "elapsedMs": 139197.726,
+          "phase": "approval_and_completion",
+          "metrics": {"jsHeapMiB": 9.098, "embedderHeapMiB": 4.943, "electronRssMiB": 293.609, "mainProcessRssMiB": 112.062, "rendererRssMiB": 92.484},
+          "inputLength": 56,
+          "toolCards": 20,
+          "documentElementCount": 580
+        }
+      },
+      "homeIdleFirst30Seconds": {"measured": false, "reason": "No captured home sample satisfying inputLength=0 and toolCards=0. The candidate did not perform a comparable home idle window."},
+      "backendIdleAfterCompletion": {
+        "clock": "Backend probe elapsed seconds; independent of the desktop elapsed clock.",
+        "completionElapsedSeconds": 101.263,
+        "requestedWindowSeconds": 30,
+        "forcedGc": false,
+        "sampleColumns": ["secondsAfterFinalModelRequest", "backendRssSumMiB", "observedProcessCount"],
+        "samples": [
+          [0.094, 51.438, 3],
+          [1.132, 72.469, 3],
+          [2.163, 72.5, 3],
+          [3.221, 60.438, 3],
+          [4.256, 60.078, 3],
+          [5.296, 59.547, 3],
+          [6.337, 59.438, 3],
+          [7.386, 59.438, 3],
+          [8.431, 59.969, 3],
+          [9.474, 59.938, 3],
+          [10.505, 59.359, 3],
+          [11.545, 26.5, 3],
+          [12.573, 26.312, 3],
+          [13.627, 26.859, 3],
+          [14.688, 26.859, 3],
+          [15.755, 26.875, 3],
+          [16.784, 26.875, 3],
+          [17.817, 26.438, 3],
+          [18.849, 29.609, 3],
+          [19.888, 35.891, 3],
+          [20.925, 36.172, 3],
+          [21.962, 36.172, 3],
+          [22.99, 36.172, 3],
+          [24.032, 36.172, 3],
+          [25.074, 36.172, 3],
+          [26.173, 31.422, 3],
+          [27.207, 27.469, 3],
+          [28.25, 27.469, 3],
+          [29.293, 27.422, 3]
+        ],
+        "summary": {"sampleCount": 29, "firstSampleAfterCompletionSeconds": 0.094, "lastSampleAfterCompletionSeconds": 29.293, "firstRssMiB": 51.438, "lastRssMiB": 27.422, "minimumRssMiB": 26.312, "maximumRssMiB": 72.5},
+        "scope": "Sum of observed daemon and worker process RSS; kept separate from Electron. Shared memory may be counted more than once."
+      },
+      "taskIntegrity": {"readCount": 600, "allReadContentsMatch": true, "approvedWrites": 1, "reportMatches": true, "pendingApprovals": 0},
+      "editedDraftIntegrity": {
+        "draftCount": 11,
+        "initialBytesPerDraft": 131072,
+        "appendedCharactersPerDraft": 18,
+        "allSaved": true,
+        "savedLengthRangeCharacters": [131090, 131090],
+        "fixtureOrdinals": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      },
+      "timeline": {
+        "selection": "Every phase boundary and reported memory peak, plus every sample in the valid home idle window. Repeated event arrays and intermediate non-peak samples are omitted.",
+        "columns": ["elapsedMs", "phaseIndex", "rendererJsHeapBytes", "rendererEmbedderHeapBytes", "electronRssSumKiB", "mainRssKiB", "rendererRssKiB", "gpuRssKiB", "utilityRssKiB", "documentElementCount", "toolCardCount", "inputLength"],
+        "samples": [
+          [1136.56, 0, 8216140, 4108960, 468016, 184928, 145536, 88192, 49360, 320, 0, 0],
+          [23412.592, 0, 17527072, 34470792, 486400, 169008, 197376, 74000, 46016, 479, 20, 0],
+          [24414.051, 0, 17142248, 40500112, 491664, 169632, 202032, 73936, 46064, 481, 20, 0],
+          [25415.268, 0, 9256512, 8645688, 504704, 170048, 214592, 73920, 46144, 484, 20, 0],
+          [33491.106, 0, 7078272, 2504040, 458080, 167664, 171808, 72624, 45984, 487, 20, 0],
+          [34512.4, 1, 7084860, 2852088, 456768, 167600, 170592, 72608, 45968, 487, 20, 0],
+          [46764.589, 1, 8333660, 12313776, 401504, 141696, 154016, 67008, 38784, 492, 20, 32722],
+          [49789.611, 1, 8382424, 10657936, 397968, 141008, 155936, 62240, 38784, 492, 20, 32722],
+          [61931.431, 1, 7588324, 11150424, 367776, 136768, 131168, 59104, 40736, 492, 20, 32722],
+          [62931.299, 2, 7886808, 5820952, 405488, 137504, 163264, 65808, 38912, 493, 20, 32722],
+          [63932.254, 2, 9159424, 6769216, 450400, 138432, 206528, 66352, 39088, 496, 20, 32722],
+          [88276.47, 2, 11631608, 8379720, 298768, 118672, 89392, 54032, 36672, 525, 20, 32722],
+          [99522.923, 2, 11692560, 8379720, 302560, 124448, 89472, 52752, 35888, 525, 20, 32722],
+          [139197.726, 2, 9540052, 5182968, 300656, 114752, 94704, 54768, 36432, 580, 20, 56],
+          [140213.303, 3, 9545712, 5182968, 297856, 114448, 92816, 54768, 35824, 580, 20, 56],
+          [154357.75, 3, 11721200, 125553136, 557680, 172720, 283520, 63952, 37488, 316, 0, 131072],
+          [155359.563, 3, 8902576, 33433928, 593520, 173616, 318480, 63936, 37488, 316, 0, 131072],
+          [161493.79, 3, 8959532, 33433928, 552576, 161856, 291872, 61744, 37104, 316, 0, 131072],
+          [162515.645, 4, 8967964, 33433928, 480736, 152112, 236112, 57344, 35168, 316, 0, 131072],
+          [180732.814, 4, 12227624, 93023256, 561344, 175392, 284768, 63392, 37792, 316, 0, 131090],
+          [184745.959, 4, 11584308, 136265280, 565232, 178176, 286000, 63280, 37776, 316, 0, 131072],
+          [188838.867, 4, 11335036, 69367624, 568640, 181120, 285680, 63744, 38096, 316, 0, 131090],
+          [202103.989, 4, 7883008, 14990968, 373104, 141392, 137520, 58448, 35744, 316, 0, 131090],
+          [203131.749, 5, 7900756, 14990968, 370144, 140688, 136544, 58224, 34688, 316, 0, 131090],
+          [206165.463, 5, 7951036, 14990968, 380352, 150208, 136160, 58480, 35504, 316, 0, 131090],
+          [269730.333, 5, 8367428, 15252424, 212592, 85632, 58304, 41504, 27152, 316, 0, 131090],
+          [286990.646, 5, 8654140, 15252424, 211296, 85792, 58208, 40400, 26896, 316, 0, 131090],
+          [290521.194, 5, 8180368, 15252424, 216400, 90368, 59984, 40096, 25952, 316, 0, 131090]
+        ]
+      }
+    }
+  },
+  "microbenchmarks": {
+    "toolHistory": {
+      "runtime": "v22.22.2",
+      "platform": "darwin",
+      "arch": "arm64",
+      "sampleCount": 10,
+      "warmupCount": 2,
+      "sources": [
+        {"label": "before", "sourceSha256": "8ee84df1631d8362fb611300e5afccffe6765dcfc1c2c98514bbca1ef9fd2357"},
+        {"label": "after", "sourceSha256": "bab7da95fcc516e047f0723f542905967c7c293b532b3a582061fa27205eb068", "supportSourceSha256": "b44fb1efe511f85bf5644e4ef0e52b4379c0573e71c4b04cd6d58d2ea9d14c5e"}
+      ],
+      "notes": ["Synthetic production reducer measurements, not browser rendering, network latency, or whole-app memory.", "The current implementation copies paths of bounded 32-entry blocks for lists above 128 items; small lists use native arrays. All entries and old snapshots remain readable.", "All final snapshots must match the baseline SHA256, including the approval and terminal state.", "P95 uses nearest rank; with 10 samples it is the observed maximum."],
+      "scenarios": [
+        {
+          "callCount": 100,
+          "eventCount": 203,
+          "equalOutputSha256": "0a56fc4b6dd36ca6fdf8aec4284d87682d945ea1519e9ef2fc86c39a1e54196f",
+          "results": [
+            {
+              "label": "before",
+              "elapsedMedianMs": 0.182,
+              "elapsedP95Ms": 0.281,
+              "samples": [
+                {"elapsedMs": 0.281, "cpuMs": 0.47},
+                {"elapsedMs": 0.163, "cpuMs": 0.584},
+                {"elapsedMs": 0.202, "cpuMs": 0.861},
+                {"elapsedMs": 0.183, "cpuMs": 0.83},
+                {"elapsedMs": 0.194, "cpuMs": 0.734},
+                {"elapsedMs": 0.149, "cpuMs": 0.481},
+                {"elapsedMs": 0.182, "cpuMs": 0.647},
+                {"elapsedMs": 0.164, "cpuMs": 0.466},
+                {"elapsedMs": 0.171, "cpuMs": 0.617},
+                {"elapsedMs": 0.191, "cpuMs": 0.815}
+              ]
+            },
+            {
+              "label": "after",
+              "elapsedMedianMs": 0.196,
+              "elapsedP95Ms": 0.328,
+              "samples": [
+                {"elapsedMs": 0.247, "cpuMs": 0.889},
+                {"elapsedMs": 0.328, "cpuMs": 0.855},
+                {"elapsedMs": 0.199, "cpuMs": 0.993},
+                {"elapsedMs": 0.196, "cpuMs": 0.761},
+                {"elapsedMs": 0.175, "cpuMs": 0.701},
+                {"elapsedMs": 0.208, "cpuMs": 0.703},
+                {"elapsedMs": 0.168, "cpuMs": 0.45},
+                {"elapsedMs": 0.15, "cpuMs": 0.707},
+                {"elapsedMs": 0.19, "cpuMs": 0.777},
+                {"elapsedMs": 0.239, "cpuMs": 0.752}
+              ]
+            }
+          ]
+        },
+        {
+          "callCount": 1000,
+          "eventCount": 2003,
+          "equalOutputSha256": "f3ed0c6347a1fb9c6d114115d354bdd97e63cc1ed238e8a329b97510c4405638",
+          "results": [
+            {
+              "label": "before",
+              "elapsedMedianMs": 1.805,
+              "elapsedP95Ms": 8.256,
+              "samples": [
+                {"elapsedMs": 1.79, "cpuMs": 5.015},
+                {"elapsedMs": 1.721, "cpuMs": 2.205},
+                {"elapsedMs": 1.586, "cpuMs": 2.156},
+                {"elapsedMs": 1.805, "cpuMs": 3.066},
+                {"elapsedMs": 1.973, "cpuMs": 6.777},
+                {"elapsedMs": 1.573, "cpuMs": 3.076},
+                {"elapsedMs": 3.189, "cpuMs": 5.316},
+                {"elapsedMs": 2.625, "cpuMs": 2.135},
+                {"elapsedMs": 2.643, "cpuMs": 3.249},
+                {"elapsedMs": 8.256, "cpuMs": 7.986}
+              ]
+            },
+            {
+              "label": "after",
+              "elapsedMedianMs": 1.048,
+              "elapsedP95Ms": 1.917,
+              "samples": [
+                {"elapsedMs": 1.256, "cpuMs": 3.999},
+                {"elapsedMs": 0.814, "cpuMs": 1.287},
+                {"elapsedMs": 1.917, "cpuMs": 5.992},
+                {"elapsedMs": 1.048, "cpuMs": 2.448},
+                {"elapsedMs": 0.882, "cpuMs": 2.977},
+                {"elapsedMs": 0.782, "cpuMs": 2.181},
+                {"elapsedMs": 1.625, "cpuMs": 3.04},
+                {"elapsedMs": 0.625, "cpuMs": 1.339},
+                {"elapsedMs": 1.456, "cpuMs": 5.503},
+                {"elapsedMs": 1.518, "cpuMs": 5.012}
+              ]
+            }
+          ]
+        },
+        {
+          "callCount": 5000,
+          "eventCount": 10003,
+          "equalOutputSha256": "42eba4db8e5a4dd42cfd1c73e94ba73bbc793535c8dd01591628326299f5f373",
+          "results": [
+            {
+              "label": "before",
+              "elapsedMedianMs": 21.804,
+              "elapsedP95Ms": 32.63,
+              "samples": [
+                {"elapsedMs": 31.47, "cpuMs": 30.146},
+                {"elapsedMs": 32.63, "cpuMs": 44.033},
+                {"elapsedMs": 23.188, "cpuMs": 24.18},
+                {"elapsedMs": 20.82, "cpuMs": 21.548},
+                {"elapsedMs": 22.36, "cpuMs": 31.372},
+                {"elapsedMs": 19.682, "cpuMs": 20.634},
+                {"elapsedMs": 20.707, "cpuMs": 21.428},
+                {"elapsedMs": 22.263, "cpuMs": 29.968},
+                {"elapsedMs": 20.587, "cpuMs": 21.451},
+                {"elapsedMs": 21.804, "cpuMs": 21.15}
+              ]
+            },
+            {
+              "label": "after",
+              "elapsedMedianMs": 7.736,
+              "elapsedP95Ms": 16.044,
+              "samples": [
+                {"elapsedMs": 7.192, "cpuMs": 27.062},
+                {"elapsedMs": 7.736, "cpuMs": 29.226},
+                {"elapsedMs": 7.611, "cpuMs": 26.15},
+                {"elapsedMs": 6.192, "cpuMs": 22.119},
+                {"elapsedMs": 9.639, "cpuMs": 25.259},
+                {"elapsedMs": 5.19, "cpuMs": 11.415},
+                {"elapsedMs": 15.845, "cpuMs": 35.456},
+                {"elapsedMs": 9.567, "cpuMs": 27.859},
+                {"elapsedMs": 16.044, "cpuMs": 41.379},
+                {"elapsedMs": 9.329, "cpuMs": 29.316}
+              ]
+            }
+          ]
+        },
+        {
+          "callCount": 20000,
+          "eventCount": 40003,
+          "equalOutputSha256": "405c9ff698a810f7766e5a40471b3bd9596ada165c609e70e023675e0293cd7d",
+          "results": [
+            {
+              "label": "before",
+              "elapsedMedianMs": 567.921,
+              "elapsedP95Ms": 927.627,
+              "samples": [
+                {"elapsedMs": 567.921, "cpuMs": 551.541},
+                {"elapsedMs": 543.231, "cpuMs": 542.514},
+                {"elapsedMs": 562.729, "cpuMs": 562.018},
+                {"elapsedMs": 556.382, "cpuMs": 545.357},
+                {"elapsedMs": 617.649, "cpuMs": 576.829},
+                {"elapsedMs": 589.229, "cpuMs": 573.332},
+                {"elapsedMs": 927.627, "cpuMs": 726.75},
+                {"elapsedMs": 626.444, "cpuMs": 596.567},
+                {"elapsedMs": 599.568, "cpuMs": 576.997},
+                {"elapsedMs": 530.989, "cpuMs": 526.297}
+              ]
+            },
+            {
+              "label": "after",
+              "elapsedMedianMs": 22.739,
+              "elapsedP95Ms": 95.862,
+              "samples": [
+                {"elapsedMs": 23.183, "cpuMs": 41.869},
+                {"elapsedMs": 26.626, "cpuMs": 48.761},
+                {"elapsedMs": 22.739, "cpuMs": 47.496},
+                {"elapsedMs": 22.925, "cpuMs": 50.264},
+                {"elapsedMs": 20.123, "cpuMs": 56.264},
+                {"elapsedMs": 19.166, "cpuMs": 39.027},
+                {"elapsedMs": 19.651, "cpuMs": 44.635},
+                {"elapsedMs": 19.493, "cpuMs": 41.249},
+                {"elapsedMs": 26.078, "cpuMs": 46.36},
+                {"elapsedMs": 95.862, "cpuMs": 71.198}
+              ]
+            }
+          ]
+        }
+      ],
+      "retainedSnapshots": {
+        "callCount": 5000,
+        "retainedUpdates": 400,
+        "sampleCount": 5,
+        "forcedGC": true,
+        "equalRepresentativeSnapshotsSha256": "ab5b28090e570d61eb02a30a91e15101176cb553c54bb59fe1a0118d143c654e",
+        "notes": ["Retains the seed and 400 immutable versions after updating existing tool results. Timing excludes seed creation, hashing, and GC.", "Heap delta is sampled with explicit Node GC before and after updates. It is not browser or OS RSS, and does not predict collection timing."],
+        "results": [
+          {
+            "label": "before",
+            "elapsedMedianMs": 5.788,
+            "retainedHeapDeltaMedianBytes": 16148584,
+            "samples": [
+              {"elapsedMs": 14.033, "retainedHeapDeltaBytes": 16127328},
+              {"elapsedMs": 8.231, "retainedHeapDeltaBytes": 16148584},
+              {"elapsedMs": 5.788, "retainedHeapDeltaBytes": 16148584},
+              {"elapsedMs": 4.764, "retainedHeapDeltaBytes": 16148584},
+              {"elapsedMs": 4.599, "retainedHeapDeltaBytes": 16148824}
+            ]
+          },
+          {
+            "label": "after",
+            "elapsedMedianMs": 0.379,
+            "retainedHeapDeltaMedianBytes": 426952,
+            "samples": [
+              {"elapsedMs": 0.699, "retainedHeapDeltaBytes": 403560},
+              {"elapsedMs": 0.238, "retainedHeapDeltaBytes": 444888},
+              {"elapsedMs": 0.443, "retainedHeapDeltaBytes": 426984},
+              {"elapsedMs": 0.213, "retainedHeapDeltaBytes": 426952},
+              {"elapsedMs": 0.379, "retainedHeapDeltaBytes": 426952}
+            ]
+          }
+        ]
+      }
+    },
+    "draftAutosave": {
+      "runtime": "v22.22.2",
+      "platform": "darwin",
+      "arch": "arm64",
+      "textBytes": 131072,
+      "drafts": 24,
+      "samples": 5,
+      "sources": [
+        {"label": "before", "sourceSha256": "5e58bcaa86fc73b8b14239842098225c152dc47ba4efc2c455eebc0075f3007b"},
+        {"label": "after", "sourceSha256": "1f5c7c4129d1e8f883315a5d91765cffbe9f986934d61249e18e063ad6ed8e86"}
+      ],
+      "notes": ["Synthetic production-controller autosaves, excluding HTTP, React, textarea layout, and whole-app RSS.", "The production debounce callback runs through a deterministic fake timer; all saves finish with equivalent content and version.", "JSON fingerprint calls and generated characters are counted directly. These allocations exclude API request/response encoding, which is still necessary.", "GC runs before each sample only; no forced GC occurs during the measured workload. Sampled heap peaks include natural GC timing and runtime noise.", "The fake API round-trips its response through JSON to represent separately decoded response strings. This overhead is shared by both versions."],
+      "results": [
+        {
+          "label": "before",
+          "samples": [
+            {"elapsedMs": 15.571, "cpuMs": 15.587, "fingerprints": 24, "fingerprintCharacters": 3147168, "retainedFingerprintCharacters": 3147168, "sampledHeapPeakDeltaBytes": 10788680},
+            {"elapsedMs": 15.608, "cpuMs": 15.544, "fingerprints": 24, "fingerprintCharacters": 3147168, "retainedFingerprintCharacters": 3147168, "sampledHeapPeakDeltaBytes": 10788864},
+            {"elapsedMs": 15.563, "cpuMs": 15.437, "fingerprints": 24, "fingerprintCharacters": 3147168, "retainedFingerprintCharacters": 3147168, "sampledHeapPeakDeltaBytes": 12965424},
+            {"elapsedMs": 15.27, "cpuMs": 15.251, "fingerprints": 24, "fingerprintCharacters": 3147168, "retainedFingerprintCharacters": 3147168, "sampledHeapPeakDeltaBytes": 12965992},
+            {"elapsedMs": 15.529, "cpuMs": 15.464, "fingerprints": 24, "fingerprintCharacters": 3147168, "retainedFingerprintCharacters": 3147168, "sampledHeapPeakDeltaBytes": 12965384}
+          ]
+        },
+        {
+          "label": "after",
+          "samples": [
+            {"elapsedMs": 8.722, "cpuMs": 8.725, "fingerprints": 0, "fingerprintCharacters": 0, "retainedFingerprintCharacters": 0, "sampledHeapPeakDeltaBytes": 9807616},
+            {"elapsedMs": 8.954, "cpuMs": 8.935, "fingerprints": 0, "fingerprintCharacters": 0, "retainedFingerprintCharacters": 0, "sampledHeapPeakDeltaBytes": 9807616},
+            {"elapsedMs": 8.595, "cpuMs": 8.595, "fingerprints": 0, "fingerprintCharacters": 0, "retainedFingerprintCharacters": 0, "sampledHeapPeakDeltaBytes": 9807616},
+            {"elapsedMs": 8.595, "cpuMs": 8.588, "fingerprints": 0, "fingerprintCharacters": 0, "retainedFingerprintCharacters": 0, "sampledHeapPeakDeltaBytes": 9807616},
+            {"elapsedMs": 8.795, "cpuMs": 8.79, "fingerprints": 0, "fingerprintCharacters": 0, "retainedFingerprintCharacters": 0, "sampledHeapPeakDeltaBytes": 9807616}
+          ]
+        }
+      ]
+    },
+    "workerIdle": {
+      "before": {
+        "python": "3.12.14",
+        "payload_bytes": 2097152,
+        "rounds": 5,
+        "measurement": "traced Python allocations while idle; no forced garbage collection",
+        "source_sha256": {"rpc.py": "ef5b610e2bdfb03d85a67c39143f770abcd3edb3540203b9619a6264ff057f7f", "transport.py": "612cdb1273d22a37926086c91d7edaaa7949ac8e3b81ceee9a60761d07757c17"},
+        "cases": {
+          "rpc_reader": {
+            "samples": [
+              {"retained_bytes": 2100844, "peak_bytes": 6816499, "delivery_ms": 11.828},
+              {"retained_bytes": 2099158, "peak_bytes": 6816499, "delivery_ms": 11.292},
+              {"retained_bytes": 2099158, "peak_bytes": 6816499, "delivery_ms": 11.388},
+              {"retained_bytes": 2099158, "peak_bytes": 6816499, "delivery_ms": 11.175},
+              {"retained_bytes": 2099158, "peak_bytes": 6816499, "delivery_ms": 10.409}
+            ],
+            "median": {"retained_bytes": 2099158, "peak_bytes": 6816499, "delivery_ms": 11.292}
+          },
+          "rpc_writer": {
+            "samples": [
+              {"retained_bytes": 2098101, "peak_bytes": 8389038, "delivery_ms": 10.392},
+              {"retained_bytes": 2098101, "peak_bytes": 8389038, "delivery_ms": 8.484},
+              {"retained_bytes": 2098101, "peak_bytes": 8389038, "delivery_ms": 10.791},
+              {"retained_bytes": 2098101, "peak_bytes": 8389038, "delivery_ms": 8.306},
+              {"retained_bytes": 2098101, "peak_bytes": 8389038, "delivery_ms": 10.622}
+            ],
+            "median": {"retained_bytes": 2098101, "peak_bytes": 8389038, "delivery_ms": 10.392}
+          },
+          "stdio_writer": {
+            "samples": [
+              {"retained_bytes": 2098218, "peak_bytes": 2102578, "delivery_ms": 0.884},
+              {"retained_bytes": 2098298, "peak_bytes": 2102578, "delivery_ms": 0.865},
+              {"retained_bytes": 2098138, "peak_bytes": 2102578, "delivery_ms": 0.863},
+              {"retained_bytes": 2098138, "peak_bytes": 2102578, "delivery_ms": 0.82},
+              {"retained_bytes": 2098298, "peak_bytes": 2102578, "delivery_ms": 0.845}
+            ],
+            "median": {"retained_bytes": 2098218, "peak_bytes": 2102578, "delivery_ms": 0.863}
+          }
+        }
+      },
+      "after": {
+        "python": "3.12.14",
+        "payload_bytes": 2097152,
+        "rounds": 5,
+        "measurement": "traced Python allocations while idle; no forced garbage collection",
+        "source_sha256": {"rpc.py": "3ac7609dfbd2510172d92c3ae5e49280a8fe2e0064faab1bea353dcd20a286a7", "transport.py": "bf716b03bf41cb1507cde8535dcf8438c85564da7ea14aa739e0410196f3e6cf"},
+        "cases": {
+          "rpc_reader": {
+            "samples": [
+              {"retained_bytes": 3408, "peak_bytes": 6816499, "delivery_ms": 12.68},
+              {"retained_bytes": 1722, "peak_bytes": 6816499, "delivery_ms": 11.662},
+              {"retained_bytes": 1722, "peak_bytes": 6816499, "delivery_ms": 10.918},
+              {"retained_bytes": 1722, "peak_bytes": 6816499, "delivery_ms": 11.17},
+              {"retained_bytes": 1722, "peak_bytes": 6816499, "delivery_ms": 10.926}
+            ],
+            "median": {"retained_bytes": 1722, "peak_bytes": 6816499, "delivery_ms": 11.17}
+          },
+          "rpc_writer": {
+            "samples": [
+              {"retained_bytes": 856, "peak_bytes": 8389038, "delivery_ms": 10.621},
+              {"retained_bytes": 856, "peak_bytes": 8389038, "delivery_ms": 6.07},
+              {"retained_bytes": 856, "peak_bytes": 8389038, "delivery_ms": 6.181},
+              {"retained_bytes": 856, "peak_bytes": 8389038, "delivery_ms": 10.629},
+              {"retained_bytes": 856, "peak_bytes": 8389038, "delivery_ms": 6.338}
+            ],
+            "median": {"retained_bytes": 856, "peak_bytes": 8389038, "delivery_ms": 6.338}
+          },
+          "stdio_writer": {
+            "samples": [
+              {"retained_bytes": 889, "peak_bytes": 2102578, "delivery_ms": 0.858},
+              {"retained_bytes": 969, "peak_bytes": 2102578, "delivery_ms": 0.856},
+              {"retained_bytes": 809, "peak_bytes": 2102578, "delivery_ms": 0.874},
+              {"retained_bytes": 809, "peak_bytes": 2102578, "delivery_ms": 0.887},
+              {"retained_bytes": 969, "peak_bytes": 2102578, "delivery_ms": 0.784}
+            ],
+            "median": {"retained_bytes": 889, "peak_bytes": 2102578, "delivery_ms": 0.858}
+          }
+        }
+      }
+    }
+  },
+  "verification": {
+    "publicContractsChanged": false,
+    "newDependencies": false,
+    "candidateReverted": true,
+    "local": {
+      "node": {
+        "typecheck": "passed",
+        "web": {"tests": 640, "files": 73, "status": "passed"},
+        "desktop": {"tests": 384, "files": 21, "status": "passed"},
+        "runtimeScripts": {"tests": 29, "status": "passed"},
+        "build": "passed"
+      },
+      "worker": {"tests": 243, "ruff": "passed", "format": "passed", "mypy": "passed", "pytest": "passed"},
+      "go": {"gofmt": "passed", "vet": "passed", "tests": "passed", "build": "passed", "endToEnd": "passed"}
+    },
+    "ci": {"status": "not_checked", "reason": "CI is verified separately after publication; this report records local validation only."}
+  },
+  "remainingWork": ["Profile browser-native allocation by newline count and layout shape before changing textarea lifecycle again.", "Measure real keyboard editing and undo separately from accessibility value replacement.", "Reduce or separate probe overhead, then repeat desktop runs with balanced durations and more samples.", "Measure incremental tool-summary updates; the current UI still scans completed prefixes and rebuilds some history summaries."]
+}

@@ -46,16 +46,16 @@ describe("liveRunsReducer", () => {
     ]);
     const calls = state.runs.r1?.toolCalls ?? [];
     expect(calls).toHaveLength(2);
-    expect(calls[0]?.call.name).toBe("read_file");
-    expect(calls[0]?.result?.content).toBe("ok");
-    expect(calls[0]?.completedAt).toBeTruthy();
-    expect(calls[1]?.call.id).toBe("c2");
-    expect(calls[1]?.result?.is_error).toBe(true);
+    expect(calls.at(0)?.call.name).toBe("read_file");
+    expect(calls.at(0)?.result?.content).toBe("ok");
+    expect(calls.at(0)?.completedAt).toBeTruthy();
+    expect(calls.at(1)?.call.id).toBe("c2");
+    expect(calls.at(1)?.result?.is_error).toBe(true);
   });
 
   it("索引更新保留旧快照；旧状态分叉、重复开始和占位回填不串联未来工具", () => {
     const base = reduce([ev("tool.call.started", "r1", { tool_call: { id: "a", name: "read_file", arguments: {} } })]);
-    const initialCall = base.runs.r1!.toolCalls[0]!;
+    const initialCall = base.runs.r1!.toolCalls.at(0)!;
     const branch = reduce([ev("tool.call.completed", "r1", { tool_result: { call_id: "b", content: "branch" } })], base);
     const other = reduce([ev("tool.call.started", "r1", { tool_call: { id: "c", name: "list_files", arguments: {} } })], base);
     const done = reduce([
@@ -64,21 +64,21 @@ describe("liveRunsReducer", () => {
     ], branch);
     expect(base.runs.r1!.toolCalls).toEqual([initialCall]);
     expect(initialCall.result).toBeUndefined();
-    expect(other.runs.r1!.toolCalls.map(entry => entry.call.id)).toEqual(["a", "c"]);
-    expect(branch.runs.r1!.toolCalls[0]).toBe(initialCall);
-    expect(done.runs.r1!.toolCalls.map(entry => [entry.call.id, entry.result?.content])).toEqual([["a", "base result"], ["b", "branch"]]);
-    expect(done.runs.r1!.toolCalls[1]!.call.name).toBe("known_tool");
-    expect(done.runs.r1!.toolCalls[1]!.startedAt).toBe(branch.runs.r1!.toolCalls[1]!.startedAt);
+    expect(other.runs.r1!.toolCalls.slice().map(entry => entry.call.id)).toEqual(["a", "c"]);
+    expect(branch.runs.r1!.toolCalls.at(0)).toBe(initialCall);
+    expect(done.runs.r1!.toolCalls.slice().map(entry => [entry.call.id, entry.result?.content])).toEqual([["a", "base result"], ["b", "branch"]]);
+    expect(done.runs.r1!.toolCalls.at(1)!.call.name).toBe("known_tool");
+    expect(done.runs.r1!.toolCalls.at(1)!.startedAt).toBe(branch.runs.r1!.toolCalls.at(1)!.startedAt);
     const revisit = reduce([ev("tool.call.completed", "r1", { tool_result: { call_id: "c", content: "other result" } })], other);
-    expect(revisit.runs.r1!.toolCalls.map(entry => [entry.call.id, entry.result?.content])).toEqual([["a", undefined], ["c", "other result"]]);
+    expect(revisit.runs.r1!.toolCalls.slice().map(entry => [entry.call.id, entry.result?.content])).toEqual([["a", undefined], ["c", "other result"]]);
   });
 
   it("外部旧状态含重复工具 ID 时仍更新第一条，与原查找规则一致", () => {
     const base = reduce([ev("tool.call.started", "r1", { tool_call: { id: "same", name: "first", arguments: {} } })]);
-    const first = base.runs.r1!.toolCalls[0]!;
+    const first = base.runs.r1!.toolCalls.at(0)!;
     const state = { ...base, runs: { ...base.runs, r1: { ...base.runs.r1!, toolCalls: [first, { ...first, call: { ...first.call, name: "second" } }] } } };
     const next = reduce([ev("tool.call.completed", "r1", { tool_result: { call_id: "same", content: "ok" } })], state);
-    expect(next.runs.r1!.toolCalls.map(entry => [entry.call.name, entry.result?.content])).toEqual([["first", "ok"], ["second", undefined]]);
+    expect(next.runs.r1!.toolCalls.slice().map(entry => [entry.call.name, entry.result?.content])).toEqual([["first", "ok"], ["second", undefined]]);
   });
 
   it("随机乱序完成、重复开始和旧快照分叉与线性查找语义一致", () => {
@@ -94,13 +94,13 @@ describe("liveRunsReducer", () => {
       const event = ev(start ? "tool.call.started" : "tool.call.completed", "r1", start ? { tool_call: call } : { tool_result: result });
       const before = base.runs.r1!.toolCalls;
       const expected = before.slice();
-      const found = before.findIndex(entry => entry.call.id === id);
+      const found = before.slice().findIndex(entry => entry.call.id === id);
       if (found < 0) expected.push(start ? { call, startedAt: event.at } : { call: { id, name: "", arguments: {} }, result, startedAt: event.at, completedAt: event.at });
-      else expected[found] = start ? { ...before[found]!, call } : { ...before[found]!, result, completedAt: event.at };
+      else expected[found] = start ? { ...before.at(found)!, call } : { ...before.at(found)!, result, completedAt: event.at };
       const next = reduce([event], base);
-      expect(next.runs.r1!.toolCalls).toEqual(expected);
+      expect(next.runs.r1!.toolCalls.slice()).toEqual(expected);
       expect(base.runs.r1!.toolCalls).toBe(before);
-      for (let position = 0; position < before.length; position++) if (position !== found) expect(next.runs.r1!.toolCalls[position]).toBe(before[position]);
+      for (let position = 0; position < before.length; position++) if (position !== found) expect(next.runs.r1!.toolCalls.at(position)).toBe(before.at(position));
       snapshots.push(next);
     }
   });
@@ -113,7 +113,7 @@ describe("liveRunsReducer", () => {
     }
     const state = reduce(events);
     expect(state.runs.r1!.toolCalls).toHaveLength(1500);
-    expect(state.runs.r1!.toolCalls.every((entry, index) => entry.call.id === `c-${index}` && entry.result?.content === `result-${index}`)).toBe(true);
+    expect(state.runs.r1!.toolCalls.slice().every((entry, index) => entry.call.id === `c-${index}` && entry.result?.content === `result-${index}`)).toBe(true);
     const waiting = reduce([ev("approval.requested", "r1")], state);
     expect(waiting.runs.r1!.status).toBe("awaiting_approval");
     expect(waiting.runs.r1!.toolCalls).toBe(state.runs.r1!.toolCalls);

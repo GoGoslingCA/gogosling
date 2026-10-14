@@ -149,7 +149,7 @@ export class DraftController {
     if (this.timer) clearTimeout(this.timer);
     this.timer = undefined;
     if (this.disposed || !this.available || !this.snapshot.hydrated || !this.snapshot.dirty || this.snapshot.conflict || this.snapshot.status === "error") return;
-    this.timer = setTimeout(() => { this.timer = undefined; void this.saveNow().catch(() => undefined); }, this.debounceMs);
+    this.timer = setTimeout(() => { this.timer = undefined; void this.save(false).catch(() => undefined); }, this.debounceMs);
   }
   private async findRemote(): Promise<Draft | null> {
     if (!this.api) return null;
@@ -216,22 +216,26 @@ export class DraftController {
     } catch (readError) { this.emit({ status: "error", error: readError, dirty: true }); }
   }
   /** 立即保存调用瞬间的内容，返回其服务端版本；之后的编辑另行排队。 */
-  saveNow(): Promise<DraftSaveToken> {
+  saveNow(): Promise<DraftSaveToken> { return this.save(true); }
+  private save(includeToken: true): Promise<DraftSaveToken>;
+  private save(includeToken: false): Promise<void>;
+  private save(includeToken: boolean): Promise<DraftSaveToken | void> {
     if (this.timer) { clearTimeout(this.timer); this.timer = undefined; }
     const content = this.snapshot.content;
-    const contentFingerprint = this.capture().fingerprint;
+    // 自动保存没有发送令牌消费者，不额外序列化整段正文或在已完成队列中保留副本。
+    const contentFingerprint = includeToken ? this.capture().fingerprint : undefined;
     const editVersion = this.editVersion;
     const scope = { ...this.scope };
     return this.serial(async () => {
-      if (!this.available || !this.api) return { ...this.capture(), editVersion, fingerprint: contentFingerprint };
+      if (!this.available || !this.api) return includeToken ? { draftId: this.acknowledged?.id, version: this.acknowledged?.version, editVersion, fingerprint: contentFingerprint! } : undefined;
       if (!this.snapshot.hydrated) {
         await this.hydrate();
         this.ensureActive();
-        if (editVersion === 0 && this.snapshot.restored) return this.capture();
+        if (editVersion === 0 && this.snapshot.restored) return includeToken ? this.capture() : undefined;
       }
       if (this.snapshot.conflict) throw new ApiError("conflict", "", { details: { reason: "stale_version" } });
       if ((sameDraftContent(content, this.confirmed) && (!this.acknowledged || this.acknowledged.base_revision_id === scope.base_revision_id)) || (!this.acknowledged && !contentPresent(content))) {
-        return { ...this.capture(), editVersion, fingerprint: contentFingerprint };
+        return includeToken ? { draftId: this.acknowledged?.id, version: this.acknowledged?.version, editVersion, fingerprint: contentFingerprint! } : undefined;
       }
       this.emit({ status: "saving", error: null });
       try {
@@ -239,12 +243,13 @@ export class DraftController {
           ? await this.api.updateDraft(this.acknowledged.id, { ...scope, ...content, expected_version: this.acknowledged.version })
           : await this.api.createDraft({ ...scope, ...content });
         this.ensureActive();
-        this.acknowledged = saved;
+        // 已解码响应可能持有另一份等值大字符串；等值时复用提交正文，保留其余服务端字段。
+        this.acknowledged = saved.text === content.text ? { ...saved, text: content.text } : saved;
         this.confirmed = content;
         const dirty = !sameDraftContent(this.snapshot.content, this.confirmed) || this.snapshot.baseRevisionId !== saved.base_revision_id;
         this.emit({ status: dirty ? "idle" : "saved", dirty, error: null });
         this.schedule();
-        return { draftId: saved.id, version: saved.version, editVersion, fingerprint: contentFingerprint };
+        return includeToken ? { draftId: saved.id, version: saved.version, editVersion, fingerprint: contentFingerprint! } : undefined;
       } catch (error) {
         if (ApiError.is(error, "conflict")) await this.conflict(error);
         else this.emit({ status: "error", error, dirty: true });
@@ -286,10 +291,10 @@ export class DraftController {
     if (choice === "remote") {
       this.editVersion += 1;
       if (remote.base_revision_id) this.scope = { ...this.scope, base_revision_id: remote.base_revision_id };
-      this.emit({ content: normalizeDraft(remote), status: "saved", conflict: null, error: null, dirty: false, restoreEpoch: this.snapshot.restoreEpoch + 1, baseRevisionId: remote.base_revision_id ?? this.snapshot.baseRevisionId });
+      this.emit({ content: this.confirmed, status: "saved", conflict: null, error: null, dirty: false, restoreEpoch: this.snapshot.restoreEpoch + 1, baseRevisionId: remote.base_revision_id ?? this.snapshot.baseRevisionId });
     } else {
       this.emit({ conflict: null, error: null, status: "idle", dirty: true });
-      await this.saveNow();
+      await this.save(false);
     }
   }
   /** 明确丢弃草稿同样校验版本；失败前不清空本地内容。 */

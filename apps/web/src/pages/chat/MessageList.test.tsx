@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Message, Part } from "../../api/types";
 import { MessageList } from "./MessageList";
 import type { LiveRun, LiveToolCall } from "../../state/liveRuns";
+import { PersistentList } from "../../state/persistentList";
 
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
@@ -192,7 +193,7 @@ describe("持久化消息中的工具状态与成果定位", () => {
 });
 
 describe("长实时工具列表", () => {
-  function live(calls: LiveToolCall[]): LiveRun {
+  function live(calls: LiveRun["toolCalls"]): LiveRun {
     return { runId: "run-long", sessionId: "session-a", agentId: "agent-a", status: "running", toolCalls: calls, text: "", reasoning: "", approval: null, usage: null, error: null, truncated: false, lastSeq: 1, startedAt: "2026-10-12T01:00:00Z", endedAt: null };
   }
   function calls(count: number): LiveToolCall[] {
@@ -219,6 +220,25 @@ describe("长实时工具列表", () => {
     expect(container.querySelectorAll(".tool-card")).toHaveLength(20);
     expect(run.toolCalls).toBe(original);
     expect(run.toolCalls).toHaveLength(101);
+  });
+
+  it("持久化分块集合分页只读取当前范围，末页不会重复最新常显工具", async () => {
+    const tools = PersistentList.from(calls(2061));
+    const reads = vi.spyOn(tools, "slice");
+    await show(live(tools));
+    expect(container.querySelectorAll(".tool-card")).toHaveLength(20);
+    expect(reads.mock.calls).toEqual([[2041]]);
+    const history = container.querySelector<HTMLDetailsElement>(".tool-history")!;
+    reads.mockClear();
+    await act(async () => { history.open = true; history.dispatchEvent(new Event("toggle")); });
+    expect(container.querySelectorAll(".tool-card")).toHaveLength(60);
+    expect(reads.mock.calls.every(([start = 0, end = tools.length]) => end - start <= 40)).toBe(true);
+    for (let page = 0; page < 51; page++) await act(async () => Array.from(history.querySelectorAll<HTMLButtonElement>(".tool-history-pages button")).find(button => button.textContent === "compact.nextSteps")!.click());
+    expect(history.querySelectorAll(".tool-card")).toHaveLength(1);
+    expect(history.textContent).toContain("tool-2040");
+    expect(history.textContent).not.toContain("tool-2041");
+    expect(container.querySelectorAll(".tool-card")).toHaveLength(21);
+    expect(tools.length).toBe(2061);
   });
 
   it("即使有较新的已完成调用，较早未完成工具仍显示且完成后可折叠", async () => {

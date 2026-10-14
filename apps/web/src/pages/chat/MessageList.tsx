@@ -177,21 +177,25 @@ export const ToolCallCard = memo(function ToolCallCard({ call, live, persistedRe
   );
 });
 
-const LiveToolList = memo(function LiveToolList({ calls }: { calls: LiveToolCall[] }) {
+const LiveToolList = memo(function LiveToolList({ calls }: { calls: LiveRun["toolCalls"] }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   // 仅折叠已经完成的连续前缀，尚未回传结果的工具始终可见。
   const historyCount = useMemo(() => {
     const limit = Math.max(0, calls.length - 20);
-    for (let i = 0; i < limit; i++) if (!calls[i]!.result) return i;
+    let index = 0;
+    for (const call of calls) {
+      if (index === limit) break;
+      if (!call.result) return index;
+      index++;
+    }
     return limit;
   }, [calls]);
-  const history = useMemo(() => calls.slice(0, historyCount), [calls, historyCount]);
   const renderCall = (tc: LiveToolCall) => <ToolCallCard key={tc.call.id} call={tc.call} live={tc} />;
   return <>
     {historyCount ? <details className="tool-history" onToggle={event => setOpen(event.currentTarget.open)}>
       <summary>{t("compact.olderSteps", { n: historyCount })}</summary>
-      {open ? <ToolHistoryPage items={history} renderItem={renderCall} /> : null}
+      {open ? <ToolHistoryPage items={calls} end={historyCount} renderItem={renderCall} /> : null}
     </details> : null}
     {calls.slice(historyCount).map(renderCall)}
   </>;

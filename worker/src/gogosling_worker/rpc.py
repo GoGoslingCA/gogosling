@@ -299,6 +299,9 @@ class Connection:
                     break
                 for item in splitter.feed(data):
                     self._on_line(item)
+                    # 解析后的请求交给处理器持有；空闲等待时不再保留原始完整行。
+                    del item
+                del data
             tail = splitter.flush()
             if tail is not None:
                 self._on_line(tail)
@@ -443,6 +446,8 @@ class Connection:
                 if item is None:
                     return
                 await self._transport.write(item)
+                # 大型终态消息已写出，不能一直留到下一次通知才释放。
+                del item
         except asyncio.CancelledError:
             raise
         except Exception:  # noqa: BLE001 - 写失败等同于对端消失
