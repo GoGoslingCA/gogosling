@@ -6,7 +6,7 @@
 .chart-tick line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; }
 .chart-tick text, .chart-x-label { fill: var(--text-2); font-family: inherit; font-size: 10px; }
 .chart-baseline { stroke: var(--text-2); stroke-width: 1; }
-.chart-bar { fill: var(--accent); opacity: .88; transition: opacity 180ms ease; }
+.chart-bar { fill: var(--accent); opacity: .88; transition: opacity var(--motion-feedback); }
 .chart-bar-negative { fill: var(--text-2); }
 .chart-bar:hover { opacity: 1; }
 .chart-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }

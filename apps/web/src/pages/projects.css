@@ -2,7 +2,7 @@
 .project-intro, .project-details-head, .project-action-row, .project-start { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .project-intro, .project-scope, .project-action-row p { color: var(--text-2); font-size: 13px; }
 .project-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 16px; margin-top: 20px; }
-.project-card { border: 1px solid var(--border); border-radius: 12px; padding: 18px; color: var(--text); transition: background 180ms ease, border-color 180ms ease; }
+.project-card { border: 1px solid var(--border); border-radius: 12px; padding: 18px; color: var(--text); transition: background-color var(--motion-feedback), border-color var(--motion-feedback); }
 .project-card:hover { background: var(--surface-2); }
 .project-card svg { color: var(--accent); }
 .project-card h2 { font-size: 17px; margin: 13px 0 7px; }

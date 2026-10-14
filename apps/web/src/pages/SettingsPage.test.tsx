@@ -198,3 +198,27 @@ it("切换设置分组后仍能回到原任务及成果", async () => {
   await nav("appearance"); await nav("shortcuts");
   expect(host.querySelector(".settings-back")?.getAttribute("href")).toBe("/chat/previous?artifact=result");
 });
+
+describe("通用设置的服务详情", () => {
+  it("版本常显，构建和已就绪组件资料收进原生折叠区，不增加查询", async () => {
+    await mount(); await ready(() => expect(host.textContent).toContain("9.9.9"));
+    const details = host.querySelector<HTMLDetailsElement>(".settings-service-details")!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain("settingsLayout.commit"); expect(details.textContent).toContain("status.worker_ready");
+    expect(details.textContent).toContain("worker-1 · 3.12.0"); expect(details.textContent).toContain("settingsLayout.capabilitiesNone");
+    expect([...host.querySelectorAll(".settings-readonly")].find(element => element.textContent === "9.9.9")?.closest("details")).toBeNull();
+    const count = api.system.version.mock.calls.length;
+    await act(async () => details.querySelector("summary")!.click());
+    expect(details.open).toBe(true); expect(api.system.version).toHaveBeenCalledTimes(count);
+    expect(api.settings.update).not.toHaveBeenCalled();
+  });
+
+  it.each(["starting", "unavailable"] as const)("组件状态 %s 不受详情折叠影响", async status => {
+    api.system.version.mockResolvedValue({ version: "9.9.9", worker: { status, version: "worker-1", python: "3.12.0" } });
+    await mount(); await ready(() => expect(host.querySelector('.settings-readonly[role="status"]')?.textContent).toBe(`status.worker_${status}`));
+    const details = host.querySelector<HTMLDetailsElement>(".settings-service-details")!;
+    expect(details.open).toBe(false);
+    const state = host.querySelector('.settings-readonly[role="status"]')!;
+    expect(state.closest("details")).toBeNull(); expect(details.textContent).not.toContain(`status.worker_${status}`);
+  });
+});

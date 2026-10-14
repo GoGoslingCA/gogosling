@@ -25,7 +25,13 @@ export function LocalAddMenu({ controller, disabled, label, hasTaskContext, onCh
   const [position, setPosition] = useState({ side: "above", space: 480 });
   const [filePosition, setFilePosition] = useState({ side: "right", top: 0, height: 340, width: 220 });
   const open = controller.open === "add";
-  useEffect(() => { if (!open) setFilesOpen(false); }, [open]);
+  const hasFileChoices = projectMaterials.length > 0 && Boolean(onToggleMaterial);
+  useEffect(() => {
+    if (!open || !hasFileChoices) {
+      if (open && filesOpen) filesTrigger.current?.focus();
+      setFilesOpen(false);
+    }
+  }, [open, hasFileChoices, filesOpen]);
   useEffect(() => { if (disabled && open) controller.setOpen(null); }, [disabled, open, controller.setOpen]);
 
   const placeMenu = () => {
@@ -51,7 +57,7 @@ export function LocalAddMenu({ controller, disabled, label, hasTaskContext, onCh
     setFilePosition({ side, top, width: Math.min(220, side === "right" ? right : left), height: Math.max(0, window.innerHeight - bounds.top - top - 16) });
   }, [open, filesOpen, position]);
   // 窄屏只有显式点击或键盘展开，防止触控与菜单重排造成悬停反复开关。
-  const hoverFiles = (expanded: boolean) => { if (window.innerWidth > 700) setFilesOpen(expanded); };
+  const hoverFiles = (expanded: boolean) => { if (window.innerWidth > 700) setFilesOpen(expanded && hasFileChoices); };
 
   const focusItem = (menu: "root" | "files", last = false) => {
     queueMicrotask(() => {
@@ -71,7 +77,9 @@ export function LocalAddMenu({ controller, disabled, label, hasTaskContext, onCh
     setFilesOpen(false);
     focusItem("root", last);
   };
+  const chooseFiles = () => { if (!disabled) { close(); onChooseFiles(); } };
   const showFiles = (focus = true) => {
+    if (!hasFileChoices) return;
     setFilesOpen(true);
     if (focus) focusItem("files");
   };
@@ -113,8 +121,8 @@ export function LocalAddMenu({ controller, disabled, label, hasTaskContext, onCh
       }}><Icon name="plus" size={19}/><span className="sr-only">{label}</span></button>
     {open ? <div className="composer-add-panels" data-placement={position.side} style={{ "--composer-menu-space": `${position.space}px` } as CSSProperties} onKeyDown={onMenuKeyDown}>
       <div id={`${prefix}-menu`} className="composer-local-menu" role="menu" aria-label={t("compose.addMenu")} data-local-menu="root">
-        <button ref={filesTrigger} type="button" role="menuitem" tabIndex={-1} aria-haspopup="menu" aria-expanded={filesOpen} aria-controls={`${prefix}-files`} onPointerEnter={() => hoverFiles(true)} onClick={() => showFiles()}>
-          <Icon name="document" size={16}/><span>{t("compose.addFiles")}</span><Icon name="chevron" size={13}/>
+        <button ref={filesTrigger} type="button" role="menuitem" tabIndex={-1} aria-haspopup={hasFileChoices ? "menu" : undefined} aria-expanded={hasFileChoices ? filesOpen : undefined} aria-controls={hasFileChoices ? `${prefix}-files` : undefined} onPointerEnter={() => hoverFiles(true)} onClick={() => hasFileChoices ? showFiles() : chooseFiles()}>
+          <Icon name="document" size={16}/><span>{t("compose.addFiles")}</span>{hasFileChoices ? <Icon name="chevron" size={13}/> : null}
         </button>
         {hasTaskContext ? <>
           <div role="separator" className="composer-menu-separator"/>
@@ -122,8 +130,8 @@ export function LocalAddMenu({ controller, disabled, label, hasTaskContext, onCh
           <button type="button" role="menuitem" tabIndex={-1} onFocus={() => setFilesOpen(false)} onPointerEnter={() => hoverFiles(false)} onClick={() => openContext("permission")}><Icon name="shield" size={16}/><span>{t("compose.approvalMode")}</span></button>
         </> : null}
       </div>
-      {filesOpen ? <div id={`${prefix}-files`} className="composer-local-menu composer-file-menu" role="menu" aria-label={t("compose.addFiles")} data-local-menu="files" data-side={filePosition.side} style={{ "--composer-submenu-top": `${filePosition.top}px`, "--composer-submenu-height": `${filePosition.height}px`, "--composer-submenu-width": `${filePosition.width}px` } as CSSProperties}>
-        <button type="button" role="menuitem" tabIndex={-1} onClick={() => { close(); onChooseFiles(); }}><Icon name="folder" size={16}/><span>{t("compose.localFiles")}</span></button>
+      {filesOpen && hasFileChoices ? <div id={`${prefix}-files`} className="composer-local-menu composer-file-menu" role="menu" aria-label={t("compose.addFiles")} data-local-menu="files" data-side={filePosition.side} style={{ "--composer-submenu-top": `${filePosition.top}px`, "--composer-submenu-height": `${filePosition.height}px`, "--composer-submenu-width": `${filePosition.width}px` } as CSSProperties}>
+        <button type="button" role="menuitem" tabIndex={-1} onClick={chooseFiles}><Icon name="folder" size={16}/><span>{t("compose.localFiles")}</span></button>
         {projectMaterials.length && onToggleMaterial ? <>
           <div role="separator" className="composer-menu-separator"/>
           <span className="composer-menu-caption">{t("compose.projectMaterials")}</span>

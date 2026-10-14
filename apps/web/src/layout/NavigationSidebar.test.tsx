@@ -263,7 +263,7 @@ describe("NavigationSidebar 任务操作", () => {
 });
 
 describe("NavigationSidebar 头像设置菜单", () => {
-  it("显示指定版本并保留全部设置入口，打开菜单不会增加请求", async () => {
+  it("显示指定版本和三个常用设置入口，打开菜单不会增加请求", async () => {
     version.mockResolvedValue({ version: "test", capabilities: { "runtime.resources": 1 } });
     await render();
     expect(host.querySelector(".nav-avatar-copy")?.textContent).toContain(`版本：${APP_RELEASE_LABEL}`);
@@ -272,19 +272,20 @@ describe("NavigationSidebar 头像设置菜单", () => {
     const listCount = list.mock.calls.length;
     await openAvatarMenu();
     const menu = document.querySelector(".avatar-settings-menu")!;
-    expect(menu.querySelectorAll("a[role=menuitem]")).toHaveLength(10);
-    expect(menu.querySelector("a[href='/settings?section=resources']")).not.toBeNull();
+    expect(menu.querySelectorAll("a[role=menuitem]")).toHaveLength(3);
+    expect([...menu.querySelectorAll("a[role=menuitem]")].map(link => link.getAttribute("href"))).toEqual(["/settings?section=general", "/settings?section=appearance", "/settings?section=models"]);
+    expect(menu.querySelector("a[href='/settings?section=resources']")).toBeNull();
     expect(menu.textContent).not.toMatch(/套餐|积分|登录|logout|subscription|credits/i);
     expect(version).toHaveBeenCalledTimes(requestCount);
     expect(list).toHaveBeenCalledTimes(listCount);
     expect(get).not.toHaveBeenCalled();
   });
 
-  it("旧服务不显示资源入口，设置跳转保留任务与项目参数", async () => {
+  it("旧服务保持三个常用入口，设置跳转保留任务与项目参数", async () => {
     await render(0, `/chat/${SESSION_ID}?project_id=local-project`);
     await openAvatarMenu();
     const menu = document.querySelector(".avatar-settings-menu")!;
-    expect(menu.querySelectorAll("a[role=menuitem]")).toHaveLength(9);
+    expect(menu.querySelectorAll("a[role=menuitem]")).toHaveLength(3);
     expect(menu.querySelector("a[href*='section=resources']")).toBeNull();
     const appearance = menu.querySelector<HTMLAnchorElement>("a[href*='section=appearance']")!;
     expect(appearance.getAttribute("href")).toBe("/settings?project_id=local-project&section=appearance");

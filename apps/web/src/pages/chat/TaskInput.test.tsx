@@ -38,10 +38,9 @@ describe("本地加号菜单", () => {
     expect(plus().getAttribute("aria-expanded")).toBe("true");
     expect(pickerClick).not.toHaveBeenCalled();
     expect([...host.querySelectorAll('[data-local-menu="root"] > button')].map(item => item.textContent)).toEqual(["compose.addFiles", "phase2.workspace", "compose.approvalMode"]);
+    expect(button("compose.addFiles").hasAttribute("aria-haspopup")).toBe(false);
     await click(button("compose.addFiles"));
-    expect([...host.querySelectorAll('[data-local-menu="files"] > button')].map(item => item.textContent)).toEqual(["compose.localFiles"]);
-    expect(pickerClick).not.toHaveBeenCalled();
-    await click(button("compose.localFiles"));
+    expect(host.querySelector('[data-local-menu="files"]')).toBeNull();
     expect(pickerClick).toHaveBeenCalledOnce();
     expect(picker.multiple).toBe(true);
     expect(host.querySelector(".composer-add-panels")).toBeNull();
@@ -62,9 +61,10 @@ describe("本地加号菜单", () => {
     await render();
     await click(plus());
     expect(host.querySelectorAll('[data-local-menu="root"] > button')).toHaveLength(1);
+    const picker = vi.spyOn(host.querySelector<HTMLInputElement>('input[type="file"]')!, "click");
     await click(button("compose.addFiles"));
-    expect(host.querySelectorAll('[data-local-menu="files"] > button')).toHaveLength(1);
-    expect(host.querySelector(".composer-menu-caption")).toBeNull();
+    expect(picker).toHaveBeenCalledOnce();
+    expect(host.querySelector(".composer-add-panels")).toBeNull();
   });
 
   it("项目资料只使用传入数据，选择后收起且不会提交外层表单", async () => {
@@ -102,6 +102,8 @@ describe("本地加号菜单", () => {
   });
 
   it("支持方向键首尾导航和子菜单往返，Esc逐层关闭并返回触发按钮", async () => {
+    props.projectMaterials = [{ id: "material", name: "notes.md", selected: false }];
+    props.onToggleProjectMaterial = vi.fn();
     await render();
     await key(plus(), "ArrowDown");
     expect(document.activeElement).toBe(button("compose.addFiles"));
@@ -126,6 +128,8 @@ describe("本地加号菜单", () => {
   });
 
   it("窄屏只通过点击展开子菜单，指针经过其他行不会误关闭或打开工作目录", async () => {
+    props.projectMaterials = [{ id: "material", name: "notes.md", selected: false }];
+    props.onToggleProjectMaterial = vi.fn();
     vi.stubGlobal("innerWidth", 640);
     await render();
     await click(plus());
@@ -143,6 +147,8 @@ describe("本地加号菜单", () => {
   });
 
   it("按按钮可用空间选择展开方向，展开子菜单不重新改变方向", async () => {
+    props.projectMaterials = [{ id: "material", name: "notes.md", selected: false }];
+    props.onToggleProjectMaterial = vi.fn();
     vi.stubGlobal("innerHeight", 760);
     await render();
     const bounds = vi.spyOn(plus(), "getBoundingClientRect");
@@ -273,4 +279,28 @@ describe("分层输入操作", () => {
     expect(host.querySelector('[role="status"]')?.className).toBe("composer-hint");
     expect(host.querySelector('[role="status"]')?.textContent).toBe("save failed");
   });
+});
+
+it("没有项目资料时方向键不打开空子菜单，Esc返回加号，取消选文件后回到输入", async () => {
+  await render();
+  const picker = host.querySelector<HTMLInputElement>('input[type="file"]')!;
+  const choose = vi.spyOn(picker, "click");
+  await key(plus(), "ArrowDown");
+  const files = button("compose.addFiles");
+  expect(document.activeElement).toBe(files); expect(files.hasAttribute("aria-haspopup")).toBe(false);
+  await key(files, "ArrowRight"); expect(host.querySelector('[data-local-menu="files"]')).toBeNull(); expect(choose).not.toHaveBeenCalled();
+  await key(files, "Escape"); expect(document.activeElement).toBe(plus());
+  await click(plus()); await click(button("compose.addFiles")); expect(choose).toHaveBeenCalledOnce();
+  await act(async () => picker.dispatchEvent(new Event("cancel")));
+  expect(document.activeElement).toBe(host.querySelector("textarea")); expect(props.onSubmit).not.toHaveBeenCalled();
+});
+
+it("项目资料清空后恢复直接选文件，关闭旧子菜单并保留可用焦点", async () => {
+  props.projectMaterials = [{ id: "material", name: "notes.md", selected: false }]; props.onToggleProjectMaterial = vi.fn();
+  await render(); await click(plus()); await click(button("compose.addFiles"));
+  expect(document.activeElement).toBe(button("compose.localFiles"));
+  props.projectMaterials = []; await render();
+  expect(host.querySelector('[data-local-menu="files"]')).toBeNull(); expect(document.activeElement).toBe(button("compose.addFiles"));
+  const choose = vi.spyOn(host.querySelector<HTMLInputElement>('input[type="file"]')!, "click");
+  await click(button("compose.addFiles")); expect(choose).toHaveBeenCalledOnce(); expect(props.onToggleProjectMaterial).not.toHaveBeenCalled();
 });

@@ -7,7 +7,7 @@ import { WorkspacePane } from "./WorkspacePane";
 import { WorkspaceSidebar } from "./WorkspaceSidebar";
 import type { PreviewDocument } from "../content/types";
 import type { WorkspaceBrowserBridge, WorkspaceBrowserState } from "../api/workspaceBrowser";
-const mocks = vi.hoisted(() => ({ read: vi.fn(), content: vi.fn(), api: {} as object | null }));
+const mocks = vi.hoisted(() => ({ read: vi.fn(), content: vi.fn(), onResize: vi.fn(), onResizeEnd: vi.fn(), api: {} as object | null }));
 vi.mock("../state/ConnectionContext", () => ({ useConnection: () => ({ api: mocks.api }), useApi: () => ({ preview: { read: mocks.read, content: mocks.content } }) }));
 vi.mock("../state/useWorkbenchCapabilities", () => ({ useWorkbenchCapabilities: () => ({ preview: true, previewLayout: false }) }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
@@ -16,7 +16,7 @@ let controls: NonNullable<ReturnType<typeof useWorkspaceTabs>>;
 let listeners: ((state: WorkspaceBrowserState) => void)[];
 let resize: (() => void)[];
 const documentResult: PreviewDocument = { name: "notes.md", kind: "markdown", format: "markdown", size: 12, mime: "text/markdown", version: "1", text: "# Notes\nHello" };
-function Fixture() { const tabs = useWorkspaceTabs()!; controls = tabs; return <><WorkspaceSidebar /><output>{tabs.activeId ?? ""}</output>{tabs.visible ? <WorkspacePane width={500} onResize={() => undefined} /> : null}</>; }
+function Fixture() { const tabs = useWorkspaceTabs()!; controls = tabs; return <><WorkspaceSidebar /><output>{tabs.activeId ?? ""}</output>{tabs.visible ? <WorkspacePane width={500} onResize={mocks.onResize} onResizeEnd={mocks.onResizeEnd} /> : null}</>; }
 async function mount() { await act(async () => root.render(<QueryClientProvider client={client}><WorkspaceTabsProvider><Fixture /></WorkspaceTabsProvider></QueryClientProvider>)); }
 async function ready(check: () => void) { await vi.waitFor(async () => { await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); check(); }, { timeout: 2500, interval: 10 }); }
 function nativeBridge() {
@@ -30,7 +30,7 @@ function nativeBridge() {
 }
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  mocks.api = {}; mocks.read.mockReset(); mocks.content.mockReset(); mocks.read.mockResolvedValue(documentResult); listeners = []; resize = [];
+  mocks.api = {}; mocks.read.mockReset(); mocks.content.mockReset(); mocks.onResize.mockReset(); mocks.onResizeEnd.mockReset(); mocks.read.mockResolvedValue(documentResult); listeners = []; resize = [];
   host = document.createElement("div"); document.body.append(host); root = createRoot(host); client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   vi.stubGlobal("ResizeObserver", class { constructor(callback: () => void) { resize.push(callback); } observe() {} disconnect() {} });
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ x: 200, y: 90, width: 500, height: 560, top: 90, left: 200, right: 700, bottom: 650, toJSON() {} });
@@ -39,6 +39,21 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); client.clear(); host.remove(); delete window.gogosling; vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("共享阅读区", () => {
+  it("松手先于下一帧时保存最终宽度，并取消旧拖动帧", async () => {
+    await mount(); await act(async () => { controls.store.openFile({ agentId: "a", path: "notes.md" }); });
+    await ready(() => expect(host.querySelector(".content-preview")).not.toBeNull());
+    const callbacks = new Map<number, FrameRequestCallback>();
+    vi.stubGlobal("requestAnimationFrame", vi.fn((callback: FrameRequestCallback) => { callbacks.set(1, callback); return 1; }));
+    vi.stubGlobal("cancelAnimationFrame", vi.fn((id: number) => { callbacks.delete(id); }));
+    const separator = host.querySelector<HTMLDivElement>('[role="separator"]')!;
+    let captured = false; separator.setPointerCapture = () => { captured = true; }; separator.hasPointerCapture = () => captured; separator.releasePointerCapture = () => { captured = false; };
+    await act(async () => {
+      for (const [type, clientX] of [["pointerdown", 800], ["pointermove", 750], ["pointermove", 720], ["pointerup", 700]] as const) {
+        const event = new MouseEvent(type, { bubbles: true, clientX, button: 0 }); Object.defineProperty(event, "pointerId", { value: 1 }); separator.dispatchEvent(event);
+      }
+    });
+    expect(mocks.onResize.mock.calls).toEqual([[600]]); expect(mocks.onResizeEnd.mock.calls).toEqual([[600]]); expect(callbacks.size).toBe(0); expect(captured).toBe(false);
+  });
   it("只挂载活动文件，切换会取消旧读取，迟到正文不能覆盖当前文件", async () => {
     let finish!: (value: PreviewDocument) => void;
     mocks.read.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));

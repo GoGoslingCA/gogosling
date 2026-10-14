@@ -160,14 +160,14 @@ export function StartPage({ enhancementEnabled = false, agents, sessions, loadin
       {!loading && !available.length ? <div className="setup-note">{t("work.setupHint")} <Link to="/providers">{t("nav.providers")}</Link><span> · </span><Link to="/agents">{t("work.configureAssistant")}</Link></div> : null}
       <ErrorBanner error={error} />
     </div>
-    <section className="recent-tasks">
+    {loading || recent.length > 0 ? <section className="recent-tasks">
       <div className="section-heading"><h2>{t("work.continueTasks")}</h2><button type="button" className="btn ghost sm" disabled={inFlight} onClick={onHistory}>{t("work.allTasks")}<Icon name="arrow" size={14} /></button></div>
       {loading ? <Spinner /> : null}
       {recent.length ? <div className="start-recent-list">{recent.map((session) => <button type="button" className="start-recent-item" key={session.id} disabled={inFlight} onClick={() => { if (!inFlight) onSelect(session.id); }}>
         <Icon name="chat" size={15} />
         <span className="start-recent-title">{session.title || t("chat.untitled")}</span>
         <time dateTime={session.last_message_at ?? session.created_at}>{formatRelative(session.last_message_at ?? session.created_at, timeLabels, { timeZone })}</time>
-      </button>)}</div> : !loading ? <div className="recent-empty"><span>{t("work.noRecent")}</span></div> : null}
-    </section>
+      </button>)}</div> : null}
+    </section> : null}
   </div>;
 }

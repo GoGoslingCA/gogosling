@@ -65,6 +65,8 @@ export function SettingsPage() {
   const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timeZone = useTimeZone();
   const desktop = Boolean(window.gogosling?.getConnection);
+  const workerStatus = version.data?.worker?.status;
+  const workerStatusRow = <SettingsRow label={t("settingsLayout.workerStatus")} description={[version.data?.worker?.version, version.data?.worker?.python].filter(Boolean).join(" · ") || undefined}><span className="settings-readonly" role={workerStatus === "ready" ? undefined : "status"}>{t(workerStatus === "ready" || workerStatus === "starting" || workerStatus === "unavailable" ? `status.worker_${workerStatus}` : "common.unknown")}</span></SettingsRow>;
 
   useEffect(() => {
     const media = window.matchMedia?.("(max-width: 980px)");
@@ -165,10 +167,15 @@ export function SettingsPage() {
           <section className="settings-card" aria-label={t("settingsLayout.service")}>
             <ErrorBanner error={version.error} />{version.isPending ? <Spinner /> : null}
             {version.data ? <>
-              <SettingsRow label={t("settingsLayout.appVersion")} description={version.data.commit ? t("settingsLayout.commit", { commit: version.data.commit.slice(0, 12) }) : undefined}><span className="settings-readonly">{version.data.version || t("common.unknown")}</span></SettingsRow>
-              <SettingsRow label={t("settingsLayout.startedAt")}><span className="settings-readonly">{version.data.started_at ? formatDateTime(version.data.started_at, { timeZone, locale: i18n.language }) : t("common.unknown")}</span></SettingsRow>
-              <SettingsRow label={t("settingsLayout.workerStatus")} description={[version.data.worker?.version, version.data.worker?.python].filter(Boolean).join(" · ") || undefined}><span className="settings-readonly">{t(version.data.worker?.status === "ready" || version.data.worker?.status === "starting" || version.data.worker?.status === "unavailable" ? `status.worker_${version.data.worker.status}` : "common.unknown")}</span></SettingsRow>
-              <SettingsRow label={t("settingsLayout.capabilities")} description={t("settingsLayout.capabilitiesHint")}><ul className="settings-capabilities">{CAPABILITY_LABELS.filter(([key]) => version.data?.capabilities?.[key] === 1).map(([key, label]) => <li key={key}>{t(label)}</li>)}{CAPABILITY_LABELS.every(([key]) => version.data?.capabilities?.[key] !== 1) ? <li>{t("settingsLayout.capabilitiesNone")}</li> : null}</ul></SettingsRow>
+              <SettingsRow label={t("settingsLayout.appVersion")}><span className="settings-readonly">{version.data.version || t("common.unknown")}</span></SettingsRow>
+              {workerStatus !== "ready" ? workerStatusRow : null}
+              <details className="settings-service-details">
+                <summary>{t("compact.details")}<Icon name="chevron" size={13} /></summary>
+                {version.data.commit ? <p className="settings-footnote">{t("settingsLayout.commit", { commit: version.data.commit.slice(0, 12) })}</p> : null}
+                <SettingsRow label={t("settingsLayout.startedAt")}><span className="settings-readonly">{version.data.started_at ? formatDateTime(version.data.started_at, { timeZone, locale: i18n.language }) : t("common.unknown")}</span></SettingsRow>
+                {workerStatus === "ready" ? workerStatusRow : null}
+                <SettingsRow label={t("settingsLayout.capabilities")} description={t("settingsLayout.capabilitiesHint")}><ul className="settings-capabilities">{CAPABILITY_LABELS.filter(([key]) => version.data?.capabilities?.[key] === 1).map(([key, label]) => <li key={key}>{t(label)}</li>)}{CAPABILITY_LABELS.every(([key]) => version.data?.capabilities?.[key] !== 1) ? <li>{t("settingsLayout.capabilitiesNone")}</li> : null}</ul></SettingsRow>
+              </details>
             </> : null}
           </section>
         </> : null}

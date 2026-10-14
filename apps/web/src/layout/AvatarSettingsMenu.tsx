@@ -4,27 +4,20 @@ import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../components/Icon";
-import { settingsHref, settingsReturnTarget, settingsSections, type SettingsSection } from "../lib/settingsNavigation";
+import { settingsHref, settingsReturnTarget } from "../lib/settingsNavigation";
 import { readUiPreferences } from "../lib/uiPreferences";
 import { APP_RELEASE_LABEL } from "../lib/release";
 import personIcon from "../assets/icons/person-fill.svg";
 import "./avatarSettingsMenu.css";
 
-const sectionLabels: Record<SettingsSection, { label: string; icon: Parameters<typeof Icon>[0]["name"] }> = {
-  general: { label: "settingsLayout.general", icon: "settings" },
-  appearance: { label: "preferences.appearance", icon: "spark" },
-  shortcuts: { label: "settingsLayout.shortcuts", icon: "code" },
-  resources: { label: "resources.title", icon: "panel" },
-  agents: { label: "nav.agents", icon: "spark" },
-  models: { label: "settingsLayout.models", icon: "model" },
-  extensions: { label: "settingsLayout.extensionsTitle", icon: "code" },
-  channels: { label: "settingsLayout.channelsTitle", icon: "chat" },
-  files: { label: "preferences.fileAccess", icon: "shield" },
-  audit: { label: "settingsLayout.auditTitle", icon: "clock" },
-};
+const shortcuts = [
+  { section: "general", label: "settings.title", icon: "settings" },
+  { section: "appearance", label: "preferences.appearance", icon: "spark" },
+  { section: "models", label: "settingsLayout.models", icon: "model" },
+] as const;
 
 /** 复用已有设置内容，菜单随路由切换与失焦关闭，不影响页面对话框。 */
-export function AvatarSettingsMenu({ open, onOpenChange, resourcesAvailable }: { open: boolean; onOpenChange: (open: boolean) => void; resourcesAvailable: boolean }) {
+export function AvatarSettingsMenu({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void; resourcesAvailable: boolean }) {
   const { t } = useTranslation();
   const location = useLocation();
   const id = useId();
@@ -53,7 +46,7 @@ export function AvatarSettingsMenu({ open, onOpenChange, resourcesAvailable }: {
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
-  }, [open, resourcesAvailable]);
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     menu.current?.querySelector<HTMLAnchorElement>("[role=menuitem]")?.focus();
@@ -90,7 +83,7 @@ export function AvatarSettingsMenu({ open, onOpenChange, resourcesAvailable }: {
     </button>
     {open ? createPortal(<div id={id} ref={menu} className="avatar-settings-menu" role="menu" aria-label={t("profile.menuLabel")} style={position} onKeyDown={navigateMenu}>
       <div className="avatar-settings-heading" role="presentation"><span className="nav-avatar"><img src={personIcon} alt="" aria-hidden="true" /></span><div><strong>{t("app.title")}</strong><span>{version}</span></div></div>
-      {settingsSections.filter((section) => section !== "resources" || resourcesAvailable).map((section) => <Link key={section} role="menuitem" tabIndex={-1} className={`avatar-settings-item${section === "resources" || (section === "agents" && !resourcesAvailable) || section === "files" ? " avatar-settings-group-start" : ""}`} to={settingsHref(section, location.search)} state={{ returnTo }} onClick={() => onOpenChange(false)}><Icon name={sectionLabels[section].icon} size={17} /><span>{t(sectionLabels[section].label)}</span><Icon name="chevron" size={13} /></Link>)}
+      {shortcuts.map(({ section, label, icon }) => <Link key={section} role="menuitem" tabIndex={-1} className="avatar-settings-item" to={settingsHref(section, location.search)} state={{ returnTo }} onClick={() => onOpenChange(false)}><Icon name={icon} size={17} /><span>{t(label)}</span><Icon name="chevron" size={13} /></Link>)}
     </div>, document.body) : null}
   </>;
 }

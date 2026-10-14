@@ -16,8 +16,8 @@
 .message-markdown blockquote { border-left: 3px solid var(--border); padding-left: 10px; margin: 0.5em 0; color: var(--text-2); }
 .message-markdown a { text-decoration: underline; }
 .message-markdown p code, .message-markdown li code { padding: 1px 4px; border-radius: 3px; background: var(--surface-2); }
-.message-code { border: 1px solid var(--border); border-radius: var(--radius-sm); margin: 0.5em 0; overflow: hidden; background: var(--surface-2); }
-.message-code-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; border-bottom: 1px solid var(--border); }
+.message-code { border: 0; border-radius: var(--radius-sm); margin: 0.5em 0; overflow: hidden; background: var(--surface-2); }
+.message-code-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 10px 0; color: var(--text-2); }
 .message-code pre { padding: 10px; margin: 0; overflow: auto; max-height: 480px; white-space: pre; }
 .message-table { overflow-x: auto; margin: 0.5em 0; }
 .message-table table { border-collapse: collapse; width: 100%; }

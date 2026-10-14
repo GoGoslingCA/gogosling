@@ -314,3 +314,14 @@ describe("开始页任务创建", () => {
     } finally { registry.dispose(); }
   });
 });
+
+it("没有历史时收起继续任务空区，加载时仍显示状态且输入保持可用", async () => {
+  await render();
+  expect(container.querySelector(".recent-tasks")).toBeNull();
+  await type("从新任务开始"); expect(textarea().value).toBe("从新任务开始");
+  props.loading = true; await render();
+  expect(container.querySelector(".recent-tasks")).not.toBeNull();
+  expect(textarea().disabled).toBe(false); expect(textarea().value).toBe("从新任务开始");
+  props.loading = false; await render();
+  expect(container.querySelector(".recent-tasks")).toBeNull(); expect(props.onStart).not.toHaveBeenCalled();
+});

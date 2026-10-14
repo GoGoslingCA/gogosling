@@ -1,4 +1,4 @@
-/* 参考设置页的双栏结构；颜色复用全局变量，保证工作区与设置一致。 */
+/* 设置页采用双栏结构；颜色复用全局变量，保证工作区与设置一致。 */
 .app.settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--header-h) minmax(0, 1fr); }
 .app.settings-layout>.app-header { grid-column: 1; grid-row: 1; background: var(--surface-2); }
 .app.settings-layout .connection-popover { left: auto; right: 0; }
@@ -16,7 +16,7 @@
 .settings-nav-group { margin-bottom: 18px; }
 .settings-nav-group>p { color: var(--settings-muted); margin: 17px 9px 7px; font-size: 11px; }
 .settings-nav-group:first-child>p { display: none; }
-.settings-nav-group>button { display: flex; gap: 10px; align-items: center; width: 100%; min-height: 36px; border: 0; border-radius: 8px; padding: 8px 10px; margin: 2px 0; font-size: 13px; color: var(--settings-foreground); background: transparent; text-align: left; cursor: pointer; transition: background 180ms ease; }
+.settings-nav-group>button { display: flex; gap: 10px; align-items: center; width: 100%; min-height: 36px; border: 0; border-radius: 8px; padding: 8px 10px; margin: 2px 0; font-size: 13px; color: var(--settings-foreground); background: transparent; text-align: left; cursor: pointer; transition: background var(--motion-feedback, 80ms) ease; }
 .settings-nav-group>button:hover, .settings-nav-group>button[aria-selected="true"] { background: var(--settings-selected); }
 .settings-nav-group>button[aria-selected="true"] { font-weight: 550; }
 .settings-nav-group svg { flex-shrink: 0; }
@@ -34,13 +34,13 @@
 .settings-row-control select { min-width: 124px; max-width: 220px; }
 .settings-row-control input:not([type="range"]) { width: 194px; }
 .settings-row-control select:disabled, .settings-row-control input:disabled { opacity: .55; cursor: not-allowed; }
-.settings-save-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 18px; padding: 12px 0 14px; border-top: 1px solid var(--settings-line); }
+.settings-save-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 18px; padding: 12px 0 14px; border: 0; }
 .settings-save-row>span { color: var(--settings-muted); font-size: 11px; }
 .settings-readonly { color: var(--settings-muted); font-size: 12px; text-align: right; }
 .settings-capabilities { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 280px; margin: 0; padding: 0; list-style: none; }
 .settings-capabilities li { padding: 2px 8px; border-radius: 999px; background: var(--settings-selected); color: var(--settings-foreground); font-size: 11px; line-height: 1.6; }
-.settings-switch { width: 36px; height: 21px; border: 0; border-radius: 12px; padding: 3px; background: #dfe1e3; cursor: pointer; transition: background 180ms ease; }
-.settings-switch>span { display: block; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #00000014; transition: transform 180ms ease; }
+.settings-switch { width: 36px; height: 21px; border: 0; border-radius: 12px; padding: 3px; background: #dfe1e3; cursor: pointer; transition: background var(--motion-state, 120ms) ease; }
+.settings-switch>span { display: block; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px #00000014; transition: transform var(--motion-state, 120ms) ease; }
 .settings-switch[aria-checked="true"] { background: #00b990; }
 .settings-switch[aria-checked="true"]>span { transform: translateX(15px); }
 .settings-slider { width: 226px; }
@@ -97,7 +97,15 @@
 .settings-management .page-head { margin-bottom: 14px; justify-content: flex-end; }
 .settings-management .page-head h1 { display: none; }
 .settings-management .page-head p { font-size: 12px; }
-.settings-management .card { border-radius: 12px; padding: 18px; border-color: var(--settings-line); background: var(--settings-card); }
+.settings-management .card { border-radius: 12px; padding: 18px; border: 0; box-shadow: none; background: var(--settings-card); }
 .settings-management .card-title { font-size: 14px; flex-wrap: wrap; }
 .settings-management .meta { overflow-wrap: anywhere; }
 .settings-management .input { max-width: 100%; }
+
+.settings-service-details { padding: 0 18px 14px; }
+.settings-service-details > summary { display: inline-flex; align-items: center; gap: 6px; padding: 5px 0; color: var(--settings-muted); font-size: 12px; cursor: pointer; list-style: none; }
+.settings-service-details > summary::-webkit-details-marker { display: none; }
+.settings-service-details[open] > summary > svg { transform: rotate(90deg); }
+.settings-service-details > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 4px; }
+.settings-service-details > .settings-row { padding-inline: 0; }
+.settings-service-details > .settings-footnote { margin: 12px 0 0; }

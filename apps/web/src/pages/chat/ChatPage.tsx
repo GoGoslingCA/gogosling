@@ -1,6 +1,6 @@
 // 聊天页：会话搜索、分页与归档；持久化消息和事件流共同恢复运行状态。
 
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useBlocker, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -30,13 +30,15 @@ import { SavedArtifactEditor } from "./SavedArtifactEditor";
 import { extractArtifacts, preferredArtifact, artifactExtension, safeArtifactFilename } from "../../lib/artifacts";
 import { ArtifactPanel } from "./ArtifactPanel";
 import { Icon } from "../../components/Icon";
-import { clampArtifactWidth, readUiPreferences, writeUiPreferences } from "../../lib/uiPreferences";
+import { readUiPreferences, writeUiPreferences } from "../../lib/uiPreferences";
+import { usePanelResize } from "../../lib/usePanelResize";
 import { TaskStarter, StartOutcomeUnknown, type StartStage } from "../../lib/startTask";
 import { useWorkbenchCapabilities } from "../../state/useWorkbenchCapabilities";
 import { SessionProjectControl } from "./SessionProjectControl";
 import { TaskContextBar } from "./TaskContextBar";
 import { isTerminal } from "../../state/liveRuns";
 import { filterSessions, mergeSessionPages, SESSION_PAGE_LIMIT } from "./sessionSearch";
+import { useTaskPopoverController } from "./taskPopovers";
 
 const ContentPreview = lazy(() => import("../../content/ContentPreview").then(m => ({default:m.ContentPreview})));
 const FileBrowser = lazy(() => import("../../content/FileBrowser").then(m => ({default:m.FileBrowser})));
@@ -105,6 +107,10 @@ function ChatWorkspace() {
   const [requestedResult, setRequestedResult] = useState<{messageId: string; version: number} | null>(null);
   const [retryDraft, setRetryDraft] = useState<{sessionId: string; id: string; text: string} | null>(null);
   const [tab, setTab] = useState<"conversation" | "artifact">("conversation");
+  useEffect(() => {
+    // 独立阅读区打开后，返回任务应回到对话；保留成果编辑器和文件浏览位置。
+    if (workspace.tabs?.visible) setTab("conversation");
+  }, [workspace.tabs?.visible]);
   const [artifactWidth, setArtifactWidth] = useState(() => readUiPreferences().artifactWidth);
   const [homeDirty, setHomeDirty] = useState(false);
   const [startStage, setStartStage] = useState<StartStage | null>(null);
@@ -117,7 +123,19 @@ function ChatWorkspace() {
   const [renaming, setRenaming] = useState<Session | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
-  const resizeStart = useRef<{ x: number; width: number } | null>(null);
+  const historyDrawer = useRef<HTMLElement>(null);
+  const historyTrigger = useRef<HTMLButtonElement>(null);
+  const historyReturnFocus = useRef<HTMLElement | null>(null);
+  const historyShouldRestoreFocus = useRef(false);
+  const historyScroll = useRef(0);
+  const historySessionId = useRef(sessionId);
+  const taskHead = useRef<HTMLDivElement>(null);
+  const taskMenuTrigger = useRef<HTMLElement>(null);
+  const taskMenus = useTaskPopoverController(taskHead, sessionId ?? "");
+  const taskMenuId = useId();
+  const artifactResize = usePanelResize({ width: artifactWidth, onResize: setArtifactWidth,
+    onResizeEnd: width => writeUiPreferences({ artifactWidth: width }),
+    enabled: Boolean(sessionId && artifactOpen && !narrow && !workspace.tabs?.visible) });
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     const pathChanged = currentLocation.pathname !== nextLocation.pathname;
@@ -133,8 +151,30 @@ function ChatWorkspace() {
     }
   }, [blocker, t]);
   useEffect(() => {
-    if (search.get("history") === "1") { setHistoryOpen(true); requestAnimationFrame(() => searchInput.current?.focus()); }
-  }, [search]);
+    const sessionChanged = historySessionId.current !== sessionId;
+    historySessionId.current = sessionId;
+    if (search.get("history") === "1") setHistoryOpen(true);
+    else if (sessionChanged) {
+      // 全局导航切换任务时收起旧抽屉，焦点继续属于导航动作；保留筛选与草稿。
+      historyShouldRestoreFocus.current = false;
+      setHistoryOpen(false);
+    }
+  }, [search, sessionId]);
+  useLayoutEffect(() => {
+    if (historyOpen) {
+      const current = document.activeElement;
+      if (current instanceof HTMLElement && current !== document.body && !historyDrawer.current?.contains(current)) historyReturnFocus.current = current;
+      const list = historyDrawer.current?.querySelector<HTMLElement>(".session-list");
+      if (list) list.scrollTop = historyScroll.current;
+      if (!document.querySelector("dialog[open]")) searchInput.current?.focus({ preventScroll: true });
+    } else if (historyShouldRestoreFocus.current) {
+      historyShouldRestoreFocus.current = false;
+      if (!document.querySelector("dialog[open]")) {
+        const previous = historyReturnFocus.current;
+        (previous?.isConnected ? previous : historyTrigger.current)?.focus({ preventScroll: true });
+      }
+    }
+  }, [historyOpen]);
   useEffect(() => { setArtifactDirty(false); setPreviewFile(null); setFilesOpen(false); setFileBrowserLocation({ folder: "", filter: "" }); setTab("conversation"); setPendingContext(null); setRequestedResult(null); setRetryDraft(null); setArtifactOpen(false); setSavedArtifactId(null); artifactIntent.current += 1; allowStartNavigation.current = false; }, [sessionId]);
   const [messageMore, setMessageMore] = useState<Record<string, boolean>>({});
   const detailKey = queryKeys.session(sessionId ?? "");
@@ -154,7 +194,7 @@ function ChatWorkspace() {
     enabled: sessionId !== null,
   });
   const recentSessions = useQuery({ queryKey: [...queryKeys.sessionsRoot, "recent"], queryFn: () => api.sessions.list({ status: "active", limit: 4 }), enabled: !sessionId });
-  const allSessions = mergeSessionPages(sessions.data?.pages ?? []);
+  const allSessions = useMemo(() => mergeSessionPages(sessions.data?.pages ?? []), [sessions.data?.pages]);
   const session = selectedSession.data ?? allSessions.find((item) => item.id === sessionId);
   useEffect(() => {
     if (session) writeUiPreferences({ lastSessionId: session.id, lastArtifactId: artifactOpen ? savedArtifactId : null });
@@ -162,7 +202,7 @@ function ChatWorkspace() {
   }, [session, savedArtifactId, artifactOpen, selectedSession.error, navigate]);
   const agentOfSession = agents.data?.find((agent) => agent.id === session?.agent_id);
   const agentName = useCallback((id: string) => agents.data?.find((agent) => agent.id === id)?.name ?? id, [agents.data]);
-  const visibleSessions = filterSessions(allSessions, sessionSearch, agentName);
+  const visibleSessions = useMemo(() => filterSessions(allSessions, sessionSearch, agentName), [allSessions, sessionSearch, agentName]);
 
   // 每次增量读取有上限；达到上限时提供继续加载入口，避免静默丢掉长会话后半部分。
   const messages = useQuery<Message[]>({
@@ -330,14 +370,37 @@ function ChatWorkspace() {
   const lastRunId = latestTaskRunId(sessionId, messages.data ?? [], liveRuns);
   const latestRun = useQuery({ queryKey: queryKeys.run(lastRunId ?? ""), queryFn: () => api.runs.get(lastRunId ?? ""), enabled: !!lastRunId && !activeRunId });
   const taskFailure = resolveTaskFailure(sessionId, lastRunId, liveRuns, latestRun.data, activeRunId);
-  const selectSession = (id: string) => { setHistoryOpen(false); void navigate(chatUrl(id)); };
+  const selectSession = (id: string) => {
+    historyShouldRestoreFocus.current = false;
+    setHistoryOpen(false);
+    const params = new URLSearchParams(search); params.delete("history");
+    void navigate(chatUrl(id, params));
+  };
   const beginRename = (item: Session) => { setRenaming(item); setRenameValue(item.title ?? ""); };
-  const showHistory = () => { setHistoryOpen(true); requestAnimationFrame(() => searchInput.current?.focus()); };
-  const closeHistory = () => { setHistoryOpen(false); const params = new URLSearchParams(search); params.delete("history"); setSearch(params, { replace: true }); };
+  const showHistory = () => { taskMenus.setOpen(null); setHistoryOpen(true); };
+  const closeHistory = useCallback(() => {
+    historyShouldRestoreFocus.current = true;
+    setHistoryOpen(false);
+    const params = new URLSearchParams(search); params.delete("history"); setSearch(params, { replace: true });
+  }, [search, setSearch]);
+  useEffect(() => {
+    if (!historyOpen) return;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || document.querySelector("dialog[open]")) return;
+      event.preventDefault(); closeHistory();
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [historyOpen, closeHistory]);
+  const closeTaskMenu = () => {
+    taskMenus.setOpen(null);
+    if (!document.querySelector("dialog[open]")) taskMenuTrigger.current?.focus({ preventScroll: true });
+  };
 
   return <div className={`workbench ${artifactOpen && sessionId ? "has-artifact" : ""} showing-${tab}`} style={{ "--artifact-width": `${artifactWidth}px` } as CSSProperties}>
     {historyOpen ? <button className="history-scrim" aria-label={t("common.close")} onClick={closeHistory} /> : null}
-    <aside hidden={!historyOpen} className={`chat-side history-drawer ${historyOpen ? "open" : ""}`} inert={!historyOpen} aria-label={t("work.history")}>
+    <aside ref={historyDrawer} hidden={!historyOpen} className={`chat-side history-drawer ${historyOpen ? "open" : ""}`} inert={!historyOpen} aria-label={t("work.history")} onScrollCapture={event => { if (event.target instanceof HTMLElement && event.target.classList.contains("session-list")) historyScroll.current = event.target.scrollTop; }}>
+      {historyOpen ? <>
       <div className="side-head"><h2>{t("work.history")}</h2><button type="button" className="btn ghost sm" onClick={closeHistory} aria-label={t("common.close")}><Icon name="close" /></button></div>
       <div className="history-filters">
         <input ref={searchInput} className="input" type="search" aria-label={t("chat.searchSessions")} placeholder={t("chat.searchSessions")} value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} />
@@ -352,19 +415,23 @@ function ChatWorkspace() {
       <SessionList sessions={visibleSessions} loading={sessions.isPending} error={sessions.error} activeId={sessionId} onSelect={selectSession} onRename={beginRename} agentName={agentName} timeZone={timeZone} />
       {sessions.error ? <button type="button" className="btn sm" disabled={sessions.isFetching} onClick={() => void sessions.refetch()}>{t("chat.retryLoad")}</button> : null}
       {sessions.hasNextPage ? <button type="button" className="btn sm" disabled={sessions.isFetching} onClick={() => void sessions.fetchNextPage()}>{sessions.isFetchingNextPage ? t("common.loading") : t("chat.loadMoreSessions")}</button> : null}
+      </> : null}
     </aside>
     <section className="chat-main">
-      {sessionId || projectId ? <div className="chat-head">
+      {sessionId || projectId ? <div ref={taskHead} className="chat-head">
         <div className="workspace-title"><span className="eyebrow">{t("work.workspace")}</span><h1>{sessionId ? session?.title || t("chat.untitled") : t("work.startPage")}</h1></div>
-        <button type="button" className="btn ghost sm" onClick={showHistory} aria-label={t("work.history")} title={t("work.searchShortcut")}><Icon name="clock" /><span className="optional-label">{t("work.history")}</span></button>
+        <button ref={historyTrigger} type="button" className="btn ghost sm" onClick={showHistory} aria-label={t("work.history")} title={t("work.searchShortcut")}><Icon name="clock" /><span className="optional-label">{t("work.history")}</span></button>
         {sessionId ? <>
           {caps.preview ? <button type="button" className="btn ghost sm" aria-label={t("preview.files")} title={t("preview.files")} onClick={() => {workspace.tabs?.store.hide();setPreviewFile(null);setFilesOpen(true);setArtifactOpen(true);setTab("artifact");}}><Icon name="folder"/><span className="optional-label">{t("preview.files")}</span></button> : null}
           <button type="button" className={`btn sm ${artifactOpen ? "selected" : "ghost"}`} onClick={() => { workspace.tabs?.store.hide(); setPreviewFile(null); setFilesOpen(false); setArtifactOpen(true); setTab("artifact"); }} aria-label={t("work.openArtifact")} title={t("work.openArtifact")}><Icon name="panel" /><span className="optional-label">{t("work.artifact")}</span></button>
-          <details className="task-menu"><summary className="btn ghost sm" aria-label={t("work.taskActions")}><Icon name="more" /></summary><div className="task-menu-items">
-            <button type="button" className="btn ghost sm" disabled={!session || actionBusy} onClick={() => { if (session) beginRename(session); }}>{t("chat.rename")}</button>
-            <button type="button" className="btn ghost sm" disabled={!session || actionBusy || activeRunId !== null || send.isPending} onClick={() => archiveSession.mutate({ id: sessionId, status: archived ? "active" : "archived" })}>{t(archived ? "chat.restore" : "chat.archive")}</button>
-            <button type="button" className="btn ghost sm danger" disabled={!session || actionBusy || artifactDirty || activeRunId !== null || send.isPending} title={artifactDirty ? t("work.saveBeforeDelete") : undefined} onClick={() => { if (window.confirm(t("chat.confirmDelete"))) deleteSession.mutate(sessionId); }}>{t("common.delete")}</button>
-          </div></details>
+          <details className="task-menu" data-task-popover="actions" open={taskMenus.open === "actions"} onKeyDown={event => {
+            if (event.key !== "Escape" || event.defaultPrevented || taskMenus.open !== "actions" || document.querySelector("dialog[open]")) return;
+            event.preventDefault(); event.stopPropagation(); closeTaskMenu();
+          }}><summary ref={taskMenuTrigger} className="btn ghost sm" aria-label={t("work.taskActions")} aria-expanded={taskMenus.open === "actions"} aria-controls={taskMenus.open === "actions" ? taskMenuId : undefined} onClick={event => { event.preventDefault(); taskMenus.setOpen(taskMenus.open === "actions" ? null : "actions"); }}><Icon name="more" /></summary>{taskMenus.open === "actions" ? <div id={taskMenuId} className="task-menu-items">
+            <button type="button" className="btn ghost sm" disabled={!session || actionBusy} onClick={() => { closeTaskMenu(); if (session) beginRename(session); }}>{t("chat.rename")}</button>
+            <button type="button" className="btn ghost sm" disabled={!session || actionBusy || activeRunId !== null || send.isPending} onClick={() => { closeTaskMenu(); archiveSession.mutate({ id: sessionId, status: archived ? "active" : "archived" }); }}>{t(archived ? "chat.restore" : "chat.archive")}</button>
+            <button type="button" className="btn ghost sm danger" disabled={!session || actionBusy || artifactDirty || activeRunId !== null || send.isPending} title={artifactDirty ? t("work.saveBeforeDelete") : undefined} onClick={() => { closeTaskMenu(); if (window.confirm(t("chat.confirmDelete"))) deleteSession.mutate(sessionId); }}>{t("common.delete")}</button>
+          </div> : null}</details>
         </> : null}
       </div> : null}
       {!sessionId && projectId && !caps.loading && !caps.projects ? <div className="project-context" role="alert"><p>{t("projects.unavailable")}</p><Link to="/chat">{t("work.newTask")}</Link></div> : null}
@@ -424,11 +491,7 @@ function ChatWorkspace() {
     </section>
     {sessionId ? <aside id="artifact-view" className="artifact-container" hidden={!artifactOpen} aria-label={t("work.artifact")}>
       <div className="panel-resize" role="separator" aria-label={t("work.resizeArtifact")} aria-orientation="vertical" aria-valuenow={artifactWidth} aria-valuemin={420} aria-valuemax={640} tabIndex={0}
-        onPointerDown={(event) => { resizeStart.current = { x: event.clientX, width: artifactWidth }; event.currentTarget.setPointerCapture(event.pointerId); }}
-        onPointerMove={(event) => { if (resizeStart.current && event.currentTarget.hasPointerCapture(event.pointerId)) setArtifactWidth(clampArtifactWidth(resizeStart.current.width + resizeStart.current.x - event.clientX)); }}
-        onPointerUp={(event) => { resizeStart.current = null; event.currentTarget.releasePointerCapture(event.pointerId); writeUiPreferences({ artifactWidth }); }}
-        onPointerCancel={() => { resizeStart.current = null; }}
-        onKeyDown={(event) => { const next = event.key === "ArrowLeft" ? artifactWidth + 20 : event.key === "ArrowRight" ? artifactWidth - 20 : event.key === "Home" ? 420 : event.key === "End" ? 640 : null; if (next !== null) { event.preventDefault(); const width = clampArtifactWidth(next); setArtifactWidth(width); writeUiPreferences({ artifactWidth: width }); } }} />
+        {...artifactResize} />
       <div className="artifact-editor-preserved" hidden={previewFile !== null || filesOpen}>{caps.artifacts && savedArtifactId ? <SavedArtifactEditor artifactId={savedArtifactId} sessionId={sessionId} visible={artifactOpen && !workspace.tabs?.visible && !previewFile && !filesOpen && (!narrow || tab === "artifact")} onClose={() => { artifactIntent.current += 1; setArtifactOpen(false); setTab("conversation"); const params = new URLSearchParams(search); params.delete("artifact"); setSearch(params, { replace: true }); }} onDirtyChange={setArtifactDirty} /> : caps.artifacts ? <section className="artifact-panel"><header className="artifact-head"><h2>{t("versions.savedResults")}</h2><button className="btn ghost" onClick={() => { setArtifactOpen(false); setTab("conversation"); }}>{t("common.close")}</button></header><p className="artifact-notice">{t("versions.chooseHint")}</p>{savedArtifacts.data?.map((item) => <button className="btn ghost" key={item.id} onClick={() => openPersistent(item.id)}>{item.title}</button>)}</section> : <ArtifactPanel requestedMessageId={requestedResult?.messageId} requestedVersion={requestedResult?.version} visible={artifactOpen && !workspace.tabs?.visible && !previewFile && !filesOpen && (!narrow || tab === "artifact")} key={sessionId} sessionId={sessionId} messages={messages.data ?? []} onDirtyChange={setArtifactDirty} onClose={() => { artifactIntent.current += 1; setArtifactOpen(false); setTab("conversation"); }} onUseAsContext={(attachment) => { setPendingContext({ sessionId, attachment }); setTab("conversation"); }} />}</div>
       {caps.preview && artifactOpen && !workspace.tabs?.visible && (!narrow || tab === "artifact") && agentOfSession ? <Suspense fallback={<p className="muted">{t("common.loading")}</p>}>{previewFile ? <ContentPreview agentId={agentOfSession.id} path={previewFile} layoutAvailable={caps.previewLayout} onClose={() => {setPreviewFile(null);setArtifactOpen(false);setTab("conversation");}}/> : filesOpen ? <FileBrowser key={agentOfSession.id} agentId={agentOfSession.id} initialLocation={fileBrowserLocation} onLocationChange={setFileBrowserLocation} layoutAvailable={caps.previewLayout} onOpenFile={workspace.tabs ? path => workspace.openFile({ agentId: agentOfSession.id, path }) : undefined} onClose={() => {setFilesOpen(false);setArtifactOpen(false);setTab("conversation");}}/> : null}</Suspense> : null}
     </aside> : null}

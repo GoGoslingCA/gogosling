@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-14",
+  "project": "gogosling",
+  "publisher": "Gogosling.ca, Canada",
+  "intent": "Keep common actions close to the task and make feedback brief, without waiting for decorative transitions.",
+  "changes": [
+    {
+      "area": "Task reading",
+      "problem": "Borders, status pills and connecting lines competed with the actual content.",
+      "change": "Use plain tool rows with disclosure arrows, a white progress surface, and borderless code containers. Expanded details keep a distinct background; errors, approvals and keyboard focus remain visible."
+    },
+    {
+      "area": "Common actions",
+      "problem": "Choosing a local file required an unnecessary submenu; the avatar menu duplicated the complete settings navigation.",
+      "change": "Without project materials, Add files opens the local picker directly. Project materials retain their submenu. The avatar offers Settings, Appearance and Models, while the full settings page retains all supported sections and existing routes. Empty task history no longer occupies the start page."
+    },
+    {
+      "area": "Disclosure and focus",
+      "problem": "Closed task popovers still constructed content, and history or task menus could outlive the action that opened them.",
+      "change": "Construct task-context content only while open. Unmount closed history contents while retaining filters and scroll state. Close menus on selection, outside input or Escape; restore focus without interfering with an open approval dialog. Switching tasks closes history unless the new URL explicitly requests it."
+    },
+    {
+      "area": "Reading and resizing",
+      "problem": "Every pointer move updated the parent, quick release could save an older width, and returning from a file in a narrow window could leave the conversation hidden.",
+      "change": "Coalesce width changes into one update per animation frame and commit the final pointer position on release. Cancel pending work when the resize operation ends or its owner disappears. Keep keyboard resizing and the 420–640 px range. Prepare the conversation view when the independent reading pane opens, preserving unsaved editors and explicit result-opening actions."
+    },
+    {
+      "area": "Settings",
+      "problem": "Implementation details and nested card borders made the normal settings path harder to scan.",
+      "change": "Collapse routine service details, keep version and abnormal worker status visible, and remove decorative borders from embedded management cards and save rows."
+    }
+  ],
+  "motion": {
+    "feedbackMs": 80,
+    "stateMs": 120,
+    "buttonPress": "Immediate pressed state; no animation completion is required to act.",
+    "drawer": "A short opacity and 6 px entry transition; closing is immediate.",
+    "popovers": "Mounted when requested, with no delayed exit.",
+    "streamingCursor": "Static; actual output and task state provide activity feedback.",
+    "reducedMotion": "System preference disables animations and transitions.",
+    "excluded": ["New animation dependencies", "Background blur", "Large page motion", "Continuous decorative animation", "Panel width transitions"]
+  },
+  "interfaces": {
+    "publicHttpRpcAndDatabase": "Unchanged",
+    "newDependencies": false,
+    "internalHook": "usePanelResize({ width, onResize, onResizeEnd?, enabled? })",
+    "preserved": ["Permission checks and one-time approvals", "Unsaved task and artifact contents", "Existing settings URLs", "Keyboard width controls", "Project material selection"]
+  },
+  "verification": {
+    "browser": {
+      "data": "Isolated local fixtures; no private account content or credentials are included.",
+      "checksPassed": [
+        "Workspace and permission popovers are mutually exclusive; Escape closes and returns focus.",
+        "History preserves a typed filter across close and reopen; selecting a task does not reopen history=1.",
+        "Switching tasks from the global sidebar closes history.",
+        "Rename closes the task menu before opening its dialog; cancel remains functional.",
+        "Add files reaches the local chooser in two clicks when no project materials are present.",
+        "A generated Markdown attachment uploads, saves, reopens and renders.",
+        "A 600-read task reaches a genuine write approval; approving once completes it and closes the dialog.",
+        "Keyboard widths 420 and 640 px, plus a pointer drag from 440 to 560 px, are reflected by the separator.",
+        "At a 1000 px viewport the reading pane has no horizontal page overflow; Return to task reveals the composer and the explicit Results action still selects results.",
+        "Expanded tool arrows rotate 90 degrees; details remain available.",
+        "Dark mode renders the task surface correctly.",
+        "Reduced-motion emulation produces no drawer animation and a zero-second button transition; emulation is reset afterward."
+      ],
+      "observations": {
+        "closedContextPopoverNodes": 0,
+        "openContextPopoverNodes": 1,
+        "idleActiveAnimations": 0,
+        "closedToolBorderPx": 0,
+        "progressConnectorPseudoContent": "none"
+      }
+    },
+    "unitResizeCheck": "70 pointer moves in one frame produce one width update; release before that frame commits the final coordinate and cancels the stale callback.",
+    "commands": [
+      { "directory": ".", "command": "npm run typecheck && npm test && npm run build", "result": "passed", "webTests": 663, "desktopTests": 384, "runtimeScriptTests": 29 },
+      { "directory": ".", "command": "test -z \"$(gofmt -l cmd internal)\" && go vet ./... && go test ./... && go build ./...", "result": "passed; unchanged Go source used the normal test cache" },
+      { "directory": "worker", "command": "uv sync && uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest", "result": "passed", "workerTests": 243 },
+      { "directory": ".", "command": "make e2e", "result": "passed; real worker, tool invocation, approval and persisted completion" }
+    ],
+    "ci": "Checked separately after pushing this change; this file records pre-publication validation."
+  },
+  "limits": [
+    "Transition durations are implementation values, not measurements of total interaction latency.",
+    "The checks establish interaction correctness and reduced unnecessary work, not a quantified startup, FPS, memory or energy improvement.",
+    "Screenshots and focused keyboard checks do not establish complete accessibility conformance."
+  ]
+}

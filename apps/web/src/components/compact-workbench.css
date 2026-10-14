@@ -4,19 +4,18 @@
 .task-progress .progress-summary .btn { margin-left: 4px; }
 .execution-trail { display: flex; gap: 0; overflow-x: auto; list-style: none; padding: 0; margin: 10px 0 0; }
 .execution-trail li { display: flex; position: relative; align-items: flex-start; flex: 1; min-width: 105px; gap: 7px; padding-right: 15px; }
-.execution-trail li:not(:last-child)::after { content: ""; position: absolute; left: 24px; right: 4px; top: 11px; height: 1px; background: var(--border); }
-.trail-marker { display: grid; place-items: center; flex-shrink: 0; width: 23px; height: 23px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); position: relative; z-index: 1; }
-.trail-content { display: grid; gap: 3px; min-width: 0; padding-top: 3px; background: var(--surface-2); position: relative; z-index: 1; }
+.trail-marker { display: grid; place-items: center; flex-shrink: 0; width: 23px; height: 23px; border-radius: 6px; background: transparent; color: var(--text-2); }
+.trail-content { display: grid; gap: 3px; min-width: 0; padding-top: 3px; }
 .trail-name { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trail-content small { color: var(--text-2); font-size: 10px; }
 li[data-state="done"] .trail-marker { color: var(--ok); }
-li[data-state="error"] .trail-marker { color: var(--danger); border-color: var(--danger); }
-li[data-state="running"] .trail-marker { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+li[data-state="error"] .trail-marker { color: var(--danger); background: var(--danger-soft); }
+li[data-state="running"] .trail-marker { color: var(--accent); background: var(--accent-soft); }
 li[data-state="approval"] .trail-marker { color: var(--warn); background: var(--warn-soft); }
 .task-progress .progress-details { margin: 9px 0 0; }
 .progress-details>summary { display: flex; align-items: center; gap: 5px; list-style: none; font-size: 11px; }
 .progress-details>summary::-webkit-details-marker { display: none; }
-.progress-details>summary>svg { transition: transform 180ms ease; }
+.progress-details>summary>svg { transition: transform var(--motion-feedback) ease-out; }
 .progress-details[open]>summary>svg { transform: rotate(90deg); }
 .task-progress .progress-details[open] { max-height: 230px; }
 .progress-details .execution-history { display: grid; gap: 5px; }
@@ -27,7 +26,7 @@ li[data-state="approval"] .trail-marker { color: var(--warn); background: var(--
 .tool-history>summary { cursor: pointer; font-size: 12px; }
 .tool-history-pages { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; font-size: 11px; }
 .task-context.compact-context { gap: 5px; padding: 6px 0; }
-.compact-context>details>summary { border: 1px solid var(--border); border-radius: 7px; padding: 5px 7px; max-width: 220px; min-height: 28px; transition: background 180ms ease, border-color 180ms ease; }
+.compact-context>details>summary { border: 1px solid var(--border); border-radius: 7px; padding: 5px 7px; max-width: 220px; min-height: 28px; transition: background-color var(--motion-feedback), border-color var(--motion-feedback); }
 .compact-context>details>summary:hover, .compact-context>details[open]>summary { border-color: var(--accent); background: var(--accent-soft); }
 .compact-context .context-model { opacity: 1; max-width: 145px; }
 .compact-context .context-directory { max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -47,7 +46,7 @@ li[data-state="approval"] .trail-marker { color: var(--warn); background: var(--
 .draft-state-line>.draft-state-icon { display: inline-flex; }
 .draft-save-state[data-state="saved"] .draft-state-icon { color: var(--ok); }
 .draft-save-state[data-state="error"] .draft-state-icon, .draft-save-state[data-state="conflict"] .draft-state-icon { color: var(--danger); }
-.draft-state-tag { border-left: 1px solid var(--border); padding-left: 6px; }
+.draft-state-tag { color: var(--text-2); }
 .draft-explainer { margin-left: auto; }
 .draft-explainer[open] { flex-basis: 100%; margin-left: 0; }
 .draft-explainer p { line-height: 1.6; margin: 7px 0; }

@@ -4,6 +4,7 @@
 import { forwardRef, useEffect, useLayoutEffect, useImperativeHandle, useRef, useMemo, useCallback, useState, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Spinner } from "../../components/ui";
+import { Icon } from "../../components/Icon";
 import { formatMessageTime } from "../../lib/time";
 import { prettyJson, previewJson } from "../../lib/json";
 import type { Attachment, Message, Part, RunStatus, ToolCall, ToolResult } from "../../api/types";
@@ -167,6 +168,7 @@ export const ToolCallCard = memo(function ToolCallCard({ call, live, persistedRe
   return (
     <details className="tool-card" onToggle={event => setOpen(event.currentTarget.open)}>
       <summary>
+        <Icon name="chevron" size={13} />
         <Badge tone={done ? (result.is_error ? "bad" : "ok") : "warn"}>{done ? (result.is_error ? t("chat.toolError") : t("chat.toolDone")) : t(historical ? "work.noStepResult" : "chat.toolRunning")}</Badge>
         <code>{call.name || t("common.unknown")}</code>
         {done && result.truncated ? <Badge tone="warn">{t("chat.resultTruncated")}</Badge> : null}
@@ -207,6 +209,7 @@ function ToolResultCard({ result }: { result: ToolResult }) {
   return (
     <details className="tool-card" onToggle={event => setOpen(event.currentTarget.open)}>
       <summary>
+        <Icon name="chevron" size={13} />
         <Badge tone={result.is_error ? "bad" : "ok"}>{result.is_error ? t("chat.toolError") : t("chat.toolResult")}</Badge>
         <code>{result.call_id}</code>
         {result.truncated ? <Badge tone="warn">{t("chat.resultTruncated")}</Badge> : null}

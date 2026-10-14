@@ -27,6 +27,8 @@
   --shadow: 0 8px 24px rgba(16, 24, 40, 0.1);
   --nav-w: 200px;
   --header-h: 60px;
+  --motion-feedback: 80ms;
+  --motion-state: 120ms;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -664,9 +666,9 @@ dialog.project-form-dialog { width: min(520px, calc(100vw - 32px)); }
 
 .tool-card {
   margin: 6px 0;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: transparent;
   font-size: 12.5px;
 }
 
@@ -676,11 +678,22 @@ dialog.project-form-dialog { width: min(520px, calc(100vw - 32px)); }
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 32px;
+  border-radius: var(--radius-sm);
 }
+
+.tool-card > summary:hover { background: var(--surface-2); }
+.tool-card[open] { background: var(--surface-2); }
+.tool-card > summary .badge { border: 0; background: transparent; padding: 0; font-size: 11px; }
+.tool-card > summary .badge.ok { color: color-mix(in srgb, var(--ok) 80%, var(--text)); }
+.tool-card > summary .badge.warn { color: color-mix(in srgb, var(--warn) 80%, var(--text)); }
+.tool-card > summary .status-item { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tool-card > summary > svg { color: var(--text-2); transition: transform var(--motion-feedback) ease-out; }
+.tool-card[open] > summary > svg { transform: rotate(90deg); }
 
 .tool-card pre {
   padding: 6px 9px;
-  border-top: 1px solid var(--border);
+  border-top: 0;
   max-height: 240px;
   overflow: auto;
 }
@@ -703,14 +716,7 @@ dialog.project-form-dialog { width: min(520px, calc(100vw - 32px)); }
   height: 14px;
   background: var(--text-2);
   vertical-align: text-bottom;
-  /* 首次出现时提示活动，随后保持可见，长任务不持续占用动画帧。 */
-  animation: blink 1s steps(2) 4;
-}
-
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
+  /* 流式文字和运行状态已提供反馈，光标保持静止。 */
 }
 
 .composer {
@@ -781,7 +787,8 @@ button { touch-action: manipulation; }
 .muted { color: var(--text-2); font-size: 12px; }
 .eyebrow { display: block; font-size: 11px; letter-spacing: .09em; color: var(--text-2); }
 kbd { font: 11px var(--font); color: var(--text-2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; white-space: nowrap; }
-.btn { min-height: 34px; transition: background 180ms, border-color 180ms; }
+.btn { min-height: 34px; transition: background-color var(--motion-feedback), border-color var(--motion-feedback); }
+.btn:active:not(:disabled) { opacity: .78; transition-duration: 0s; }
 .btn.sm { min-height: 29px; }
 .btn.selected { color: var(--text); background: var(--surface-3); border-color: transparent; }
 .input, .select { min-height: 36px; }
@@ -851,8 +858,10 @@ kbd { font: 11px var(--font); color: var(--text-2); border: 1px solid var(--bord
 .recent-empty { padding: 23px 0; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 14px; color: var(--text-2); font-size: 13px; }
 .start-footer { max-width: 770px; margin: 30px auto 0; display: flex; justify-content: space-between; gap: 10px; font-size: 10px; color: var(--text-2); }
 .history-scrim { position: absolute; inset: 0; border: 0; background: #15334e22; z-index: 19; cursor: default; }
-.history-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(330px, 100%); z-index: 20; box-shadow: var(--shadow); transform: translateX(-110%); transition: transform 180ms; }
-.history-drawer.open { transform: translateX(0); }
+.history-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(330px, 100%); z-index: 20; box-shadow: var(--shadow); }
+/* 挂载后立即可操作；只有短进入反馈，关闭不等待退场动画。 */
+.history-drawer.open { animation: reveal-panel var(--motion-state) ease-out; }
+@keyframes reveal-panel { from { opacity: .7; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
 .history-drawer .side-head { padding: 18px; }
 .history-drawer h2 { margin: 0 auto 0 0; font-size: 16px; }
 .history-filters { padding: 14px; display: grid; gap: 9px; }
@@ -865,7 +874,8 @@ kbd { font: 11px var(--font); color: var(--text-2); border: 1px solid var(--bord
 .workspace-tabs { display: none; }
 .conversation-view { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
 .conversation-view>.banner { margin: 12px; }
-.task-progress { padding: 13px 26px; border: 0; background: var(--surface-2); }
+.task-progress { padding: 9px 26px; border: 0; background: var(--surface); }
+.task-progress.interrupted .progress-symbol { color: var(--danger); }
 .progress-summary { display: flex; align-items: center; gap: 9px; font-size: 12px; line-height: 1.6; }
 .progress-symbol { color: var(--accent); display: flex; align-items: center; }
 .progress-symbol.complete { color: var(--ok); }
