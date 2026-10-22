@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    actor U as 用户/UI(SSE)
+    participant S as session.Service
+    participant A as admission(队列/执行槽)
+    participant E as engine.Supervisor
+    participant C as engine.conn(JSON-RPC)
+    participant W as worker(loop.py)
+    participant B as event.Bus
+    participant M as metrics.Hub
+    participant P as server.pump(SSE)
+
+    Note over U,M: 方向一：可测量性补齐（先于任何优化）
+    Note over S,M: ① 排队延迟 run_queue_wait_seconds
+    U->>S: Send(用户消息)
+    S->>A: admit(ar, start) 记录 enqueuedAt
+    A-->>S: 拿到执行槽 / 排队
+    S->>E: StartRun(rr, sink=handleEvent)
+
+    Note over W,M: ② 事件首字节 run_event_first_byte_seconds
+    W->>C: run.event(text.delta) 经单连接
+    C->>E: dispatchEvent → deliver(rs, ev)
+    E->>M: ObserveFirstByte(worker emit → sink 投递)
+    E->>S: deliver → sink = handleEvent(ar, ev)
+    S->>M: ObserveEventPublish(handleEvent 持 ar.mu 全程)
+
+    Note over S,B: ③ 总线发布 Bus.Publish（全局 b.mu）
+    S->>B: publishRun(ev)
+    B->>B: 持 b.mu 扇出到各订阅 sub.C
+    B->>M: ObserveBusPublish(扇出耗时)
+    B-->>P: ev 入 sub.C(慢订阅不阻塞发布者)
+
+    Note over P,U: ④ SSE 批次 sse_pump_batch
+    P->>P: pump 批量 sseBatch 条后 flush
+    P-->>U: 文本增量上屏
+
+    Note over U,M: 方向二/三：收到指标后的低风险优化验证
+    Note over A,M: 方向三：调度 —— 用 run_queue_wait P95 验证优先级/久候提升有效
+    Note over W,M: 方向二：worker 单连接吞吐 —— 用 worker_rpc_events_total / 首字节 P99 验证
