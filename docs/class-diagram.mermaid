@@ -1,0 +1,103 @@
+classDiagram
+    direction TB
+
+    %% ===== 现状：已扎实、主体不改动 =====
+    class Service["session.Service (现状)"] {
+        -mu sync.Mutex
+        -slots map[string]bool
+        -queue []admittedRun
+        +admit(ar, start)
+        +takeReadyLocked() []admittedRun
+        +handleEvent(ar, ev)
+    }
+    class admittedRun["admittedRun (现状)"] {
+        +run *activeRun
+        +start func() error
+        +enqueuedAt time.Time
+    }
+    class Supervisor["engine.Supervisor (现状)"] {
+        -conn *conn
+        -runs map[string]*runState
+        +StartRun(ctx, req, sink)
+        +dispatchEvent(runID, ev)
+        +deliver(rs, ev)
+    }
+    class runState["runState (现状)"] {
+        +sink EventSink
+        +deliverMu sync.Mutex
+    }
+    class conn["engine.conn (现状)"] {
+        -wmu sync.Mutex
+        +readLoop()
+    }
+    class Bus["event.Bus (热点)"] {
+        -mu sync.Mutex
+        +Publish(ev) Event
+        +Subscribe(ctx, since, buffer, filter) *Subscription
+    }
+    class Subscription["Subscription (现状)"] {
+        +C chan Event
+        -lost bool
+    }
+    class Pump["server.pump (SSE)"] {
+        -sseBatch int
+        +pump(ctx, st, sub, last, keep)
+    }
+
+    %% ===== 新增（收敛到 leaf 层，零 archcheck 改动）：直接注入 observability =====
+    class Registry["observability.Registry (复用/注入)"] {
+        +Counter(name, help) *Counter
+        +Gauge(name, help) *Gauge
+        +Histogram(name, help, buckets) *Histogram
+        +Snapshot() Snapshot
+    }
+    class Histogram["observability.Histogram"] {
+        +Observe(v float64)
+        +ObserveDuration(d)
+    }
+    class Counter["observability.Counter"] {
+        +Inc()
+        +Add(n int64)
+    }
+
+    %% 各包在自己的 metrics.go 里注册并持有指标句柄（属于本包，不新增 internal/metrics）
+    class SessionMetrics["session/metrics.go (新增·本包内)"] {
+        +RunQueueWait *Histogram
+        +RunEventPublish *Histogram
+    }
+    class EngineMetrics["engine/metrics.go (新增·本包内)"] {
+        +RunEventFirstByte *Histogram
+        +WorkerEvents *Counter
+    }
+
+    class Service2["session.Service (接入埋点)"] {
+        +metrics *Registry
+        +ObserveQueueWait(d)
+        +ObserveEventPublish(d)
+    }
+    class Supervisor2["engine.Supervisor (接入埋点)"] {
+        +metrics *Registry
+        +ObserveFirstByte(d)
+        +ObserveWorkerEvents()
+    }
+    class ServerMetrics["server 路由 /api/v1/metrics (新增)"] {
+        +handleMetrics() 读 Registry.Snapshot()
+    }
+
+    %% ===== 关系 =====
+    Service --> admittedRun : 队列/执行槽
+    Supervisor --> runState : 在途运行
+    Supervisor --> conn : 单连接
+    runState ..|> EventSink : sink 回调
+    Bus --> Subscription : 订阅扇出
+    Pump ..> Subscription : 消费 sub.C
+
+    Service2 --> SessionMetrics : 注册 M1/M3 指标
+    Supervisor2 --> EngineMetrics : 注册 M2/M5 指标
+    SessionMetrics --> Registry : import observability(leaf)
+    EngineMetrics --> Registry : import observability(leaf)
+    ServerMetrics --> Registry : Snapshot 暴露
+    Registry --> Histogram
+    Registry --> Counter
+
+    note for Registry "observability 是 leaf；session/engine/server 均可 import(向内依赖)，不新增 internal/metrics 包，archcheck 不受影响"
